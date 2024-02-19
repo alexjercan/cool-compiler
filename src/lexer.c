@@ -1,8 +1,7 @@
 #include "lexer.h"
 #include <stdlib.h>
 #include <string.h>
-#define DSH_STATIC
-#define DS_IMPLEMENTATION
+#define DS_SS_IMPLEMENTATION
 #include "ds.h"
 
 static int is_lower_letter(char ch) { return 'a' <= ch && ch <= 'z'; }

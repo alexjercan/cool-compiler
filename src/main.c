@@ -21,8 +21,7 @@ int read_file(const char *filename, char **buffer) {
         file = stdin;
     }
 
-    ds_string_builder sb;
-    ds_string_builder_init(&sb);
+    ds_string_builder sb = { .items = NULL, .count = 0, .capacity = 0 };
     char line[LINE_MAX];
     while (fgets(line, sizeof(line), file) != NULL) {
         if (ds_string_builder_append(&sb, line) != 0) {
