@@ -1,0 +1,23 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        x
+        Int
+      Int
+      let
+        local
+          x
+          Int
+          +
+            x
+            1
+        local
+          y
+          Int
+          +
+            x
+            1
+        x

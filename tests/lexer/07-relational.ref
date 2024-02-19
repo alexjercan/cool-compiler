@@ -1,0 +1,23 @@
+program
+  class
+    A
+    attribute
+      n
+      Int
+    attribute
+      b
+      Bool
+      not
+        <=
+          2
+          n
+    attribute
+      c
+      Bool
+      =
+        <
+          2
+          +
+            n
+            1
+        false

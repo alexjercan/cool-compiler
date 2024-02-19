@@ -1,0 +1,200 @@
+program
+  class
+    List
+    IO
+    attribute
+      elem
+      Object
+    attribute
+      next
+      List
+    method
+      init
+      formal
+        e
+        Object
+      formal
+        n
+        List
+      List
+      block
+        <-
+          elem
+          e
+        <-
+          next
+          n
+        self
+    method
+      print
+      IO
+      let
+        local
+          str
+          String
+          case
+            elem
+            case branch
+              s
+              String
+              s
+            case branch
+              n
+              Int
+              .
+                new
+                  A2I
+                i2a
+                n
+            case branch
+              o
+              Object
+              block
+                implicit dispatch
+                  abort
+                
+        block
+          implicit dispatch
+            out_string
+            .
+              str
+              concat
+               
+          if
+            isvoid
+              next
+            implicit dispatch
+              out_string
+              
+
+            .
+              next
+              print
+  class
+    Main
+    IO
+    method
+      main
+      Object
+      block
+        let
+          local
+            x
+            Int
+            0
+          local
+            y
+            String
+            !
+          local
+            z
+            Int
+            +
+              x
+              2
+          local
+            empty
+            List
+          local
+            list
+            List
+            .
+              new
+                List
+              init
+              x
+              .
+                new
+                  List
+                init
+                y
+                .
+                  new
+                    List
+                  init
+                  z
+                  empty
+          .
+            list
+            print
+        let
+          local
+            n
+            Int
+            .
+              implicit dispatch
+                out_string
+                Calculăm factorial pentru: 
+              in_int
+          block
+            .
+              .
+                implicit dispatch
+                  out_string
+                  Factorial recursiv: 
+                out_int
+                implicit dispatch
+                  fact_rec
+                  n
+              out_string
+              
+
+            .
+              .
+                implicit dispatch
+                  out_string
+                  Factorial iterativ: 
+                out_int
+                implicit dispatch
+                  fact_iter
+                  n
+              out_string
+              
+
+    method
+      fact_rec
+      formal
+        n
+        Int
+      Int
+      if
+        =
+          n
+          0
+        1
+        *
+          n
+          implicit dispatch
+            fact_rec
+            -
+              n
+              1
+    method
+      fact_iter
+      formal
+        n
+        Int
+      Int
+      let
+        local
+          res
+          Int
+          1
+        block
+          while
+            not
+              =
+                n
+                0
+            block
+              <-
+                res
+                *
+                  res
+                  n
+              <-
+                n
+                -
+                  n
+                  1
+          res

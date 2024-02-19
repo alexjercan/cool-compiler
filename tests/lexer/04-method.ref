@@ -1,0 +1,27 @@
+program
+  class
+    A
+    attribute
+      x
+      SELF_TYPE
+    method
+      f
+      Object
+      0
+  class
+    B
+    A
+    attribute
+      y
+      Int
+      0
+    method
+      g
+      formal
+        x
+        Int
+      formal
+        y
+        Bool
+      Int
+      0

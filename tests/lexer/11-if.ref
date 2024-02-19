@@ -1,0 +1,17 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        x
+        Int
+      Int
+      if
+        <=
+          x
+          5
+        x
+        +
+          x
+          1
