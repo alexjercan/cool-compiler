@@ -142,11 +142,13 @@ static void *ds_realloc(void *ptr, unsigned int old_sz, unsigned int new_sz) {
 // The return_defer macro is a simple way to return a value and jump to a label
 // to execute cleanup code. It is similar to the defer statement in Go.
 
+#ifndef return_defer
 #define return_defer(code)                                                     \
     do {                                                                       \
         result = code;                                                         \
         goto defer;                                                            \
     } while (0)
+#endif // return_defer
 
 // DYNAMIC ARRAY
 //
