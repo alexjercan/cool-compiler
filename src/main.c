@@ -21,7 +21,7 @@ int read_file(const char *filename, char **buffer) {
         file = stdin;
     }
 
-    ds_string_builder sb = { .items = NULL, .count = 0, .capacity = 0 };
+    ds_string_builder sb = {.items = NULL, .count = 0, .capacity = 0};
     char line[LINE_MAX];
     while (fgets(line, sizeof(line), file) != NULL) {
         if (ds_string_builder_append(&sb, line) != 0) {
@@ -45,23 +45,29 @@ defer:
 int main(int argc, char **argv) {
     int result = 0;
 
-    struct argparse_parser *parser = argparse_new("coolc", "A cool compiler", "0.1.0");
+    struct argparse_parser *parser =
+        argparse_new("coolc", "A cool compiler", "0.1.0");
 
-    argparse_add_argument(parser, ((struct argparse_options) {
-        .short_name = 'l',
-        .long_name = "lex",
-        .description = "Lex the input file",
-        .type = ARGUMENT_TYPE_FLAG,
-        .required = 0
-    }));
+    argparse_add_argument(
+        parser, ((struct argparse_options){.short_name = 'l',
+                                           .long_name = "lex",
+                                           .description = "Lex the input file",
+                                           .type = ARGUMENT_TYPE_FLAG,
+                                           .required = 0}));
 
-    argparse_add_argument(parser, ((struct argparse_options) {
-        .short_name = 'i',
-        .long_name = "input",
-        .description = "Input file",
-        .type = ARGUMENT_TYPE_POSITIONAL,
-        .required = 1
-    }));
+    argparse_add_argument(
+        parser, ((struct argparse_options){.short_name = 'i',
+                                           .long_name = "input",
+                                           .description = "Input file",
+                                           .type = ARGUMENT_TYPE_POSITIONAL,
+                                           .required = 0}));
+
+    argparse_add_argument(
+        parser, ((struct argparse_options){.short_name = 'o',
+                                           .long_name = "output",
+                                           .description = "Output file",
+                                           .type = ARGUMENT_TYPE_VALUE,
+                                           .required = 0}));
 
     argparse_parse(parser, argc, argv);
 
@@ -79,6 +85,7 @@ int main(int argc, char **argv) {
 
 defer:
     argparse_free(parser);
-    if (buffer != NULL) free(buffer);
+    if (buffer != NULL)
+        free(buffer);
     return result;
 }
