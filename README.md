@@ -10,3 +10,9 @@ written in C.
 make
 ./build/main
 ```
+
+## Resources
+
+- [Manual](https://theory.stanford.edu/~aiken/software/cool/cool-manual.pdf)
+- [HTML Manual](https://dijkstra.eecs.umich.edu/eecs483/crm/One%20Page.html)
+- [Downloads](https://web.eecs.umich.edu/~weimerw/2015-4610/cool.html)
