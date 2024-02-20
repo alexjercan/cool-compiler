@@ -1,23 +1,35 @@
-program
-  class
-    A
-    method
-      f
-      formal
-        x
-        Int
-      Int
-      let
-        local
-          x
-          Int
-          +
-            x
-            1
-        local
-          y
-          Int
-          +
-            x
-            1
-        x
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(f)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Int)
+LBRACE
+LET
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+IDENT(x)
+PLUS
+INT_LITERAL(1)
+COMMA
+IDENT(y)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+IDENT(x)
+PLUS
+INT_LITERAL(1)
+IN
+IDENT(x)
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

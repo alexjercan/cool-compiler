@@ -1,16 +1,27 @@
-program
-  class
-    A
-    method
-      f
-      formal
-        x
-        Int
-      String
-      block
-        <-
-          x
-          +
-            x
-            1
-        Done!
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(f)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(String)
+LBRACE
+LBRACE
+IDENT(x)
+ASSIGN
+IDENT(x)
+PLUS
+INT_LITERAL(1)
+SEMICOLON
+STRING_LITERAL(Done!)
+SEMICOLON
+RBRACE
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

@@ -1,27 +1,48 @@
-program
-  class
-    A
-    attribute
-      x
-      SELF_TYPE
-    method
-      f
-      Object
-      0
-  class
-    B
-    A
-    attribute
-      y
-      Int
-      0
-    method
-      g
-      formal
-        x
-        Int
-      formal
-        y
-        Bool
-      Int
-      0
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(x)
+COLON
+CLASS_NAME(SELF_TYPE)
+SEMICOLON
+IDENT(f)
+LPAREN
+RPAREN
+COLON
+CLASS_NAME(Object)
+LBRACE
+INT_LITERAL(0)
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+CLASS
+CLASS_NAME(B)
+INHERITS
+CLASS_NAME(A)
+LBRACE
+IDENT(y)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+INT_LITERAL(0)
+SEMICOLON
+IDENT(g)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+COMMA
+IDENT(y)
+COLON
+CLASS_NAME(Bool)
+RPAREN
+COLON
+CLASS_NAME(Int)
+LBRACE
+INT_LITERAL(0)
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

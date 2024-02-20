@@ -1,23 +1,31 @@
-program
-  class
-    A
-    attribute
-      n
-      Int
-    attribute
-      b
-      Bool
-      not
-        <=
-          2
-          n
-    attribute
-      c
-      Bool
-      =
-        <
-          2
-          +
-            n
-            1
-        false
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(n)
+COLON
+CLASS_NAME(Int)
+SEMICOLON
+IDENT(b)
+COLON
+CLASS_NAME(Bool)
+ASSIGN
+NOT
+INT_LITERAL(2)
+LESS_THAN_EQ
+IDENT(n)
+SEMICOLON
+IDENT(c)
+COLON
+CLASS_NAME(Bool)
+ASSIGN
+INT_LITERAL(2)
+LESS_THAN
+IDENT(n)
+PLUS
+INT_LITERAL(1)
+EQUAL
+BOOL_LITERAL(false)
+SEMICOLON
+RBRACE
+SEMICOLON
+END

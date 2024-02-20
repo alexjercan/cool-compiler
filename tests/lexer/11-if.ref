@@ -1,17 +1,28 @@
-program
-  class
-    A
-    method
-      f
-      formal
-        x
-        Int
-      Int
-      if
-        <=
-          x
-          5
-        x
-        +
-          x
-          1
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(f)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Int)
+LBRACE
+IF
+IDENT(x)
+LESS_THAN_EQ
+INT_LITERAL(5)
+THEN
+IDENT(x)
+ELSE
+IDENT(x)
+PLUS
+INT_LITERAL(1)
+FI
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

@@ -1,10 +1,18 @@
-program
-  class
-    A
-    method
-      f
-      Bool
-      not
-        isvoid
-          new
-            A
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(f)
+LPAREN
+RPAREN
+COLON
+CLASS_NAME(Bool)
+LBRACE
+NOT
+ISVOID
+NEW
+CLASS_NAME(A)
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

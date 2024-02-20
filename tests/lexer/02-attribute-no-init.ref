@@ -1,12 +1,21 @@
-program
-  class
-    A
-    attribute
-      x
-      SELF_TYPE
-  class
-    B
-    A
-    attribute
-      y
-      Int
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(x)
+COLON
+CLASS_NAME(SELF_TYPE)
+SEMICOLON
+RBRACE
+SEMICOLON
+CLASS
+CLASS_NAME(B)
+INHERITS
+CLASS_NAME(A)
+LBRACE
+IDENT(y)
+COLON
+CLASS_NAME(Int)
+SEMICOLON
+RBRACE
+SEMICOLON
+END

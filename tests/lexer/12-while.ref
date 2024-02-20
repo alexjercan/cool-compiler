@@ -1,18 +1,28 @@
-program
-  class
-    A
-    method
-      f
-      formal
-        x
-        Int
-      Object
-      while
-        <
-          0
-          x
-        <-
-          x
-          -
-            x
-            1
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(f)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Object)
+LBRACE
+WHILE
+INT_LITERAL(0)
+LESS_THAN
+IDENT(x)
+LOOP
+IDENT(x)
+ASSIGN
+IDENT(x)
+MINUS
+INT_LITERAL(1)
+POOL
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

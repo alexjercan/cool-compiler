@@ -1,51 +1,79 @@
-program
-  class
-    A
-    method
-      f
-      formal
-        x
-        Int
-      Bool
-      implicit dispatch
-        f
-        +
-          x
-          1
-    method
-      g
-      formal
-        x
-        Int
-      formal
-        y
-        Int
-      Bool
-      .
-        self
-        g
-        +
-          x
-          1
-        +
-          y
-          1
-    method
-      h
-      formal
-        x
-        Int
-      A
-      .
-        .
-          new
-            A
-          A
-          h
-          +
-            x
-            1
-        h
-        +
-          x
-          2
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(f)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Bool)
+LBRACE
+IDENT(f)
+LPAREN
+IDENT(x)
+PLUS
+INT_LITERAL(1)
+RPAREN
+RBRACE
+SEMICOLON
+IDENT(g)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+COMMA
+IDENT(y)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Bool)
+LBRACE
+IDENT(self)
+DOT
+IDENT(g)
+LPAREN
+IDENT(x)
+PLUS
+INT_LITERAL(1)
+COMMA
+IDENT(y)
+PLUS
+INT_LITERAL(1)
+RPAREN
+RBRACE
+SEMICOLON
+IDENT(h)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(A)
+LBRACE
+NEW
+CLASS_NAME(A)
+AT
+CLASS_NAME(A)
+DOT
+IDENT(h)
+LPAREN
+IDENT(x)
+PLUS
+INT_LITERAL(1)
+RPAREN
+DOT
+IDENT(h)
+LPAREN
+IDENT(x)
+PLUS
+INT_LITERAL(2)
+RPAREN
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

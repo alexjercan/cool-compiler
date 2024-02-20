@@ -1,19 +1,30 @@
-program
-  class
-    A
-    attribute
-      n
-      Int
-      0
-    attribute
-      s
-      String
-      abc
-    attribute
-      b
-      Bool
-      false
-    attribute
-      c
-      Bool
-      b
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(n)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+INT_LITERAL(0)
+SEMICOLON
+IDENT(s)
+COLON
+CLASS_NAME(String)
+ASSIGN
+STRING_LITERAL(abc)
+SEMICOLON
+IDENT(b)
+COLON
+CLASS_NAME(Bool)
+ASSIGN
+BOOL_LITERAL(false)
+SEMICOLON
+IDENT(c)
+COLON
+CLASS_NAME(Bool)
+ASSIGN
+IDENT(b)
+SEMICOLON
+RBRACE
+SEMICOLON
+END

@@ -1,29 +1,44 @@
-program
-  class
-    A
-    attribute
-      x
-      Int
-    method
-      f
-      formal
-        y
-        Int
-      Int
-      <-
-        x
-        y
-    method
-      f
-      formal
-        y
-        Int
-      formal
-        z
-        Int
-      Int
-      <-
-        x
-        <-
-          y
-          z
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+SEMICOLON
+IDENT(f)
+LPAREN
+IDENT(y)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Int)
+LBRACE
+IDENT(x)
+ASSIGN
+IDENT(y)
+RBRACE
+SEMICOLON
+IDENT(f)
+LPAREN
+IDENT(y)
+COLON
+CLASS_NAME(Int)
+COMMA
+IDENT(z)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Int)
+LBRACE
+IDENT(x)
+ASSIGN
+IDENT(y)
+ASSIGN
+IDENT(z)
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

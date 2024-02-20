@@ -1,23 +1,39 @@
-program
-  class
-    A
-    method
-      f
-      formal
-        x
-        Object
-      String
-      case
-        x
-        case branch
-          s
-          String
-          String
-        case branch
-          i
-          Int
-          Int
-        case branch
-          o
-          Object
-          Oops
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(f)
+LPAREN
+IDENT(x)
+COLON
+CLASS_NAME(Object)
+RPAREN
+COLON
+CLASS_NAME(String)
+LBRACE
+CASE
+IDENT(x)
+OF
+IDENT(s)
+COLON
+CLASS_NAME(String)
+ARROW
+STRING_LITERAL(String)
+SEMICOLON
+IDENT(i)
+COLON
+CLASS_NAME(Int)
+ARROW
+STRING_LITERAL(Int)
+SEMICOLON
+IDENT(o)
+COLON
+CLASS_NAME(Object)
+ARROW
+STRING_LITERAL(Oops)
+SEMICOLON
+ESAC
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

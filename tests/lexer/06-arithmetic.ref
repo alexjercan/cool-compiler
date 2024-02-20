@@ -1,18 +1,27 @@
-program
-  class
-    A
-    attribute
-      n
-      Int
-      +
-        1
-        /
-          *
-            2
-            +
-              3
-              4
-          -
-            5
-            ~
-              6
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(n)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+INT_LITERAL(1)
+PLUS
+INT_LITERAL(2)
+MULTIPLY
+LPAREN
+INT_LITERAL(3)
+PLUS
+INT_LITERAL(4)
+RPAREN
+DIVIDE
+LPAREN
+INT_LITERAL(5)
+MINUS
+TILDE
+INT_LITERAL(6)
+RPAREN
+SEMICOLON
+RBRACE
+SEMICOLON
+END
