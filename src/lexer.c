@@ -144,9 +144,27 @@ const char *token_type_to_string(enum token_type type) {
     }
 }
 
+enum error_type {
+    NO_ERROR,
+    INVALID_CHAR,
+};
+
+const char *error_type_to_string(enum error_type type) {
+    switch (type) {
+    case NO_ERROR:
+        return "";
+    case INVALID_CHAR:
+        return "Invalid character";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 struct token {
         enum token_type type;
         char *literal;
+        unsigned int pos;
+        enum error_type error;
 };
 
 static struct token literal_to_token(char *literal) {
@@ -366,10 +384,31 @@ static struct token lexer_next_token(struct lexer *l) {
         ds_string_slice_to_owned(&slice, &literal);
         return (struct token){.type = INT_LITERAL, .literal = literal};
     } else {
+        ds_string_slice slice = {.str = l->buffer + l->pos, .len = 1};
+        char *literal = NULL;
+        ds_string_slice_to_owned(&slice, &literal);
+        struct token il = {.type = ILLEGAL,
+                           .literal = literal,
+                           .pos = l->pos,
+                           .error = INVALID_CHAR};
+
         lexer_read_char(l);
-        return (struct token){.type = ILLEGAL, .literal = NULL};
+        return il;
     }
 };
+
+void pos_to_lc(char *buffer, unsigned int pos, unsigned int *line, unsigned int *col) {
+    *line = 1;
+    *col = 1;
+    for (unsigned int i = 0; i < pos; i++) {
+        if (buffer[i] == '\n') {
+            *line += 1;
+            *col = 1;
+        } else {
+            *col += 1;
+        }
+    }
+}
 
 int run_lexer(char *buffer) {
     struct lexer l;
@@ -379,11 +418,17 @@ int run_lexer(char *buffer) {
 
     do {
         tok = lexer_next_token(&l);
-        printf("%s", token_type_to_string(tok.type));
-        if (tok.literal != NULL) {
-            printf("(%s)", tok.literal);
+        if (tok.type == ILLEGAL) {
+            unsigned int line, col;
+            pos_to_lc(buffer, tok.pos, &line, &col);
+            printf("line %d:%d, Lexical error: %s: %s\n", line, col, error_type_to_string(tok.error), tok.literal);
+        } else {
+            printf("%s", token_type_to_string(tok.type));
+            if (tok.literal != NULL) {
+                printf("(%s)", tok.literal);
+            }
+            printf("\n");
         }
-        printf("\n");
 
         DS_FREE(tok.literal);
     } while (tok.type != END);
