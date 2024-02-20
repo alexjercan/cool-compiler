@@ -17,6 +17,8 @@
 //  implementation of the string slice utility
 //  - DS_DA_IMPLEMENTATION: Define this macro in one source file to include the
 //  implementation of the dynamic array data structure
+//  - DS_LL_IMPLEMENTATION: Define this macro in one source file to include the
+//  implementation of the linked list data structure
 //
 // MEMORY MANAGEMENT
 //
@@ -243,6 +245,15 @@ DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
                                 void *item);
 DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da);
 
+typedef struct ds_linked_list ds_linked_list;
+
+DSHDEF void ds_linked_list_init(ds_linked_list *ll, unsigned int item_size);
+DSHDEF int ds_linked_list_push_back(ds_linked_list *ll, void *item);
+DSHDEF int ds_linked_list_push_front(ds_linked_list *ll, void *item);
+DSHDEF int ds_linked_list_pop_back(ds_linked_list *ll, void *item);
+DSHDEF int ds_linked_list_pop_front(ds_linked_list *ll, void *item);
+DSHDEF void ds_linked_list_free(ds_linked_list *ll);
+
 #endif // DS_H
 
 #ifdef DS_IMPLEMENTATION
@@ -250,6 +261,7 @@ DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da);
 #define DS_SB_IMPLEMENTATION
 #define DS_SS_IMPLEMENTATION
 #define DS_DA_IMPLEMENTATION
+#define DS_LL_IMPLEMENTATION
 #endif // DS_IMPLEMENTATION
 
 #ifdef DS_PQ_IMPLEMENTATION
@@ -636,3 +648,198 @@ DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da) {
 }
 
 #endif // DS_DA_IMPLEMENTATION
+
+#ifdef DS_LL_IMPLEMENTATION
+
+// (DOUBLY) LINKED LIST
+//
+// The linked list is a simple list that can be used to push and pop items from
+// the front and back of the list.
+typedef struct ds_linked_list_node {
+        void *item;
+        struct ds_linked_list_node *prev;
+        struct ds_linked_list_node *next;
+} ds_linked_list_node;
+
+typedef struct ds_linked_list {
+        unsigned int item_size;
+        ds_linked_list_node *head;
+        ds_linked_list_node *tail;
+} ds_linked_list;
+
+// Initialize the linked list
+//
+// The item_size parameter is the size of each item in the list.
+DSHDEF void ds_linked_list_init(ds_linked_list *ll, unsigned int item_size) {
+    ll->item_size = item_size;
+    ll->head = NULL;
+    ll->tail = NULL;
+}
+
+// Push an item to the back of the linked list
+//
+// Returns 0 if the item was pushed successfully, 1 if the list could not be
+// allocated.
+DSHDEF int ds_linked_list_push_back(ds_linked_list *ll, void *item) {
+    int result = 0;
+
+    ds_linked_list_node *node = DS_MALLOC(sizeof(ds_linked_list_node));
+    if (node == NULL) {
+        DS_LOG_ERROR("Failed to allocate linked list node");
+        return_defer(1);
+    }
+
+    node->item = DS_MALLOC(ll->item_size);
+    if (node->item == NULL) {
+        DS_LOG_ERROR("Failed to allocate linked list item");
+        return_defer(1);
+    }
+
+    DS_MEMCPY(node->item, item, ll->item_size);
+    node->prev = ll->tail;
+    node->next = NULL;
+
+    if (ll->tail != NULL) {
+        ll->tail->next = node;
+    }
+    ll->tail = node;
+
+    if (ll->head == NULL) {
+        ll->head = node;
+    }
+
+defer:
+    if (result != 0 && node != NULL) {
+        if (node->item != NULL) {
+            DS_FREE(node->item);
+        }
+        DS_FREE(node);
+    }
+    return result;
+}
+
+// Push an item to the front of the linked list
+//
+// Returns 0 if the item was pushed successfully, 1 if the list could not be
+// allocated.
+DSHDEF int ds_linked_list_push_front(ds_linked_list *ll, void *item) {
+    int result = 0;
+
+    ds_linked_list_node *node = DS_MALLOC(sizeof(ds_linked_list_node));
+    if (node == NULL) {
+        DS_LOG_ERROR("Failed to allocate linked list node");
+        return_defer(1);
+    }
+
+    node->item = DS_MALLOC(ll->item_size);
+    if (node->item == NULL) {
+        DS_LOG_ERROR("Failed to allocate linked list item");
+        return_defer(1);
+    }
+
+    DS_MEMCPY(node->item, item, ll->item_size);
+    node->prev = NULL;
+    node->next = ll->head;
+
+    if (ll->head != NULL) {
+        ll->head->prev = node;
+    }
+    ll->head = node;
+
+    if (ll->tail == NULL) {
+        ll->tail = node;
+    }
+
+defer:
+    if (result != 0 && node != NULL) {
+        if (node->item != NULL) {
+            DS_FREE(node->item);
+        }
+        DS_FREE(node);
+    }
+    return result;
+}
+
+// Pop an item from the back of the linked list
+//
+// Returns 0 if the item was popped successfully, 1 if the list is empty.
+// The item is stored in the item parameter.
+DSHDEF int ds_linked_list_pop_back(ds_linked_list *ll, void *item) {
+    int result = 0;
+
+    if (ll->tail == NULL) {
+        DS_LOG_ERROR("Linked list is empty");
+        return_defer(1);
+    }
+
+    ds_linked_list_node *node = ll->tail;
+    DS_MEMCPY(item, node->item, ll->item_size);
+
+    ll->tail = node->prev;
+    if (ll->tail != NULL) {
+        ll->tail->next = NULL;
+    }
+
+    if (node == ll->head) {
+        ll->head = NULL;
+    }
+
+defer:
+    if (node != NULL) {
+        if (node->item != NULL) {
+            DS_FREE(node->item);
+        }
+        DS_FREE(node);
+    }
+    return result;
+}
+
+// Pop an item from the front of the linked list
+//
+// Returns 0 if the item was popped successfully, 1 if the list is empty.
+// The item is stored in the item parameter.
+DSHDEF int ds_linked_list_pop_front(ds_linked_list *ll, void *item) {
+    int result = 0;
+
+    if (ll->head == NULL) {
+        DS_LOG_ERROR("Linked list is empty");
+        return_defer(1);
+    }
+
+    ds_linked_list_node *node = ll->head;
+    DS_MEMCPY(item, node->item, ll->item_size);
+
+    ll->head = node->next;
+    if (ll->head != NULL) {
+        ll->head->prev = NULL;
+    }
+
+    if (node == ll->tail) {
+        ll->tail = NULL;
+    }
+
+defer:
+    if (node != NULL) {
+        if (node->item != NULL) {
+            DS_FREE(node->item);
+        }
+        DS_FREE(node);
+    }
+    return result;
+}
+
+DSHDEF void ds_linked_list_free(ds_linked_list *ll) {
+    ds_linked_list_node *node = ll->head;
+    while (node != NULL) {
+        ds_linked_list_node *next = node->next;
+        if (node->item != NULL) {
+            DS_FREE(node->item);
+        }
+        DS_FREE(node);
+        node = next;
+    }
+    ll->head = NULL;
+    ll->tail = NULL;
+}
+
+#endif // DS_ST_IMPLEMENTATION
