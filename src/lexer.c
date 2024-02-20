@@ -51,7 +51,7 @@ enum token_type {
     WHILE,
 };
 
-const char *token_type_to_string(enum token_type type) {
+static const char *token_type_to_string(enum token_type type) {
     switch (type) {
     case ARROW:
         return "ARROW";
@@ -149,7 +149,7 @@ enum error_type {
     INVALID_CHAR,
 };
 
-const char *error_type_to_string(enum error_type type) {
+static const char *error_type_to_string(enum error_type type) {
     switch (type) {
     case NO_ERROR:
         return "";
