@@ -15,6 +15,8 @@
 //  implementation of the string builder utility
 //  - DS_SS_IMPLEMENTATION: Define this macro in one source file to include the
 //  implementation of the string slice utility
+//  - DS_DA_IMPLEMENTATION: Define this macro in one source file to include the
+//  implementation of the dynamic array data structure
 //
 // MEMORY MANAGEMENT
 //
@@ -208,7 +210,7 @@ static void *ds_realloc(void *ptr, unsigned int old_sz, unsigned int new_sz) {
 typedef struct ds_priority_queue ds_priority_queue;
 
 DSHDEF void ds_priority_queue_init(ds_priority_queue *pq,
-                            int (*compare)(const void *, const void *));
+                                   int (*compare)(const void *, const void *));
 DSHDEF int ds_priority_queue_insert(ds_priority_queue *pq, void *item);
 DSHDEF int ds_priority_queue_pull(ds_priority_queue *pq, void **item);
 DSHDEF int ds_priority_queue_peek(ds_priority_queue *pq, void **item);
@@ -224,11 +226,22 @@ DSHDEF void ds_string_builder_free(ds_string_builder *sb);
 
 typedef struct ds_string_slice ds_string_slice;
 
-DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str, unsigned int len);
+DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str,
+                                 unsigned int len);
 DSHDEF int ds_string_slice_tokenize(ds_string_slice *ss, char delimiter,
-                             ds_string_slice *token);
+                                    ds_string_slice *token);
 DSHDEF int ds_string_slice_to_owned(ds_string_slice *ss, char **str);
 DSHDEF void ds_string_slice_free(ds_string_slice *ss);
+
+typedef struct ds_dynamic_array ds_dynamic_array;
+
+DSHDEF void ds_dynamic_array_init(ds_dynamic_array *da, unsigned int item_size);
+DSHDEF int ds_dynamic_array_append(ds_dynamic_array *da, void *item);
+DSHDEF int ds_dynamic_array_append_many(ds_dynamic_array *da, void **new_items,
+                                        unsigned int new_items_count);
+DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
+                                void *item);
+DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da);
 
 #endif // DS_H
 
@@ -236,6 +249,7 @@ DSHDEF void ds_string_slice_free(ds_string_slice *ss);
 #define DS_PQ_IMPLEMENTATION
 #define DS_SB_IMPLEMENTATION
 #define DS_SS_IMPLEMENTATION
+#define DS_DA_IMPLEMENTATION
 #endif // DS_IMPLEMENTATION
 
 #ifdef DS_PQ_IMPLEMENTATION
@@ -257,7 +271,7 @@ typedef struct ds_priority_queue {
 
 // Initialize the priority queue
 DSHDEF void ds_priority_queue_init(ds_priority_queue *pq,
-                            int (*compare)(const void *, const void *)) {
+                                   int (*compare)(const void *, const void *)) {
     pq->items = NULL;
     pq->count = 0;
     pq->capacity = 0;
@@ -348,7 +362,9 @@ defer:
 }
 
 // Check if the priority queue is empty
-DSHDEF int ds_priority_queue_empty(ds_priority_queue *pq) { return pq->count == 0; }
+DSHDEF int ds_priority_queue_empty(ds_priority_queue *pq) {
+    return pq->count == 0;
+}
 
 // Free the priority queue
 DSHDEF void ds_priority_queue_free(ds_priority_queue *pq) {
@@ -430,12 +446,13 @@ DSHDEF void ds_string_builder_free(ds_string_builder *sb) {
 // string slice to tokenize a string, and to convert a string slice to an owned
 // string.
 typedef struct ds_string_slice {
-    char *str;
-    unsigned int len;
+        char *str;
+        unsigned int len;
 } ds_string_slice;
 
 // Initialize the string slice
-DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str, unsigned int len) {
+DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str,
+                                 unsigned int len) {
     ss->str = str;
     ss->len = len;
 }
@@ -444,7 +461,7 @@ DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str, unsigned int le
 //
 // Returns 0 if a token was found, 1 if the string slice is empty.
 DSHDEF int ds_string_slice_tokenize(ds_string_slice *ss, char delimiter,
-                             ds_string_slice *token) {
+                                    ds_string_slice *token) {
     int result = 0;
 
     if (ss->len == 0 || ss->str == NULL) {
@@ -498,3 +515,124 @@ DSHDEF void ds_string_slice_free(ds_string_slice *ss) {
 }
 
 #endif // DS_SS_IMPLEMENTATION
+
+#ifdef DS_DA_IMPLEMENTATION
+
+// DYNAMIC ARRAY
+//
+// The dynamic array is a simple array that grows as needed. This is the real
+// implementation of dynamic arrays. The macros from the header file are just
+// quick inline versions of these functions. This implementation is generic and
+// can be used with any type of item, unlike the macros which require you to
+// define the array structure with the items, count and capacity fields.
+typedef struct ds_dynamic_array {
+        void *items;
+        unsigned int item_size;
+        unsigned int count;
+        unsigned int capacity;
+} ds_dynamic_array;
+
+// Initialize the dynamic array
+//
+// The item_size parameter is the size of each item in the array.
+DSHDEF void ds_dynamic_array_init(ds_dynamic_array *da,
+                                  unsigned int item_size) {
+    da->items = NULL;
+    da->item_size = item_size;
+    da->count = 0;
+    da->capacity = 0;
+}
+
+// Append an item to the dynamic array
+//
+// Returns 0 if the item was appended successfully, 1 if the array could not be
+// reallocated.
+DSHDEF int ds_dynamic_array_append(ds_dynamic_array *da, void *item) {
+    int result = 0;
+
+    if (da->count >= da->capacity) {
+        unsigned int new_capacity = da->capacity * 2;
+        if (new_capacity == 0) {
+            new_capacity = DS_DA_INIT_CAPACITY;
+        }
+
+        da->items = DS_REALLOC(da->items, da->capacity * da->item_size,
+                               new_capacity * da->item_size);
+
+        if (da->items == NULL) {
+            DS_LOG_ERROR("Failed to reallocate dynamic array");
+            return_defer(1);
+        }
+
+        da->capacity = new_capacity;
+    }
+
+    DS_MEMCPY((char *)da->items + da->count * da->item_size, item,
+              da->item_size);
+    da->count++;
+
+defer:
+    return result;
+}
+
+// Append multiple items to the dynamic array
+//
+// Returns 0 if the items were appended successfully, 1 if the array could not
+// be reallocated.
+DSHDEF int ds_dynamic_array_append_many(ds_dynamic_array *da, void **new_items,
+                                        unsigned int new_items_count) {
+    int result = 0;
+
+    if (da->count + new_items_count > da->capacity) {
+        if (da->capacity == 0) {
+            da->capacity = DS_DA_INIT_CAPACITY;
+        }
+        while (da->count + new_items_count > da->capacity) {
+            da->capacity *= 2;
+        }
+
+        da->items = DS_REALLOC(da->items, da->capacity * da->item_size,
+                               da->capacity * da->item_size);
+        if (da->items == NULL) {
+            DS_LOG_ERROR("Failed to reallocate dynamic array");
+            return_defer(1);
+        }
+    }
+
+    DS_MEMCPY((char *)da->items + da->count * da->item_size, new_items,
+              new_items_count * da->item_size);
+    da->count += new_items_count;
+
+defer:
+    return result;
+}
+
+// Get an item from the dynamic array
+//
+// Returns 0 if the item was retrieved successfully, 1 if the index is out of
+// bounds.
+DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
+                                void *item) {
+    int result = 0;
+
+    if (index >= da->count) {
+        DS_LOG_ERROR("Index out of bounds");
+        return_defer(1);
+    }
+
+    DS_MEMCPY(item, (char *)da->items + index * da->item_size, da->item_size);
+
+defer:
+    return result;
+}
+
+DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da) {
+    if (da->items != NULL) {
+        DS_FREE(da->items);
+    }
+    da->items = NULL;
+    da->count = 0;
+    da->capacity = 0;
+}
+
+#endif // DS_DA_IMPLEMENTATION
