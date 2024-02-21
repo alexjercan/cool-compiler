@@ -1,6 +1,8 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include "ds.h"
+
 enum token_type {
     ARROW,
     ASSIGN,
@@ -58,8 +60,6 @@ enum error_type {
     STRING_CONTAINS_EOF
 };
 
-const char *error_type_to_string(enum error_type type);
-
 struct token {
         enum token_type type;
         char *literal;
@@ -76,9 +76,7 @@ struct lexer {
         char ch;
 };
 
-void lexer_init(struct lexer *l, const char *filename, char *buffer,
-                unsigned int buffer_len);
-struct token lexer_next_token(struct lexer *l);
-void lexer_print_error(struct lexer *l, struct token *t);
+int lexer_tokenize(const char *filename, char *buffer, int length,
+                   ds_dynamic_array *tokens);
 
 #endif // LEXER_H

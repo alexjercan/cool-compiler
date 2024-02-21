@@ -16,7 +16,7 @@ $(BUILD_DIR)/main: $(OBJ_FILES) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HDR_FILES) $(DEP_FILES) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -I$(HDR_DIR) -I$(DEP_DIR) -DDSH_STATIC -c -o $@ $<
+	$(CC) $(CFLAGS) -I$(HDR_DIR) -I$(DEP_DIR) -c -o $@ $<
 
 $(BUILD_DIR):
 	mkdir -p $@

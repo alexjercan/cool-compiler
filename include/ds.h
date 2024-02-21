@@ -211,7 +211,20 @@ static void *ds_realloc(void *ptr, unsigned int old_sz, unsigned int new_sz) {
 #endif
 #endif
 
-typedef struct ds_priority_queue ds_priority_queue;
+// PRIORITY QUEUE
+//
+// The priority queue is implemented as a heap, where you can define the
+// comparison function to use when inserting items. The comparison function
+// should return a positive value if the first item has higher priority than
+// the second item, a negative value if the second item has higher priority than
+// the first item, and 0 if the items have the same priority.
+typedef struct ds_priority_queue {
+        void **items;
+        unsigned int count;
+        unsigned int capacity;
+
+        int (*compare)(const void *, const void *);
+} ds_priority_queue;
 
 DSHDEF void ds_priority_queue_init(ds_priority_queue *pq,
                                    int (*compare)(const void *, const void *));
@@ -221,7 +234,16 @@ DSHDEF int ds_priority_queue_peek(ds_priority_queue *pq, void **item);
 DSHDEF int ds_priority_queue_empty(ds_priority_queue *pq);
 DSHDEF void ds_priority_queue_free(ds_priority_queue *pq);
 
-typedef struct ds_string_builder ds_string_builder;
+// STRING BUILDER
+//
+// The string builder is a simple utility to build strings. You can append
+// formatted strings to the string builder, and then build the final string.
+// The string builder will automatically grow as needed.
+typedef struct ds_string_builder {
+        char *items;
+        unsigned int count;
+        unsigned int capacity;
+} ds_string_builder;
 
 DSHDEF void ds_string_builder_init(ds_string_builder *sb);
 DSHDEF int ds_string_builder_append(ds_string_builder *sb, const char *str);
@@ -230,7 +252,15 @@ DSHDEF int ds_string_builder_appendc(ds_string_builder *sb, char chr);
 DSHDEF int ds_string_builder_build(ds_string_builder *sb, char **str);
 DSHDEF void ds_string_builder_free(ds_string_builder *sb);
 
-typedef struct ds_string_slice ds_string_slice;
+// STRING SLICE
+//
+// The string slice is a simple utility to work with substrings. You can use the
+// string slice to tokenize a string, and to convert a string slice to an owned
+// string.
+typedef struct ds_string_slice {
+        char *str;
+        unsigned int len;
+} ds_string_slice;
 
 DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str,
                                  unsigned int len);
@@ -239,7 +269,19 @@ DSHDEF int ds_string_slice_tokenize(ds_string_slice *ss, char delimiter,
 DSHDEF int ds_string_slice_to_owned(ds_string_slice *ss, char **str);
 DSHDEF void ds_string_slice_free(ds_string_slice *ss);
 
-typedef struct ds_dynamic_array ds_dynamic_array;
+// DYNAMIC ARRAY
+//
+// The dynamic array is a simple array that grows as needed. This is the real
+// implementation of dynamic arrays. The macros from the header file are just
+// quick inline versions of these functions. This implementation is generic and
+// can be used with any type of item, unlike the macros which require you to
+// define the array structure with the items, count and capacity fields.
+typedef struct ds_dynamic_array {
+        void *items;
+        unsigned int item_size;
+        unsigned int count;
+        unsigned int capacity;
+} ds_dynamic_array;
 
 DSHDEF void ds_dynamic_array_init(ds_dynamic_array *da, unsigned int item_size);
 DSHDEF int ds_dynamic_array_append(ds_dynamic_array *da, void *item);
@@ -249,7 +291,17 @@ DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
                                 void *item);
 DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da);
 
-typedef struct ds_linked_list ds_linked_list;
+// (DOUBLY) LINKED LIST
+//
+// The linked list is a simple list that can be used to push and pop items from
+// the front and back of the list.
+typedef struct ds_linked_list_node ds_linked_list_node;
+
+typedef struct ds_linked_list {
+        unsigned int item_size;
+        ds_linked_list_node *head;
+        ds_linked_list_node *tail;
+} ds_linked_list;
 
 DSHDEF void ds_linked_list_init(ds_linked_list *ll, unsigned int item_size);
 DSHDEF int ds_linked_list_push_back(ds_linked_list *ll, void *item);
@@ -269,21 +321,6 @@ DSHDEF void ds_linked_list_free(ds_linked_list *ll);
 #endif // DS_IMPLEMENTATION
 
 #ifdef DS_PQ_IMPLEMENTATION
-
-// PRIORITY QUEUE
-//
-// The priority queue is implemented as a heap, where you can define the
-// comparison function to use when inserting items. The comparison function
-// should return a positive value if the first item has higher priority than
-// the second item, a negative value if the second item has higher priority than
-// the first item, and 0 if the items have the same priority.
-typedef struct ds_priority_queue {
-        void **items;
-        unsigned int count;
-        unsigned int capacity;
-
-        int (*compare)(const void *, const void *);
-} ds_priority_queue;
 
 // Initialize the priority queue
 DSHDEF void ds_priority_queue_init(ds_priority_queue *pq,
@@ -395,17 +432,6 @@ DSHDEF void ds_priority_queue_free(ds_priority_queue *pq) {
 
 #ifdef DS_SB_IMPLEMENTATION
 
-// STRING BUILDER
-//
-// The string builder is a simple utility to build strings. You can append
-// formatted strings to the string builder, and then build the final string.
-// The string builder will automatically grow as needed.
-typedef struct ds_string_builder {
-        char *items;
-        unsigned int count;
-        unsigned int capacity;
-} ds_string_builder;
-
 // Initialize the string builder
 DSHDEF void ds_string_builder_init(ds_string_builder *sb) {
     sb->items = NULL;
@@ -471,16 +497,6 @@ DSHDEF void ds_string_builder_free(ds_string_builder *sb) {
 #endif // DS_SB_IMPLEMENTATION
 
 #ifdef DS_SS_IMPLEMENTATION
-
-// STRING SLICE
-//
-// The string slice is a simple utility to work with substrings. You can use the
-// string slice to tokenize a string, and to convert a string slice to an owned
-// string.
-typedef struct ds_string_slice {
-        char *str;
-        unsigned int len;
-} ds_string_slice;
 
 // Initialize the string slice
 DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str,
@@ -549,20 +565,6 @@ DSHDEF void ds_string_slice_free(ds_string_slice *ss) {
 #endif // DS_SS_IMPLEMENTATION
 
 #ifdef DS_DA_IMPLEMENTATION
-
-// DYNAMIC ARRAY
-//
-// The dynamic array is a simple array that grows as needed. This is the real
-// implementation of dynamic arrays. The macros from the header file are just
-// quick inline versions of these functions. This implementation is generic and
-// can be used with any type of item, unlike the macros which require you to
-// define the array structure with the items, count and capacity fields.
-typedef struct ds_dynamic_array {
-        void *items;
-        unsigned int item_size;
-        unsigned int count;
-        unsigned int capacity;
-} ds_dynamic_array;
 
 // Initialize the dynamic array
 //
@@ -671,21 +673,11 @@ DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da) {
 
 #ifdef DS_LL_IMPLEMENTATION
 
-// (DOUBLY) LINKED LIST
-//
-// The linked list is a simple list that can be used to push and pop items from
-// the front and back of the list.
 typedef struct ds_linked_list_node {
         void *item;
         struct ds_linked_list_node *prev;
         struct ds_linked_list_node *next;
 } ds_linked_list_node;
-
-typedef struct ds_linked_list {
-        unsigned int item_size;
-        ds_linked_list_node *head;
-        ds_linked_list_node *tail;
-} ds_linked_list;
 
 // Initialize the linked list
 //

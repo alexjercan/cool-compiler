@@ -1,10 +1,8 @@
 #include "lexer.h"
+#include "ds.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#define DS_SB_IMPLEMENTATION
-#define DS_SS_IMPLEMENTATION
-#include "ds.h"
 
 const char *token_type_to_string(enum token_type type) {
     switch (type) {
@@ -99,7 +97,7 @@ const char *token_type_to_string(enum token_type type) {
     }
 }
 
-const char *error_type_to_string(enum error_type type) {
+static const char *error_type_to_string(enum error_type type) {
     switch (type) {
     case NO_ERROR:
         return "";
@@ -206,8 +204,8 @@ static void skip_until_semi(struct lexer *l) {
     }
 }
 
-void lexer_init(struct lexer *l, const char *filename, char *buffer,
-                unsigned int buffer_len) {
+static void lexer_init(struct lexer *l, const char *filename, char *buffer,
+                       unsigned int buffer_len) {
     l->filename = filename;
     l->buffer = buffer;
     l->buffer_len = buffer_len;
@@ -282,7 +280,7 @@ static struct token token_string_literal(struct lexer *l) {
     return (struct token){.type = STRING_LITERAL, .literal = literal};
 }
 
-struct token lexer_next_token(struct lexer *l) {
+static struct token lexer_next_token(struct lexer *l) {
     skip_whitespaces(l);
 
     if (l->ch == EOF) {
@@ -411,7 +409,7 @@ static void pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
     }
 }
 
-void lexer_print_error(struct lexer *lexer, struct token *tok) {
+static void lexer_print_error(struct lexer *lexer, struct token *tok) {
     unsigned int line, col;
     pos_to_lc(lexer->buffer, tok->pos, &line, &col);
     if (lexer->filename == NULL) {
@@ -431,4 +429,25 @@ void lexer_print_error(struct lexer *lexer, struct token *tok) {
                    col, error_type_to_string(tok->error));
         }
     }
+}
+
+int lexer_tokenize(const char *filename, char *buffer, int length,
+                   ds_dynamic_array *tokens) {
+    int result = 0;
+
+    struct lexer lexer;
+    lexer_init(&lexer, filename, (char *)buffer, length);
+
+    struct token tok;
+    do {
+        tok = lexer_next_token(&lexer);
+        if (tok.type == ILLEGAL) {
+            lexer_print_error(&lexer, &tok);
+            result = 1;
+        }
+
+        ds_dynamic_array_append(tokens, &tok);
+    } while (tok.type != END);
+
+    return result;
 }

@@ -1,32 +1,9 @@
 #include <stdio.h>
 #define ARGPARSE_IMPLEMENTATION
 #include "argparse.h"
-#define DS_SB_IMPLEMENTATION
-#define DS_DA_IMPLEMENTATION
 #include "ds.h"
 #include "io.h"
 #include "lexer.h"
-
-int run_lexer(char *buffer, int length, const char *filename,
-              ds_dynamic_array *tokens) {
-    int result = 0;
-
-    struct lexer lexer;
-    lexer_init(&lexer, filename, (char *)buffer, length);
-
-    struct token tok;
-    do {
-        tok = lexer_next_token(&lexer);
-        if (tok.type == ILLEGAL) {
-            lexer_print_error(&lexer, &tok);
-            result = 1;
-        }
-
-        ds_dynamic_array_append(tokens, &tok);
-    } while (tok.type != END);
-
-    return result;
-}
 
 int main(int argc, char **argv) {
     int result = 0;
@@ -72,7 +49,7 @@ int main(int argc, char **argv) {
     }
 
     // Lex the input file
-    if (run_lexer(buffer, length, filename, &tokens) != 0) {
+    if (lexer_tokenize(filename, buffer, length, &tokens) != 0) {
         printf("Compilation halted\n");
         return_defer(1);
     }

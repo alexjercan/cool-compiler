@@ -1,6 +1,5 @@
 #include "io.h"
 #include <stdio.h>
-#define DS_SB_IMPLEMENTATION
 #include "ds.h"
 
 int read_file(const char *filename, char **buffer) {
