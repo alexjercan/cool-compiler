@@ -1,25 +1,38 @@
-program
-  class
-    A
-    attribute
-      s1
-      String
-      ab	cd
-    attribute
-      s2
-      String
-      ab
-cd
-    attribute
-      s3
-      String
-      ab
-cd
-    attribute
-      s4
-      String
-      ab\cd
-    attribute
-      s5
-      String
-      abzcd
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(s1)
+COLON
+CLASS_NAME(String)
+ASSIGN
+STRING_LITERAL(ab	cd)
+SEMICOLON
+IDENT(s2)
+COLON
+CLASS_NAME(String)
+ASSIGN
+STRING_LITERAL(ab
+cd)
+SEMICOLON
+IDENT(s3)
+COLON
+CLASS_NAME(String)
+ASSIGN
+STRING_LITERAL(ab
+cd)
+SEMICOLON
+IDENT(s4)
+COLON
+CLASS_NAME(String)
+ASSIGN
+STRING_LITERAL(ab\cd)
+SEMICOLON
+IDENT(s5)
+COLON
+CLASS_NAME(String)
+ASSIGN
+STRING_LITERAL(abzcd)
+SEMICOLON
+RBRACE
+SEMICOLON
+END

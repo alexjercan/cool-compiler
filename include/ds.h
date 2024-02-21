@@ -225,6 +225,8 @@ typedef struct ds_string_builder ds_string_builder;
 
 DSHDEF void ds_string_builder_init(ds_string_builder *sb);
 DSHDEF int ds_string_builder_append(ds_string_builder *sb, const char *str);
+DSHDEF int ds_string_builder_appendn(ds_string_builder *sb, const char *str, unsigned int len);
+DSHDEF int ds_string_builder_appendc(ds_string_builder *sb, char chr);
 DSHDEF int ds_string_builder_build(ds_string_builder *sb, char **str);
 DSHDEF void ds_string_builder_free(ds_string_builder *sb);
 
@@ -414,9 +416,25 @@ DSHDEF void ds_string_builder_init(ds_string_builder *sb) {
 // Append a formatted string to the string builder
 //
 // Returns 0 if the string was appended successfully.
+DSHDEF int ds_string_builder_appendn(ds_string_builder *sb, const char *str, unsigned int len) {
+    ds_da_append_many(sb, str, len);
+    return 0;
+}
+
+// Append a formatted string to the string builder
+//
+// Returns 0 if the string was appended successfully.
 DSHDEF int ds_string_builder_append(ds_string_builder *sb, const char *str) {
     unsigned int str_len = strlen(str);
     ds_da_append_many(sb, str, str_len);
+    return 0;
+}
+
+// Append a character to the string builder
+//
+// Returns 0 if the character was appended successfully.
+DSHDEF int ds_string_builder_appendc(ds_string_builder *sb, char chr) {
+    ds_da_append(sb, chr);
     return 0;
 }
 

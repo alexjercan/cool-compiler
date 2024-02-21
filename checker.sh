@@ -8,7 +8,7 @@ lexical_analyzer() {
     mkdir -p $OUTPUT_LEXER_DIR
 
     passed=0
-    for file_path in $(ls ./tests/lexer/*.cl); do
+    for file_path in $(ls tests/lexer/*.cl); do
         ref_path=./tests/lexer/$(basename $file_path .cl).ref
         out_path=$OUTPUT_LEXER_DIR/$(basename $file_path .cl).out
 
