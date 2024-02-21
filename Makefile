@@ -24,7 +24,7 @@ $(BUILD_DIR):
 clean:
 	rm -rf $(BUILD_DIR)
 
-check: $(BUILD_DIR)/main
-	./checker.sh
+run: $(BUILD_DIR)/main
+	./$< $(ARGS)
 
-.PHONY: all clean check
+.PHONY: all clean run
