@@ -1,74 +1,41 @@
 #include <stdio.h>
 #define ARGPARSE_IMPLEMENTATION
 #include "argparse.h"
+#define DS_SB_IMPLEMENTATION
+#define DS_DA_IMPLEMENTATION
 #include "ds.h"
+#include "io.h"
 #include "lexer.h"
 
-#define LINE_MAX 4096
-
-int read_file(const char *filename, char **buffer) {
+int run_lexer(char *buffer, int length, const char *filename,
+              ds_dynamic_array *tokens) {
     int result = 0;
 
-    FILE *file = NULL;
-    if (filename != NULL) {
-        file = fopen(filename, "r");
-        if (file == NULL) {
-            DS_LOG_ERROR("Failed to open file: %s", filename);
-            return_defer(-1);
-        }
-    } else {
-        file = stdin;
-    }
+    struct lexer lexer;
+    lexer_init(&lexer, filename, (char *)buffer, length);
 
-    ds_string_builder sb = {.items = NULL, .count = 0, .capacity = 0};
-    char line[LINE_MAX] = {0};
-    while (fgets(line, sizeof(line), file) != NULL) {
-        unsigned int len = 0;
-        for (len = 0; len < LINE_MAX; len++) {
-            if (line[len] == '\n' || line[len] == EOF) {
-                break;
-            }
+    struct token tok;
+    do {
+        tok = lexer_next_token(&lexer);
+        if (tok.type == ILLEGAL) {
+            lexer_print_error(&lexer, &tok);
+            result = 1;
         }
 
-        if (len == LINE_MAX) {
-            len = strlen(line);
-        } else {
-            len += 1;
-            line[len] = '\0';
-        }
+        ds_dynamic_array_append(tokens, &tok);
+    } while (tok.type != END);
 
-        if (len == LINE_MAX) {
-            DS_LOG_ERROR("Line too long");
-            return_defer(-1);
-        }
-
-        if (ds_string_builder_appendn(&sb, line, len) != 0) {
-            DS_LOG_ERROR("Failed to append line to string builder");
-            return_defer(-1);
-        }
-
-        memset(line, 0, sizeof(line));
-    }
-
-    if (ds_string_builder_build(&sb, buffer) != 0) {
-        DS_LOG_ERROR("Failed to build string from string builder");
-        return_defer(-1);
-    }
-
-    result = sb.count;
-
-defer:
-    if (filename != NULL && file != NULL)
-        fclose(file);
-    ds_string_builder_free(&sb);
     return result;
 }
 
 int main(int argc, char **argv) {
     int result = 0;
+    char *buffer = NULL;
+    ds_dynamic_array tokens;
+    ds_dynamic_array_init(&tokens, sizeof(struct token));
+    struct argparse_parser *parser = NULL;
 
-    struct argparse_parser *parser =
-        argparse_new("coolc", "A cool compiler", "0.1.0");
+    parser = argparse_new("coolc", "A cool compiler", "0.1.0");
 
     argparse_add_argument(
         parser, ((struct argparse_options){.short_name = 'l',
@@ -91,24 +58,26 @@ int main(int argc, char **argv) {
                                            .type = ARGUMENT_TYPE_VALUE,
                                            .required = 0}));
 
-    argparse_parse(parser, argc, argv);
-
-    char *input = argparse_get_value(parser, "input");
-    char *buffer = NULL;
-    int length = read_file(input, &buffer);
-    if (length < 0) {
-        DS_LOG_ERROR("Failed to read file: %s", input);
+    if (argparse_parse(parser, argc, argv) != 0) {
+        DS_LOG_ERROR("Failed to parse arguments");
         return_defer(1);
     }
 
-    ds_dynamic_array tokens;
-    ds_dynamic_array_init(&tokens, sizeof(struct token));
+    // Read the input file
+    char *filename = argparse_get_value(parser, "input");
+    int length = read_file(filename, &buffer);
+    if (length < 0) {
+        DS_LOG_ERROR("Failed to read file: %s", filename);
+        return_defer(1);
+    }
 
-    if(run_lexer(buffer, length, input, &tokens) != 0) {
+    // Lex the input file
+    if (run_lexer(buffer, length, filename, &tokens) != 0) {
         printf("Compilation halted\n");
         return_defer(1);
     }
 
+    // If the lex flag is set, print the tokens
     unsigned int lex = argparse_get_flag(parser, "lex");
     if (lex == 1) {
         for (unsigned int i = 0; i < tokens.count; i++) {
@@ -121,11 +90,20 @@ int main(int argc, char **argv) {
             }
             printf("\n");
         }
+
+        return_defer(0);
     }
 
 defer:
-    argparse_free(parser);
+    for (unsigned int i = 0; i < tokens.count; i++) {
+        struct token tok;
+        ds_dynamic_array_get(&tokens, i, &tok);
+        if (tok.literal)
+            DS_FREE(tok.literal);
+    }
+    ds_dynamic_array_free(&tokens);
     if (buffer != NULL)
-        free(buffer);
+        DS_FREE(buffer);
+    argparse_free(parser);
     return result;
 }

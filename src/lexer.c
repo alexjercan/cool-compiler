@@ -2,6 +2,9 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#define DS_SB_IMPLEMENTATION
+#define DS_SS_IMPLEMENTATION
+#include "ds.h"
 
 const char *token_type_to_string(enum token_type type) {
     switch (type) {
@@ -96,7 +99,7 @@ const char *token_type_to_string(enum token_type type) {
     }
 }
 
-static const char *error_type_to_string(enum error_type type) {
+const char *error_type_to_string(enum error_type type) {
     switch (type) {
     case NO_ERROR:
         return "";
@@ -174,18 +177,22 @@ static struct token literal_to_token(char *literal) {
     }
 }
 
-struct lexer {
-        char *buffer;
-        unsigned int buffer_len;
-        unsigned int pos;
-        unsigned int read_pos;
-        char ch;
-};
+static char lexer_peek_char(struct lexer *l) {
+    if (l->read_pos >= l->buffer_len) {
+        return EOF;
+    }
 
-static void lexer_init(struct lexer *l, char *buffer, unsigned int buffer_len);
-static char lexer_read_char(struct lexer *l);
-static char lexer_peek_char(struct lexer *l);
-static struct token lexer_next_token(struct lexer *l);
+    return l->buffer[l->read_pos];
+}
+
+static char lexer_read_char(struct lexer *l) {
+    l->ch = lexer_peek_char(l);
+
+    l->pos = l->read_pos;
+    l->read_pos += 1;
+
+    return l->ch;
+}
 
 static void skip_whitespaces(struct lexer *l) {
     while (isspace(l->ch)) {
@@ -199,7 +206,9 @@ static void skip_until_semi(struct lexer *l) {
     }
 }
 
-static void lexer_init(struct lexer *l, char *buffer, unsigned int buffer_len) {
+void lexer_init(struct lexer *l, const char *filename, char *buffer,
+                unsigned int buffer_len) {
+    l->filename = filename;
     l->buffer = buffer;
     l->buffer_len = buffer_len;
     l->pos = 0;
@@ -207,23 +216,6 @@ static void lexer_init(struct lexer *l, char *buffer, unsigned int buffer_len) {
     l->ch = 0;
 
     lexer_read_char(l);
-}
-
-static char lexer_read_char(struct lexer *l) {
-    l->ch = lexer_peek_char(l);
-
-    l->pos = l->read_pos;
-    l->read_pos += 1;
-
-    return l->ch;
-}
-
-static char lexer_peek_char(struct lexer *l) {
-    if (l->read_pos >= l->buffer_len) {
-        return EOF;
-    }
-
-    return l->buffer[l->read_pos];
 }
 
 static struct token token_string_literal(struct lexer *l) {
@@ -290,7 +282,7 @@ static struct token token_string_literal(struct lexer *l) {
     return (struct token){.type = STRING_LITERAL, .literal = literal};
 }
 
-static struct token lexer_next_token(struct lexer *l) {
+struct token lexer_next_token(struct lexer *l) {
     skip_whitespaces(l);
 
     if (l->ch == EOF) {
@@ -405,8 +397,8 @@ static struct token lexer_next_token(struct lexer *l) {
     }
 };
 
-void pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
-               unsigned int *col) {
+static void pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
+                      unsigned int *col) {
     *line = 1;
     *col = 1;
     for (unsigned int i = 0; i < pos; i++) {
@@ -419,48 +411,24 @@ void pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
     }
 }
 
-int run_lexer(char *buffer, int length, const char *filename,
-              ds_dynamic_array *tokens) {
-    int result = 0;
-
-    struct lexer l;
-    lexer_init(&l, (char *)buffer, length);
-
-    struct token tok;
-
-    do {
-        tok = lexer_next_token(&l);
-        if (tok.type == ILLEGAL) {
-            unsigned int line, col;
-            pos_to_lc(buffer, tok.pos, &line, &col);
-            if (filename == NULL) {
-                if (tok.literal != NULL) {
-                    printf("line %d:%d, Lexical error: %s: %s\n", line, col,
-                           error_type_to_string(tok.error), tok.literal);
-                } else {
-                    printf("line %d:%d, Lexical error: %s\n", line, col,
-                           error_type_to_string(tok.error));
-                }
-            } else {
-                if (tok.literal != NULL) {
-                    printf("\"%s\", %d:%d: Lexical error: %s: %s\n", filename,
-                           line, col, error_type_to_string(tok.error),
-                           tok.literal);
-                } else {
-                    printf("\"%s\", %d:%d: Lexical error: %s\n", filename, line,
-                           col, error_type_to_string(tok.error));
-                }
-            }
-
-            result = 1;
-
-            if (tok.literal != NULL) {
-                DS_FREE(tok.literal);
-            }
+void lexer_print_error(struct lexer *lexer, struct token *tok) {
+    unsigned int line, col;
+    pos_to_lc(lexer->buffer, tok->pos, &line, &col);
+    if (lexer->filename == NULL) {
+        if (tok->literal != NULL) {
+            printf("line %d:%d, Lexical error: %s: %s\n", line, col,
+                   error_type_to_string(tok->error), tok->literal);
         } else {
-            ds_dynamic_array_append(tokens, &tok);
+            printf("line %d:%d, Lexical error: %s\n", line, col,
+                   error_type_to_string(tok->error));
         }
-    } while (tok.type != END);
-
-    return result;
+    } else {
+        if (tok->literal != NULL) {
+            printf("\"%s\", %d:%d: Lexical error: %s: %s\n", lexer->filename,
+                   line, col, error_type_to_string(tok->error), tok->literal);
+        } else {
+            printf("\"%s\", %d:%d: Lexical error: %s\n", lexer->filename, line,
+                   col, error_type_to_string(tok->error));
+        }
+    }
 }
