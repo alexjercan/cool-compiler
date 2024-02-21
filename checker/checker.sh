@@ -32,5 +32,6 @@ if [ "$ARG1" == "--lex" ]; then
 elif [ -z "$ARG1" ]; then
     lexical_analyzer
 else
-    echo "Invalid argument"
+    echo "Usage: $0 [--lex]"
+    exit 1
 fi

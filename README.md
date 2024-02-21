@@ -1,14 +1,23 @@
-# Cool Compiler in C
+# Cool Compiler
 
 Compiler for the [Classroom Object-Oriented
-Language](https://theory.stanford.edu/~aiken/software/cool/cool-manual.pdf)
-written in C.
+Language](https://theory.stanford.edu/~aiken/software/cool/cool-manual.pdf).
+
+This repo can be used to write a compiler in any specific language. The project
+uses Docker for running all the implementations.
 
 ## Quickstart
 
+To run the compiler for a specific project use
+
 ```console
-make
-./build/main
+./coolc <project> <file.cl> -- [--lex]
+```
+
+To run the checker for a specific implementation use
+
+```console
+./checker.sh <project> [--lex]
 ```
 
 ## Resources

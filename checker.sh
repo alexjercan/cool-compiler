@@ -1,8 +1,13 @@
 #!/bin/bash
 
+if [ "$1" == "--help" ]; then
+    echo "Usage: $0 <project> [--lex]"
+    exit 0
+fi
+
 PROJECT=$1
 if [ -z "$PROJECT" ]; then
-    echo "Usage: $0 <project> [args]"
+    echo "Usage: $0 <project> [--lex]"
     exit 1
 fi
 
