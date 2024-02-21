@@ -1,0 +1,28 @@
+#!/bin/bash
+
+if [ "$1" == "--help" ]; then
+    echo "Really scuffed script to run the cool compiler for the specified project"
+    echo "Usage: $0 <project> <file> [files...] -- [args]"
+    exit 0
+fi
+
+PROJECT=$1
+if [ -z "$PROJECT" ]; then
+    echo "Usage: $0 <project> <file> [files...] -- [args]"
+    exit 1
+fi
+FILE_PATH=""
+ARGS=""
+i=0
+for arg in "${@:2}"; do
+    if [ "$arg" == "--" ]; then
+        ARGS="${@:$(($i + 3))}"
+        break
+    fi
+    FILE_PATH="$FILE_PATH $arg"
+    i=$((i + 1))
+done
+
+docker build -t "cool-compiler-$PROJECT" ./$PROJECT \
+    && cat $FILE_PATH | docker run -i "cool-compiler-$PROJECT" \
+                            make run -si ARGS="$ARGS"
