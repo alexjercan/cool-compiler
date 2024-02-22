@@ -1,200 +1,331 @@
-program
-  class
-    List
-    IO
-    attribute
-      elem
-      Object
-    attribute
-      next
-      List
-    method
-      init
-      formal
-        e
-        Object
-      formal
-        n
-        List
-      List
-      block
-        <-
-          elem
-          e
-        <-
-          next
-          n
-        self
-    method
-      print
-      IO
-      let
-        local
-          str
-          String
-          case
-            elem
-            case branch
-              s
-              String
-              s
-            case branch
-              n
-              Int
-              .
-                new
-                  A2I
-                i2a
-                n
-            case branch
-              o
-              Object
-              block
-                implicit dispatch
-                  abort
-                
-        block
-          implicit dispatch
-            out_string
-            .
-              str
-              concat
-               
-          if
-            isvoid
-              next
-            implicit dispatch
-              out_string
-              
-
-            .
-              next
-              print
-  class
-    Main
-    IO
-    method
-      main
-      Object
-      block
-        let
-          local
-            x
-            Int
-            0
-          local
-            y
-            String
-            !
-          local
-            z
-            Int
-            +
-              x
-              2
-          local
-            empty
-            List
-          local
-            list
-            List
-            .
-              new
-                List
-              init
-              x
-              .
-                new
-                  List
-                init
-                y
-                .
-                  new
-                    List
-                  init
-                  z
-                  empty
-          .
-            list
-            print
-        let
-          local
-            n
-            Int
-            .
-              implicit dispatch
-                out_string
-                Calculăm factorial pentru: 
-              in_int
-          block
-            .
-              .
-                implicit dispatch
-                  out_string
-                  Factorial recursiv: 
-                out_int
-                implicit dispatch
-                  fact_rec
-                  n
-              out_string
-              
-
-            .
-              .
-                implicit dispatch
-                  out_string
-                  Factorial iterativ: 
-                out_int
-                implicit dispatch
-                  fact_iter
-                  n
-              out_string
-              
-
-    method
-      fact_rec
-      formal
-        n
-        Int
-      Int
-      if
-        =
-          n
-          0
-        1
-        *
-          n
-          implicit dispatch
-            fact_rec
-            -
-              n
-              1
-    method
-      fact_iter
-      formal
-        n
-        Int
-      Int
-      let
-        local
-          res
-          Int
-          1
-        block
-          while
-            not
-              =
-                n
-                0
-            block
-              <-
-                res
-                *
-                  res
-                  n
-              <-
-                n
-                -
-                  n
-                  1
-          res
+CLASS
+CLASS_NAME(List)
+INHERITS
+CLASS_NAME(IO)
+LBRACE
+IDENT(elem)
+COLON
+CLASS_NAME(Object)
+SEMICOLON
+IDENT(next)
+COLON
+CLASS_NAME(List)
+SEMICOLON
+IDENT(init)
+LPAREN
+IDENT(e)
+COLON
+CLASS_NAME(Object)
+COMMA
+IDENT(n)
+COLON
+CLASS_NAME(List)
+RPAREN
+COLON
+CLASS_NAME(List)
+LBRACE
+LBRACE
+IDENT(elem)
+ASSIGN
+IDENT(e)
+SEMICOLON
+IDENT(next)
+ASSIGN
+IDENT(n)
+SEMICOLON
+IDENT(self)
+SEMICOLON
+RBRACE
+RBRACE
+SEMICOLON
+IDENT(print)
+LPAREN
+RPAREN
+COLON
+CLASS_NAME(IO)
+LBRACE
+LET
+IDENT(str)
+COLON
+CLASS_NAME(String)
+ASSIGN
+CASE
+IDENT(elem)
+OF
+IDENT(s)
+COLON
+CLASS_NAME(String)
+ARROW
+IDENT(s)
+SEMICOLON
+IDENT(n)
+COLON
+CLASS_NAME(Int)
+ARROW
+NEW
+CLASS_NAME(A2I)
+DOT
+IDENT(i2a)
+LPAREN
+IDENT(n)
+RPAREN
+SEMICOLON
+IDENT(o)
+COLON
+CLASS_NAME(Object)
+ARROW
+LBRACE
+IDENT(abort)
+LPAREN
+RPAREN
+SEMICOLON
+STRING_LITERAL()
+SEMICOLON
+RBRACE
+SEMICOLON
+ESAC
+IN
+LBRACE
+IDENT(out_string)
+LPAREN
+IDENT(str)
+DOT
+IDENT(concat)
+LPAREN
+STRING_LITERAL( )
+RPAREN
+RPAREN
+SEMICOLON
+IF
+LPAREN
+ISVOID
+IDENT(next)
+RPAREN
+THEN
+IDENT(out_string)
+LPAREN
+STRING_LITERAL(
+)
+RPAREN
+ELSE
+IDENT(next)
+DOT
+IDENT(print)
+LPAREN
+RPAREN
+FI
+SEMICOLON
+RBRACE
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+CLASS
+CLASS_NAME(Main)
+INHERITS
+CLASS_NAME(IO)
+LBRACE
+IDENT(main)
+LPAREN
+RPAREN
+COLON
+CLASS_NAME(Object)
+LBRACE
+LBRACE
+LET
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+INT_LITERAL(0)
+COMMA
+IDENT(y)
+COLON
+CLASS_NAME(String)
+ASSIGN
+STRING_LITERAL(!)
+COMMA
+IDENT(z)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+IDENT(x)
+PLUS
+INT_LITERAL(2)
+COMMA
+IDENT(empty)
+COLON
+CLASS_NAME(List)
+COMMA
+IDENT(list)
+COLON
+CLASS_NAME(List)
+ASSIGN
+NEW
+CLASS_NAME(List)
+DOT
+IDENT(init)
+LPAREN
+IDENT(x)
+COMMA
+NEW
+CLASS_NAME(List)
+DOT
+IDENT(init)
+LPAREN
+IDENT(y)
+COMMA
+NEW
+CLASS_NAME(List)
+DOT
+IDENT(init)
+LPAREN
+IDENT(z)
+COMMA
+IDENT(empty)
+RPAREN
+RPAREN
+RPAREN
+IN
+IDENT(list)
+DOT
+IDENT(print)
+LPAREN
+RPAREN
+SEMICOLON
+LET
+IDENT(n)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+IDENT(out_string)
+LPAREN
+STRING_LITERAL(Calculăm factorial pentru: )
+RPAREN
+DOT
+IDENT(in_int)
+LPAREN
+RPAREN
+IN
+LBRACE
+IDENT(out_string)
+LPAREN
+STRING_LITERAL(Factorial recursiv: )
+RPAREN
+DOT
+IDENT(out_int)
+LPAREN
+IDENT(fact_rec)
+LPAREN
+IDENT(n)
+RPAREN
+RPAREN
+DOT
+IDENT(out_string)
+LPAREN
+STRING_LITERAL(
+)
+RPAREN
+SEMICOLON
+IDENT(out_string)
+LPAREN
+STRING_LITERAL(Factorial iterativ: )
+RPAREN
+DOT
+IDENT(out_int)
+LPAREN
+IDENT(fact_iter)
+LPAREN
+IDENT(n)
+RPAREN
+RPAREN
+DOT
+IDENT(out_string)
+LPAREN
+STRING_LITERAL(
+)
+RPAREN
+SEMICOLON
+RBRACE
+SEMICOLON
+RBRACE
+RBRACE
+SEMICOLON
+IDENT(fact_rec)
+LPAREN
+IDENT(n)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Int)
+LBRACE
+IF
+IDENT(n)
+EQUAL
+INT_LITERAL(0)
+THEN
+INT_LITERAL(1)
+ELSE
+IDENT(n)
+MULTIPLY
+IDENT(fact_rec)
+LPAREN
+IDENT(n)
+MINUS
+INT_LITERAL(1)
+RPAREN
+FI
+RBRACE
+SEMICOLON
+IDENT(fact_iter)
+LPAREN
+IDENT(n)
+COLON
+CLASS_NAME(Int)
+RPAREN
+COLON
+CLASS_NAME(Int)
+LBRACE
+LET
+IDENT(res)
+COLON
+CLASS_NAME(Int)
+ASSIGN
+INT_LITERAL(1)
+IN
+LBRACE
+WHILE
+LPAREN
+NOT
+LPAREN
+IDENT(n)
+EQUAL
+INT_LITERAL(0)
+RPAREN
+RPAREN
+LOOP
+LBRACE
+IDENT(res)
+ASSIGN
+IDENT(res)
+MULTIPLY
+IDENT(n)
+SEMICOLON
+IDENT(n)
+ASSIGN
+IDENT(n)
+MINUS
+INT_LITERAL(1)
+SEMICOLON
+RBRACE
+POOL
+SEMICOLON
+IDENT(res)
+SEMICOLON
+RBRACE
+RBRACE
+SEMICOLON
+RBRACE
+SEMICOLON
+END

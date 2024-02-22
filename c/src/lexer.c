@@ -111,6 +111,10 @@ static const char *error_type_to_string(enum error_type type) {
         return "Unterminated string constant";
     case STRING_CONTAINS_EOF:
         return "EOF in string constant";
+    case UNMATCHED_COMMENT:
+        return "Unmatched *)";
+    case UNTERMINATED_COMMENT:
+        return "EOF in comment";
     default:
         return "UNKNOWN";
     }
@@ -202,6 +206,42 @@ static void skip_until_semi(struct lexer *l) {
     while (l->ch != ';' && l->ch != EOF) {
         lexer_read_char(l);
     }
+}
+
+static void skip_until_newline(struct lexer *l) {
+    while (l->ch != '\n' && l->ch != EOF) {
+        lexer_read_char(l);
+    }
+}
+
+static enum error_type skip_comment(struct lexer *l) {
+    int stack = 1;
+    while (stack > 0) {
+        if (stack < 0) {
+            return UNMATCHED_COMMENT;
+        }
+        if (l->ch == EOF) {
+            return UNTERMINATED_COMMENT;
+        }
+
+        if (l->ch == '(') {
+            char next = lexer_peek_char(l);
+            if (next == '*') {
+                stack += 1;
+                lexer_read_char(l);
+            }
+        } else if (l->ch == '*') {
+            char next = lexer_peek_char(l);
+            if (next == ')') {
+                stack -= 1;
+                lexer_read_char(l);
+            }
+        }
+
+        lexer_read_char(l);
+    }
+
+    return NO_ERROR;
 }
 
 static void lexer_init(struct lexer *l, const char *filename, char *buffer,
@@ -313,8 +353,20 @@ static struct token lexer_next_token(struct lexer *l) {
             return (struct token){.type = LESS_THAN, .literal = NULL};
         }
     } else if (l->ch == '(') {
-        lexer_read_char(l);
-        return (struct token){.type = LPAREN, .literal = NULL};
+        char ch = lexer_peek_char(l);
+        if (ch == '*') {
+            unsigned int position = l->pos;
+            lexer_read_char(l);
+            lexer_read_char(l);
+            enum error_type t = skip_comment(l);
+            if (t != NO_ERROR) {
+                return (struct token){.type = ILLEGAL, .literal = NULL, .pos = position, .error = t};
+            }
+            return lexer_next_token(l);
+        } else {
+            lexer_read_char(l);
+            return (struct token){.type = LPAREN, .literal = NULL};
+        }
     } else if (l->ch == ')') {
         lexer_read_char(l);
         return (struct token){.type = RPAREN, .literal = NULL};
@@ -325,11 +377,25 @@ static struct token lexer_next_token(struct lexer *l) {
         lexer_read_char(l);
         return (struct token){.type = PLUS, .literal = NULL};
     } else if (l->ch == '-') {
-        lexer_read_char(l);
-        return (struct token){.type = MINUS, .literal = NULL};
+        char next = lexer_peek_char(l);
+        if (next == '-') {
+            skip_until_newline(l);
+            return lexer_next_token(l);
+        } else {
+            lexer_read_char(l);
+            return (struct token){.type = MINUS, .literal = NULL};
+        }
     } else if (l->ch == '*') {
-        lexer_read_char(l);
-        return (struct token){.type = MULTIPLY, .literal = NULL};
+        char next = lexer_peek_char(l);
+        if (next == ')') {
+            unsigned int position = l->pos;
+            lexer_read_char(l);
+            lexer_read_char(l);
+            return (struct token){.type = ILLEGAL, .literal = NULL, .pos = position, .error = UNMATCHED_COMMENT};
+        } else {
+            lexer_read_char(l);
+            return (struct token){.type = MULTIPLY, .literal = NULL};
+        }
     } else if (l->ch == '/') {
         lexer_read_char(l);
         return (struct token){.type = DIVIDE, .literal = NULL};
