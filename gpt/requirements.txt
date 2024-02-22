@@ -1,0 +1,2 @@
+omegaconf==2.3.0
+openai==1.12.0
