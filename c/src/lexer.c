@@ -180,6 +180,15 @@ static struct token literal_to_token(char *literal) {
     }
 }
 
+struct lexer {
+        const char *filename;
+        char *buffer;
+        unsigned int buffer_len;
+        unsigned int pos;
+        unsigned int read_pos;
+        char ch;
+};
+
 static char lexer_peek_char(struct lexer *l) {
     if (l->read_pos >= l->buffer_len) {
         return EOF;

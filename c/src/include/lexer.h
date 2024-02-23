@@ -69,15 +69,6 @@ struct token {
         enum error_type error;
 };
 
-struct lexer {
-        const char *filename;
-        char *buffer;
-        unsigned int buffer_len;
-        unsigned int pos;
-        unsigned int read_pos;
-        char ch;
-};
-
 int lexer_tokenize(const char *filename, char *buffer, int length,
                    ds_dynamic_array *tokens);
 

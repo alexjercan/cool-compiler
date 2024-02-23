@@ -1,0 +1,10 @@
+program
+  class
+    A
+    method
+      f
+      Bool
+      not
+        isvoid
+          new
+            A

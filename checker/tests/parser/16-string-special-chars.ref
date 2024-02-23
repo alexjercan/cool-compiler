@@ -1,0 +1,25 @@
+program
+  class
+    A
+    attribute
+      s1
+      String
+      ab	cd
+    attribute
+      s2
+      String
+      ab
+cd
+    attribute
+      s3
+      String
+      ab
+cd
+    attribute
+      s4
+      String
+      ab\cd
+    attribute
+      s5
+      String
+      abzcd

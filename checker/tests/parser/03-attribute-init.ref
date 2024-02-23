@@ -1,0 +1,13 @@
+program
+  class
+    A
+    attribute
+      x
+      SELF_TYPE
+  class
+    B
+    A
+    attribute
+      y
+      Int
+      0
