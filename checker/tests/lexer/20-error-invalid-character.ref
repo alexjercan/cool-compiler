@@ -1,2 +1,11 @@
-"tests/lexer/20-error-invalid-character.cl", 2:14: Lexical error: Invalid character: #
-Compilation halted
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+SEMICOLON
+ILLEGAL(Invalid character #)
+RBRACE
+SEMICOLON
+END

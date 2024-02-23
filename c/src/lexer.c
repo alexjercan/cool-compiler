@@ -1,6 +1,5 @@
 #include "lexer.h"
 #include "ds.h"
-#include "util.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,7 +97,7 @@ const char *token_type_to_string(enum token_type type) {
     }
 }
 
-static const char *error_type_to_string(enum error_type type) {
+const char *error_type_to_string(enum error_type type) {
     switch (type) {
     case NO_ERROR:
         return "";
@@ -181,7 +180,6 @@ static struct token literal_to_token(char *literal) {
 }
 
 struct lexer {
-        const char *filename;
         char *buffer;
         unsigned int buffer_len;
         unsigned int pos;
@@ -254,9 +252,7 @@ static enum error_type skip_comment(struct lexer *l) {
     return NO_ERROR;
 }
 
-static void lexer_init(struct lexer *l, const char *filename, char *buffer,
-                       unsigned int buffer_len) {
-    l->filename = filename;
+static void lexer_init(struct lexer *l, char *buffer, unsigned int buffer_len) {
     l->buffer = buffer;
     l->buffer_len = buffer_len;
     l->pos = 0;
@@ -488,6 +484,7 @@ static struct token lexer_next_token(struct lexer *l) {
     }
 };
 
+/*
 static void lexer_print_error(struct lexer *lexer, struct token *tok) {
     unsigned int line, col;
     util_pos_to_lc(lexer->buffer, tok->pos, &line, &col);
@@ -509,24 +506,15 @@ static void lexer_print_error(struct lexer *lexer, struct token *tok) {
         }
     }
 }
+*/
 
-int lexer_tokenize(const char *filename, char *buffer, int length,
-                   ds_dynamic_array *tokens) {
-    int result = 0;
-
+void lexer_tokenize(char *buffer, int length, ds_dynamic_array *tokens) {
     struct lexer lexer;
-    lexer_init(&lexer, filename, (char *)buffer, length);
+    lexer_init(&lexer, (char *)buffer, length);
 
     struct token tok;
     do {
         tok = lexer_next_token(&lexer);
-        if (tok.type == ILLEGAL) {
-            lexer_print_error(&lexer, &tok);
-            result = 1;
-        }
-
         ds_dynamic_array_append(tokens, &tok);
     } while (tok.type != END);
-
-    return result;
 }

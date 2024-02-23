@@ -62,6 +62,8 @@ enum error_type {
     UNTERMINATED_COMMENT,
 };
 
+const char *error_type_to_string(enum error_type type);
+
 struct token {
         enum token_type type;
         char *literal;
@@ -69,7 +71,6 @@ struct token {
         enum error_type error;
 };
 
-int lexer_tokenize(const char *filename, char *buffer, int length,
-                   ds_dynamic_array *tokens);
+void lexer_tokenize(char *buffer, int length, ds_dynamic_array *tokens);
 
 #endif // LEXER_H

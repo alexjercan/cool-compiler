@@ -1,5 +1,27 @@
-"tests/lexer/18-error-string.cl", 2:22: Lexical error: String constant too long
-"tests/lexer/18-error-string.cl", 3:22: Lexical error: String contains null character
-"tests/lexer/18-error-string.cl", 4:30: Lexical error: Unterminated string constant
-"tests/lexer/18-error-string.cl", 6:21: Lexical error: EOF in string constant
-Compilation halted
+CLASS
+CLASS_NAME(A)
+LBRACE
+IDENT(long)
+COLON
+CLASS_NAME(String)
+ASSIGN
+ILLEGAL(String constant too long)
+SEMICOLON
+IDENT(null)
+COLON
+CLASS_NAME(String)
+ASSIGN
+ILLEGAL(String contains null character)
+SEMICOLON
+IDENT(unterminated)
+COLON
+CLASS_NAME(String)
+ASSIGN
+ILLEGAL(Unterminated string constant)
+SEMICOLON
+IDENT(eof)
+COLON
+CLASS_NAME(String)
+ASSIGN
+ILLEGAL(EOF in string constant)
+END

@@ -49,10 +49,7 @@ int main(int argc, char **argv) {
     }
 
     // Lex the input file
-    if (lexer_tokenize(filename, buffer, length, &tokens) != 0) {
-        printf("Compilation halted\n");
-        return_defer(1);
-    }
+    lexer_tokenize(buffer, length, &tokens);
 
     // If the lex flag is set, print the tokens
     unsigned int lex = argparse_get_flag(parser, "lex");
@@ -62,7 +59,13 @@ int main(int argc, char **argv) {
             ds_dynamic_array_get(&tokens, i, &tok);
 
             printf("%s", token_type_to_string(tok.type));
-            if (tok.literal != NULL) {
+            if (tok.type == ILLEGAL) {
+                printf("(%s", error_type_to_string(tok.error));
+                if (tok.literal != NULL) {
+                    printf(" %s", tok.literal);
+                }
+                printf(")");
+            } else if (tok.literal != NULL) {
                 printf("(%s)", tok.literal);
             }
             printf("\n");

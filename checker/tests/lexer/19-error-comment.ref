@@ -1,3 +1,10 @@
-"tests/lexer/19-error-comment.cl", 2:5: Lexical error: Unmatched *)
-"tests/lexer/19-error-comment.cl", 6:5: Lexical error: EOF in comment
-Compilation halted
+CLASS
+CLASS_NAME(A)
+LBRACE
+ILLEGAL(Unmatched *))
+IDENT(x)
+COLON
+CLASS_NAME(Int)
+SEMICOLON
+ILLEGAL(EOF in comment)
+END
