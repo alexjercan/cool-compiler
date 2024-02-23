@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include "ds.h"
+#include "util.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -317,65 +318,74 @@ static struct token token_string_literal(struct lexer *l) {
                               .error = STRING_CONSTANT_TOO_LONG};
     }
 
-    return (struct token){.type = STRING_LITERAL, .literal = literal};
+    return (struct token){
+        .type = STRING_LITERAL, .literal = literal, .pos = position};
 }
 
 static struct token lexer_next_token(struct lexer *l) {
     skip_whitespaces(l);
 
+    unsigned int position = l->pos;
     if (l->ch == EOF) {
         lexer_read_char(l);
-        return (struct token){.type = END, .literal = NULL};
+        return (struct token){.type = END, .literal = NULL, .pos = position};
     } else if (l->ch == '{') {
         lexer_read_char(l);
-        return (struct token){.type = LBRACE, .literal = NULL};
+        return (struct token){.type = LBRACE, .literal = NULL, .pos = position};
     } else if (l->ch == '}') {
         lexer_read_char(l);
-        return (struct token){.type = RBRACE, .literal = NULL};
+        return (struct token){.type = RBRACE, .literal = NULL, .pos = position};
     } else if (l->ch == ';') {
         lexer_read_char(l);
-        return (struct token){.type = SEMICOLON, .literal = NULL};
+        return (struct token){
+            .type = SEMICOLON, .literal = NULL, .pos = position};
     } else if (l->ch == ':') {
         lexer_read_char(l);
-        return (struct token){.type = COLON, .literal = NULL};
+        return (struct token){.type = COLON, .literal = NULL, .pos = position};
     } else if (l->ch == '<') {
         char next = lexer_peek_char(l);
         if (next == '-') {
             lexer_read_char(l);
             lexer_read_char(l);
-            return (struct token){.type = ASSIGN, .literal = NULL};
+            return (struct token){
+                .type = ASSIGN, .literal = NULL, .pos = position};
         } else if (next == '=') {
             lexer_read_char(l);
             lexer_read_char(l);
-            return (struct token){.type = LESS_THAN_EQ, .literal = NULL};
+            return (struct token){
+                .type = LESS_THAN_EQ, .literal = NULL, .pos = position};
         } else {
             lexer_read_char(l);
-            return (struct token){.type = LESS_THAN, .literal = NULL};
+            return (struct token){
+                .type = LESS_THAN, .literal = NULL, .pos = position};
         }
     } else if (l->ch == '(') {
         char ch = lexer_peek_char(l);
         if (ch == '*') {
-            unsigned int position = l->pos;
             lexer_read_char(l);
             lexer_read_char(l);
             enum error_type t = skip_comment(l);
             if (t != NO_ERROR) {
-                return (struct token){.type = ILLEGAL, .literal = NULL, .pos = position, .error = t};
+                return (struct token){.type = ILLEGAL,
+                                      .literal = NULL,
+                                      .pos = position,
+                                      .error = t};
             }
             return lexer_next_token(l);
         } else {
             lexer_read_char(l);
-            return (struct token){.type = LPAREN, .literal = NULL};
+            return (struct token){
+                .type = LPAREN, .literal = NULL, .pos = position};
         }
     } else if (l->ch == ')') {
         lexer_read_char(l);
-        return (struct token){.type = RPAREN, .literal = NULL};
+        return (struct token){.type = RPAREN, .literal = NULL, .pos = position};
     } else if (l->ch == ',') {
         lexer_read_char(l);
-        return (struct token){.type = COMMA, .literal = NULL};
+        return (struct token){.type = COMMA, .literal = NULL, .pos = position};
     } else if (l->ch == '+') {
         lexer_read_char(l);
-        return (struct token){.type = PLUS, .literal = NULL};
+        return (struct token){.type = PLUS, .literal = NULL, .pos = position};
     } else if (l->ch == '-') {
         char next = lexer_peek_char(l);
         if (next == '-') {
@@ -383,41 +393,47 @@ static struct token lexer_next_token(struct lexer *l) {
             return lexer_next_token(l);
         } else {
             lexer_read_char(l);
-            return (struct token){.type = MINUS, .literal = NULL};
+            return (struct token){
+                .type = MINUS, .literal = NULL, .pos = position};
         }
     } else if (l->ch == '*') {
         char next = lexer_peek_char(l);
         if (next == ')') {
-            unsigned int position = l->pos;
             lexer_read_char(l);
             lexer_read_char(l);
-            return (struct token){.type = ILLEGAL, .literal = NULL, .pos = position, .error = UNMATCHED_COMMENT};
+            return (struct token){.type = ILLEGAL,
+                                  .literal = NULL,
+                                  .pos = position,
+                                  .error = UNMATCHED_COMMENT};
         } else {
             lexer_read_char(l);
-            return (struct token){.type = MULTIPLY, .literal = NULL};
+            return (struct token){
+                .type = MULTIPLY, .literal = NULL, .pos = position};
         }
     } else if (l->ch == '/') {
         lexer_read_char(l);
-        return (struct token){.type = DIVIDE, .literal = NULL};
+        return (struct token){.type = DIVIDE, .literal = NULL, .pos = position};
     } else if (l->ch == '~') {
         lexer_read_char(l);
-        return (struct token){.type = TILDE, .literal = NULL};
+        return (struct token){.type = TILDE, .literal = NULL, .pos = position};
     } else if (l->ch == '=') {
         char next = lexer_peek_char(l);
         if (next == '>') {
             lexer_read_char(l);
             lexer_read_char(l);
-            return (struct token){.type = ARROW, .literal = NULL};
+            return (struct token){
+                .type = ARROW, .literal = NULL, .pos = position};
         } else {
             lexer_read_char(l);
-            return (struct token){.type = EQUAL, .literal = NULL};
+            return (struct token){
+                .type = EQUAL, .literal = NULL, .pos = position};
         }
     } else if (l->ch == '.') {
         lexer_read_char(l);
-        return (struct token){.type = DOT, .literal = NULL};
+        return (struct token){.type = DOT, .literal = NULL, .pos = position};
     } else if (l->ch == '@') {
         lexer_read_char(l);
-        return (struct token){.type = AT, .literal = NULL};
+        return (struct token){.type = AT, .literal = NULL, .pos = position};
     } else if (l->ch == '"') {
         return token_string_literal(l);
     } else if (islower(l->ch)) {
@@ -428,7 +444,9 @@ static struct token lexer_next_token(struct lexer *l) {
         }
         char *literal = NULL;
         ds_string_slice_to_owned(&slice, &literal);
-        return literal_to_token(literal);
+        struct token t = literal_to_token(literal);
+        t.pos = position;
+        return t;
     } else if (isupper(l->ch)) {
         ds_string_slice slice = {.str = l->buffer + l->pos, .len = 0};
         while (isalnum(l->ch) || l->ch == '_') {
@@ -437,7 +455,8 @@ static struct token lexer_next_token(struct lexer *l) {
         }
         char *literal = NULL;
         ds_string_slice_to_owned(&slice, &literal);
-        return (struct token){.type = CLASS_NAME, .literal = literal};
+        return (struct token){
+            .type = CLASS_NAME, .literal = literal, .pos = position};
     } else if (isdigit(l->ch)) {
         ds_string_slice slice = {.str = l->buffer + l->pos, .len = 0};
         while (isdigit(l->ch)) {
@@ -446,38 +465,23 @@ static struct token lexer_next_token(struct lexer *l) {
         }
         char *literal = NULL;
         ds_string_slice_to_owned(&slice, &literal);
-        return (struct token){.type = INT_LITERAL, .literal = literal};
+        return (struct token){
+            .type = INT_LITERAL, .literal = literal, .pos = position};
     } else {
-        ds_string_slice slice = {.str = l->buffer + l->pos, .len = 1};
+        lexer_read_char(l);
+        ds_string_slice slice = {.str = l->buffer + position, .len = 1};
         char *literal = NULL;
         ds_string_slice_to_owned(&slice, &literal);
-        struct token il = {.type = ILLEGAL,
-                           .literal = literal,
-                           .pos = l->pos,
-                           .error = INVALID_CHAR};
-
-        lexer_read_char(l);
-        return il;
+        return (struct token){.type = ILLEGAL,
+                              .literal = literal,
+                              .pos = position,
+                              .error = INVALID_CHAR};
     }
 };
 
-static void pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
-                      unsigned int *col) {
-    *line = 1;
-    *col = 1;
-    for (unsigned int i = 0; i < pos; i++) {
-        if (buffer[i] == '\n') {
-            *line += 1;
-            *col = 1;
-        } else {
-            *col += 1;
-        }
-    }
-}
-
 static void lexer_print_error(struct lexer *lexer, struct token *tok) {
     unsigned int line, col;
-    pos_to_lc(lexer->buffer, tok->pos, &line, &col);
+    util_pos_to_lc(lexer->buffer, tok->pos, &line, &col);
     if (lexer->filename == NULL) {
         if (tok->literal != NULL) {
             printf("line %d:%d, Lexical error: %s: %s\n", line, col,
