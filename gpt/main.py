@@ -64,6 +64,7 @@ The lexer should produce the following tokens:
 ```"""
 
 EXAMPLE_1_CODE = """class Main inherits IO {
+    (* This is a comment (* and we can have nested comments *) *)
     main(): SELF_TYPE {
         let
             void: List,
@@ -73,22 +74,41 @@ EXAMPLE_1_CODE = """class Main inherits IO {
             l.print()
     };
 };"""
-EXAMPLE_1_TOKENS = """CLASS CLASS_NAME(Main) INHERITS CLASS_NAME(IO) LBRACE IDENT(main) LPAREN RPAREN COLON CLASS_NAME(SELF_TYPE) LBRACE LET IDENT(void) COLON CLASS_NAME(List) COMMA IDENT(guy) COLON CLASS_NAME(Person) ASSIGN NEW CLASS_NAME(Person) DOT IDENT(init) LPAREN STRING_LITERAL(John) COMMA STRING_LITERAL(pizza) RPAREN COMMA IDENT(l) COLON CLASS_NAME(List) ASSIGN NEW CLASS_NAME(List) DOT IDENT(init) LPAREN STRING_LITERAL(first) COMMA NEW CLASS_NAME(List) DOT IDENT(init) LPAREN IDENT(guy) COMMA IDENT(void) RPAREN RPAREN IN IDENT(l) DOT IDENT(print) LPAREN RPAREN RBRACE SEMICOLON RBRACE SEMICOLON END"""
+EXAMPLE_1_TOKENS = """CLASS\nCLASS_NAME(Main)\nINHERITS\nCLASS_NAME(IO)\nLBRACE\nIDENT(main)\nLPAREN\nRPAREN\nCOLON\nCLASS_NAME(SELF_TYPE)\nLBRACE\nLET\nIDENT(void)\nCOLON\nCLASS_NAME(List)\nCOMMA\nIDENT(guy)\nCOLON\nCLASS_NAME(Person)\nASSIGN\nNEW\nCLASS_NAME(Person)\nDOT\nIDENT(init)\nLPAREN\nSTRING_LITERAL(John)\nCOMMA\nSTRING_LITERAL(pizza)\nRPAREN\nCOMMA\nIDENT(l)\nCOLON\nCLASS_NAME(List)\nASSIGN\nNEW\nCLASS_NAME(List)\nDOT\nIDENT(init)\nLPAREN\nSTRING_LITERAL(first)\nCOMMA\nNEW\nCLASS_NAME(List)\nDOT\nIDENT(init)\nLPAREN\nIDENT(guy)\nCOMMA\nIDENT(void)\nRPAREN\nRPAREN\nIN\nIDENT(l)\nDOT\nIDENT(print)\nLPAREN\nRPAREN\nRBRACE\nSEMICOLON\nRBRACE\nSEMICOLON\nEND"""
+EXAMPLE_2_CODE = """class A {
+    x : Int #;
+};"""
+EXAMPLE_2_TOKENS = """CLASS\nCLASS_NAME(A)\nLBRACE\nIDENT(x)\nCOLON\nCLASS_NAME(Int)\nILLEGAL(Invalid character #)\nSEMICOLON\nRBRACE\nSEMICOLON\nEND"""
 EXAMPLE_1 = EXAMPLE_TEMPLATE.format(EXAMPLE_1_CODE, EXAMPLE_1_TOKENS)
+EXAMPLE_2 = EXAMPLE_TEMPLATE.format(EXAMPLE_2_CODE, EXAMPLE_2_TOKENS)
 
-EXAMPLES = [EXAMPLE_1]
+EXAMPLES = [EXAMPLE_1, EXAMPLE_2]
 
 SYSTEM_PROMPT = """Write a lexer for the Cool programming language. \
 The lexer should produce a list of tokens from the input code. \
-The tokens should be space-separated and each token should be in the format `TOKEN_KIND(VALUE)`. \
+The tokens should be newline-separated and each token should be in the format `TOKEN_KIND(VALUE)`. \
 For example, `CLASS_NAME(Main)`. The lexer should be able to handle the following tokens:
 {}
+
+The lexer should also be able to handle errors and produce an `ILLEGAL` token when it encounters an invalid token. \
+The ILLEGAL token should contain an appropriate error message. The errors that can occur are:
+- Illegal character <char> (when an invalid character is encountered)
+- String constant too long (when a string constant is longer than 1024 characters)
+- String contains null character (when a string constant contains a null character)
+- Unterminated string constant (when a string constant contains a newline character)
+- EOF in string constant (when a string constant contains an EOF character)
+- Unmatched *) (when a comment is not closed)
+- EOF in comment (when a comment contains an EOF character)
+After an error is encountered, the lexer should continue lexing the rest of the input code.
+
+The comments in the input code should be ignored by the lexer. \
+The lexer should be able to handle nested comments. Comments start with `(*` and end with `*)`.
 
 Here are some examples of input code and the expected output tokens:
 {}
 
 Please provide the list of tokens for the following Cool code. \
-Make sure to separate the tokens with spaces and use ONLY the presented format for the response. \
+Make sure to separate the tokens with newlines and use ONLY the presented format for the response. \
 Do not add any additional information.
 """.format(", ".join(AVAILABLE_TOKENS), "\n".join(EXAMPLES))
 
@@ -158,7 +178,8 @@ def lexer_run(config: Config, buffer: str) -> List[Token]:
 
     response = client.chat.completions.create(
         model="gpt-4",
-        temperature=0,
+        # temperature=0,
+        top_p=0.1,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": buffer}
@@ -166,7 +187,7 @@ def lexer_run(config: Config, buffer: str) -> List[Token]:
     )
 
     text = response.choices[0].message.content
-    words = text.split()
+    words = text.splitlines()
 
     tokens = []
     for word in words:
