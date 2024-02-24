@@ -1,6 +1,15 @@
 #include "print_ast.h"
 #include <stdio.h>
 
+static void attribute_print(attribute_node *attribute, unsigned int indent) {
+    printf("%*sattribute\n", indent, "");
+    printf("%*s%s\n", indent + INDENT_SIZE, "", attribute->name.value);
+    printf("%*s%s\n", indent + INDENT_SIZE, "", attribute->type.value);
+    if (attribute->value.value != NULL) {
+        printf("%*s%s\n", indent + INDENT_SIZE, "", attribute->value.value);
+    }
+}
+
 static void class_print(class_node *class, unsigned int indent) {
     printf("%*sclass\n", indent, "");
     printf("%*s%s\n", indent + INDENT_SIZE, "", class->name.value);
@@ -10,9 +19,7 @@ static void class_print(class_node *class, unsigned int indent) {
     for (unsigned int i = 0; i < class->attributes.count; i++) {
         attribute_node attribute;
         ds_dynamic_array_get(&class->attributes, i, &attribute);
-        printf("%*sattribute\n", indent + INDENT_SIZE, "");
-        printf("%*s%s\n", indent + INDENT_SIZE * 2, "", attribute.name.value);
-        printf("%*s%s\n", indent + INDENT_SIZE * 2, "", attribute.type.value);
+        attribute_print(&attribute, indent + INDENT_SIZE);
     }
 }
 

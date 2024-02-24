@@ -17,6 +17,7 @@ typedef struct node_info {
 typedef struct attribute_node {
         node_info name;
         node_info type;
+        node_info value; // we assume it is gonna be a string
 } attribute_node;
 
 typedef struct class_node {

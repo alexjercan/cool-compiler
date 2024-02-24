@@ -95,7 +95,7 @@ static void parser_recovery(struct parser *parser) {
     }
 }
 
-static int parser_attribute(struct parser *parser, attribute_node *attribute) {
+static int build_attribute(struct parser *parser, attribute_node *attribute) {
     int result = 0;
     struct token token;
 
@@ -125,7 +125,24 @@ static int parser_attribute(struct parser *parser, attribute_node *attribute) {
     attribute->type.line = token.line;
     attribute->type.col = token.col;
 
-    // Handle initial value optional
+    // TODO: fix this
+    attribute->value.value = NULL;
+
+    parser_current(parser, &token);
+    if (token.type == ASSIGN) {
+        parser_advance(parser);
+
+        // TODO: fix this
+        parser_current(parser, &token);
+        if (token.type != INT_LITERAL) {
+            return_defer(1);
+        }
+        parser_advance(parser);
+
+        attribute->value.value = token.literal;
+        attribute->value.line = token.line;
+        attribute->value.col = token.col;
+    }
 
     parser_current(parser, &token);
     if (token.type != SEMICOLON) {
@@ -142,7 +159,7 @@ defer:
     return result;
 }
 
-static int parser_class(struct parser *parser, class_node *class) {
+static int build_class(struct parser *parser, class_node *class) {
     int result = 0;
     struct token token;
 
@@ -189,7 +206,7 @@ static int parser_class(struct parser *parser, class_node *class) {
     parser_current(parser, &token);
     while (token.type != RBRACE) {
         attribute_node attribute;
-        parser_attribute(parser, &attribute);
+        build_attribute(parser, &attribute);
 
         ds_dynamic_array_append(&class->attributes, &attribute);
 
@@ -214,17 +231,13 @@ defer:
     return result;
 }
 
-static int parser_program(struct parser *parser, program_node *program) {
+static int build_program(struct parser *parser, program_node *program) {
     int result = 0;
 
     struct token token;
     do {
         class_node class;
-        result = parser_class(parser, &class);
-
-        if (result != 0) {
-            parser_recovery(parser);
-        }
+        build_class(parser, &class);
 
         ds_dynamic_array_append(&program->classes, &class);
 
@@ -243,7 +256,7 @@ int parser_run(const char *filename, ds_dynamic_array *tokens,
                             .index = 0,
                             .result = PARSER_OK};
 
-    parser_program(&parser, program);
+    build_program(&parser, program);
 
     return parser.result;
 }
