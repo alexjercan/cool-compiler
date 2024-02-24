@@ -178,8 +178,7 @@ def lexer_run(config: Config, buffer: str) -> List[Token]:
 
     response = client.chat.completions.create(
         model="gpt-4",
-        # temperature=0,
-        top_p=0.1,
+        temperature=0,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": buffer}
