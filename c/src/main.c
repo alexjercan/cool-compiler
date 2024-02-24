@@ -4,12 +4,14 @@
 #include "ds.h"
 #include "io.h"
 #include "lexer.h"
+#include "parser.h"
 
 int main(int argc, char **argv) {
     int result = 0;
     char *buffer = NULL;
     ds_dynamic_array tokens;
     ds_dynamic_array_init(&tokens, sizeof(struct token));
+    program_node program;
     struct argparse_parser *parser = NULL;
 
     parser = argparse_new("coolc", "A cool compiler", "0.1.0");
@@ -20,6 +22,13 @@ int main(int argc, char **argv) {
                                            .description = "Lex the input file",
                                            .type = ARGUMENT_TYPE_FLAG,
                                            .required = 0}));
+
+    argparse_add_argument(parser, ((struct argparse_options){
+                                      .short_name = 's',
+                                      .long_name = "syn",
+                                      .description = "Parse the input file",
+                                      .type = ARGUMENT_TYPE_FLAG,
+                                      .required = 0}));
 
     argparse_add_argument(
         parser, ((struct argparse_options){.short_name = 'i',
@@ -71,6 +80,19 @@ int main(int argc, char **argv) {
             printf("\n");
         }
 
+        return_defer(0);
+    }
+
+    // Parse the tokens
+    if (parser_run(filename, &tokens, &program) != 0) {
+        printf("Compilation halted\n");
+        return_defer(1);
+    }
+
+    // If the syn flag is set, parse the input file
+    unsigned int syn = argparse_get_flag(parser, "syn");
+    if (syn == 1) {
+        parser_print(&program);
         return_defer(0);
     }
 

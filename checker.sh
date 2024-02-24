@@ -1,13 +1,17 @@
 #!/bin/bash
 
+function usage {
+    echo "Usage: $0 <project> [--lex | --syn]"
+}
+
 if [ "$1" == "--help" ]; then
-    echo "Usage: $0 <project> [--lex]"
+    usage
     exit 0
 fi
 
 PROJECT=$1
 if [ -z "$PROJECT" ]; then
-    echo "Usage: $0 <project> [--lex]"
+    usage
     exit 1
 fi
 
