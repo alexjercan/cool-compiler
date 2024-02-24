@@ -6,9 +6,10 @@ struct parser {
         const char *filename;
         ds_dynamic_array *tokens;
         unsigned int index;
+        int result;
 };
 
-static int parser_peek(struct parser *parser, struct token *token) {
+static int parser_current(struct parser *parser, struct token *token) {
     if (parser->index >= parser->tokens->count) {
         return 1;
     }
@@ -18,28 +19,79 @@ static int parser_peek(struct parser *parser, struct token *token) {
     return 0;
 }
 
-static int parser_next(struct parser *parser, struct token *token) {
+static void parser_show_error(struct parser *parser) {
+    parser->result = PARSER_ERROR;
+
+    struct token token;
+    parser_current(parser, &token);
+
+    if (token.type == ILLEGAL) {
+        if (parser->filename == NULL) {
+            if (token.literal != NULL) {
+                printf("line %d:%d, Lexical error: %s: %s\n", token.line,
+                       token.col, error_type_to_string(token.error),
+                       token.literal);
+            } else {
+                printf("line %d:%d, Lexical error: %s\n", token.line, token.col,
+                       error_type_to_string(token.error));
+            }
+        } else {
+            if (token.literal != NULL) {
+                printf("\"%s\", %d:%d: Lexical error: %s: %s\n",
+                       parser->filename, token.line, token.col,
+                       error_type_to_string(token.error), token.literal);
+            } else {
+                printf("\"%s\", %d:%d: Lexical error: %s\n", parser->filename,
+                       token.line, token.col,
+                       error_type_to_string(token.error));
+            }
+        }
+    } else {
+        if (parser->filename == NULL) {
+            if (token.literal != NULL) {
+                printf("line %d:%d, Syntax error: Unexpected %s: %s\n",
+                       token.line, token.col, token_type_to_string(token.type),
+                       token.literal);
+            } else {
+                printf("line %d:%d, Syntax error: Unexpected %s\n", token.line,
+                       token.col, token_type_to_string(token.type));
+            }
+        } else {
+            if (token.literal != NULL) {
+                printf("\"%s\", %d:%d: Syntax error: Unexpected %s: %s\n",
+                       parser->filename, token.line, token.col,
+                       token_type_to_string(token.type), token.literal);
+            } else {
+                printf("\"%s\", %d:%d: Syntax error: Unexpected %s\n",
+                       parser->filename, token.line, token.col,
+                       token_type_to_string(token.type));
+            }
+        }
+    }
+}
+
+static int parser_advance(struct parser *parser) {
     if (parser->index >= parser->tokens->count) {
         return 1;
     }
 
-    ds_dynamic_array_get(parser->tokens, parser->index, token);
     parser->index++;
 
     return 0;
 }
 
 static void parser_recovery(struct parser *parser) {
-    while (parser->index < parser->tokens->count) {
-        struct token token;
-        ds_dynamic_array_get(parser->tokens, parser->index, &token);
+    struct token token;
+    parser_current(parser, &token);
+
+    while (token.type != END) {
+        parser_advance(parser);
 
         if (token.type == SEMICOLON) {
-            parser->index++;
             break;
         }
 
-        parser->index++;
+        parser_current(parser, &token);
     }
 }
 
@@ -47,35 +99,46 @@ static int parser_attribute(struct parser *parser, attribute_node *attribute) {
     int result = 0;
     struct token token;
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type != IDENT) {
         return_defer(1);
     }
+    parser_advance(parser);
 
     attribute->name.value = token.literal;
-    attribute->name.pos = token.pos;
+    attribute->name.line = token.line;
+    attribute->name.col = token.col;
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type != COLON) {
         return_defer(1);
     }
+    parser_advance(parser);
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type != CLASS_NAME) {
         return_defer(1);
     }
+    parser_advance(parser);
 
     attribute->type.value = token.literal;
-    attribute->type.pos = token.pos;
+    attribute->type.line = token.line;
+    attribute->type.col = token.col;
 
     // Handle initial value optional
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type != SEMICOLON) {
         return_defer(1);
     }
+    parser_advance(parser);
 
 defer:
+    if (result != 0) {
+        parser_show_error(parser);
+        parser_recovery(parser);
+    }
+
     return result;
 }
 
@@ -83,59 +146,71 @@ static int parser_class(struct parser *parser, class_node *class) {
     int result = 0;
     struct token token;
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type != CLASS) {
         return_defer(1);
     }
+    parser_advance(parser);
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type != CLASS_NAME) {
         return_defer(1);
     }
+    parser_advance(parser);
 
     class->name.value = token.literal;
-    class->name.pos = token.pos;
+    class->name.line = token.line;
+    class->name.col = token.col;
     class->superclass.value = NULL;
     ds_dynamic_array_init(&class->attributes, sizeof(attribute_node));
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type == INHERITS) {
-        parser_next(parser, &token);
+        parser_advance(parser);
+
+        parser_current(parser, &token);
         if (token.type != CLASS_NAME) {
             return_defer(1);
         }
 
         class->superclass.value = token.literal;
-        class->superclass.pos = token.pos;
+        class->superclass.line = token.line;
+        class->superclass.col = token.col;
 
-        parser_next(parser, &token);
+        parser_advance(parser);
     }
 
+    parser_current(parser, &token);
     if (token.type != LBRACE) {
         return_defer(1);
     }
+    parser_advance(parser);
 
-    parser_peek(parser, &token);
+    parser_current(parser, &token);
     while (token.type != RBRACE) {
         attribute_node attribute;
-        result = parser_attribute(parser, &attribute);
-
-        if (result != 0) {
-            parser_recovery(parser);
-        }
+        parser_attribute(parser, &attribute);
 
         ds_dynamic_array_append(&class->attributes, &attribute);
 
-        parser_peek(parser, &token);
+        parser_current(parser, &token);
+        if (token.type == END) {
+            return_defer(1);
+        }
     }
-    parser_next(parser, &token);
+    parser_advance(parser);
 
-    parser_next(parser, &token);
+    parser_current(parser, &token);
     if (token.type != SEMICOLON) {
         return_defer(1);
     }
+    parser_advance(parser);
 
 defer:
+    if (result != 0) {
+        parser_show_error(parser);
+        parser_recovery(parser);
+    }
     return result;
 }
 
@@ -153,7 +228,7 @@ static int parser_program(struct parser *parser, program_node *program) {
 
         ds_dynamic_array_append(&program->classes, &class);
 
-        parser_peek(parser, &token);
+        parser_current(parser, &token);
     } while (token.type != END);
 
     return result;
@@ -163,37 +238,12 @@ int parser_run(const char *filename, ds_dynamic_array *tokens,
                program_node *program) {
     ds_dynamic_array_init(&program->classes, sizeof(class_node));
 
-    struct parser parser = {.filename = filename, .tokens = tokens, .index = 0};
+    struct parser parser = {.filename = filename,
+                            .tokens = tokens,
+                            .index = 0,
+                            .result = PARSER_OK};
 
-    int result = parser_program(&parser, program);
+    parser_program(&parser, program);
 
-    return result;
+    return parser.result;
 }
-
-#define INDENT_SIZE 2
-
-static void class_print(class_node *class, unsigned int indent) {
-    printf("%*sclass\n", indent, "");
-    printf("%*s%s\n", indent + INDENT_SIZE, "", class->name.value);
-    if (class->superclass.value != NULL) {
-        printf("%*s%s\n", indent + INDENT_SIZE, "", class->superclass.value);
-    }
-    for (unsigned int i = 0; i < class->attributes.count; i++) {
-        attribute_node attribute;
-        ds_dynamic_array_get(&class->attributes, i, &attribute);
-        printf("%*sattribute\n", indent + INDENT_SIZE, "");
-        printf("%*s%s\n", indent + INDENT_SIZE * 2, "", attribute.name.value);
-        printf("%*s%s\n", indent + INDENT_SIZE * 2, "", attribute.type.value);
-    }
-}
-
-static void program_print(program_node *program, unsigned int indent) {
-    printf("%*sprogram\n", indent, "");
-    for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node class;
-        ds_dynamic_array_get(&program->classes, i, &class);
-        class_print(&class, indent + INDENT_SIZE);
-    }
-}
-
-void parser_print(program_node *program) { program_print(program, 0); }

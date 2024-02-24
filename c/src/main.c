@@ -5,6 +5,7 @@
 #include "io.h"
 #include "lexer.h"
 #include "parser.h"
+#include "print_ast.h"
 
 int main(int argc, char **argv) {
     int result = 0;
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
     // If the syn flag is set, parse the input file
     unsigned int syn = argparse_get_flag(parser, "syn");
     if (syn == 1) {
-        parser_print(&program);
+        print_ast(&program);
         return_defer(0);
     }
 

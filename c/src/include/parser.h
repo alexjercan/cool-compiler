@@ -3,9 +3,15 @@
 
 #include "ds.h"
 
+enum parser_result {
+        PARSER_OK,
+        PARSER_ERROR,
+};
+
 typedef struct node_info {
         char *value;
-        unsigned int pos;
+        unsigned int line;
+        unsigned int col;
 } node_info;
 
 typedef struct attribute_node {
@@ -25,6 +31,5 @@ typedef struct program_node {
 
 int parser_run(const char *filename, ds_dynamic_array *tokens,
                program_node *program);
-void parser_print(program_node *program);
 
 #endif // PARSER_H

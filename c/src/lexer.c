@@ -1,3 +1,4 @@
+#include "util.h"
 #include "lexer.h"
 #include "ds.h"
 #include <ctype.h>
@@ -484,37 +485,18 @@ static struct token lexer_next_token(struct lexer *l) {
     }
 };
 
-/*
-static void lexer_print_error(struct lexer *lexer, struct token *tok) {
-    unsigned int line, col;
-    util_pos_to_lc(lexer->buffer, tok->pos, &line, &col);
-    if (lexer->filename == NULL) {
-        if (tok->literal != NULL) {
-            printf("line %d:%d, Lexical error: %s: %s\n", line, col,
-                   error_type_to_string(tok->error), tok->literal);
-        } else {
-            printf("line %d:%d, Lexical error: %s\n", line, col,
-                   error_type_to_string(tok->error));
-        }
-    } else {
-        if (tok->literal != NULL) {
-            printf("\"%s\", %d:%d: Lexical error: %s: %s\n", lexer->filename,
-                   line, col, error_type_to_string(tok->error), tok->literal);
-        } else {
-            printf("\"%s\", %d:%d: Lexical error: %s\n", lexer->filename, line,
-                   col, error_type_to_string(tok->error));
-        }
-    }
-}
-*/
-
 void lexer_tokenize(char *buffer, int length, ds_dynamic_array *tokens) {
     struct lexer lexer;
     lexer_init(&lexer, (char *)buffer, length);
 
+    unsigned int line, col;
+
     struct token tok;
     do {
         tok = lexer_next_token(&lexer);
+        util_pos_to_lc(buffer, tok.pos, &line, &col);
+        tok.line = line;
+        tok.col = col;
         ds_dynamic_array_append(tokens, &tok);
     } while (tok.type != END);
 }

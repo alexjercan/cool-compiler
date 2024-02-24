@@ -69,6 +69,8 @@ struct token {
         char *literal;
         unsigned int pos;
         enum error_type error;
+        unsigned int line;
+        unsigned int col;
 };
 
 void lexer_tokenize(char *buffer, int length, ds_dynamic_array *tokens);
