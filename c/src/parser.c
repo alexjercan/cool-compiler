@@ -29,6 +29,16 @@ static int parser_peek(struct parser *parser, struct token *token) {
     return 0;
 }
 
+static int parser_advance(struct parser *parser) {
+    if (parser->index >= parser->tokens->count) {
+        return 1;
+    }
+
+    parser->index++;
+
+    return 0;
+}
+
 static void parser_show_error(struct parser *parser) {
     parser->result = PARSER_ERROR;
 
@@ -78,16 +88,6 @@ static void parser_show_error(struct parser *parser) {
             }
         }
     }
-}
-
-static int parser_advance(struct parser *parser) {
-    if (parser->index >= parser->tokens->count) {
-        return 1;
-    }
-
-    parser->index++;
-
-    return 0;
 }
 
 static void parser_recovery_formal(struct parser *parser) {
