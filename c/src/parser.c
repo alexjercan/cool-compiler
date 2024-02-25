@@ -642,8 +642,8 @@ static void build_expr_mul(struct parser *parser, expr_node *expr) {
     struct token token;
     struct token next;
 
-    expr_node *lhs = malloc(sizeof(expr_node));
-    build_expr_isvoid(parser, lhs);
+    expr_node *root = malloc(sizeof(expr_node));
+    build_expr_isvoid(parser, root);
 
     parser_current(parser, &token);
     parser_peek(parser, &next);
@@ -660,28 +660,28 @@ static void build_expr_mul(struct parser *parser, expr_node *expr) {
             current_binary = &current->div;
         }
 
-        current_binary->lhs = lhs;
+        current_binary->lhs = root;
         current_binary->rhs = malloc(sizeof(expr_node));
 
         parser_advance(parser);
 
         build_expr_isvoid(parser, current_binary->rhs);
 
-        lhs = current;
+        root = current;
 
         parser_current(parser, &token);
         parser_peek(parser, &next);
     }
 
-    *expr = *lhs;
+    *expr = *root;
 }
 
 static void build_expr_add(struct parser *parser, expr_node *expr) {
     struct token token;
     struct token next;
 
-    expr_node *lhs = malloc(sizeof(expr_node));
-    build_expr_mul(parser, lhs);
+    expr_node *root = malloc(sizeof(expr_node));
+    build_expr_mul(parser, root);
 
     parser_current(parser, &token);
     parser_peek(parser, &next);
@@ -698,28 +698,28 @@ static void build_expr_add(struct parser *parser, expr_node *expr) {
             current_binary = &current->sub;
         }
 
-        current_binary->lhs = lhs;
+        current_binary->lhs = root;
         current_binary->rhs = malloc(sizeof(expr_node));
 
         parser_advance(parser);
 
         build_expr_mul(parser, current_binary->rhs);
 
-        lhs = current;
+        root = current;
 
         parser_current(parser, &token);
         parser_peek(parser, &next);
     }
 
-    *expr = *lhs;
+    *expr = *root;
 }
 
 static void build_expr_cmp(struct parser *parser, expr_node *expr) {
     struct token token;
     struct token next;
 
-    expr_node *lhs = malloc(sizeof(expr_node));
-    build_expr_add(parser, lhs);
+    expr_node *root = malloc(sizeof(expr_node));
+    build_expr_add(parser, root);
 
     parser_current(parser, &token);
     parser_peek(parser, &next);
@@ -740,20 +740,20 @@ static void build_expr_cmp(struct parser *parser, expr_node *expr) {
             current_binary = &current->eq;
         }
 
-        current_binary->lhs = lhs;
+        current_binary->lhs = root;
         current_binary->rhs = malloc(sizeof(expr_node));
 
         parser_advance(parser);
 
         build_expr_add(parser, current_binary->rhs);
 
-        lhs = current;
+        root = current;
 
         parser_current(parser, &token);
         parser_peek(parser, &next);
     }
 
-    *expr = *lhs;
+    *expr = *root;
 }
 
 static void build_expr_not(struct parser *parser, expr_node *expr) {
