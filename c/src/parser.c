@@ -90,17 +90,50 @@ static int parser_advance(struct parser *parser) {
     return 0;
 }
 
-static void parser_recovery(struct parser *parser) {
+static void parser_recovery_formal(struct parser *parser) {
     struct token token;
     parser_current(parser, &token);
 
     while (token.type != END) {
-        parser_advance(parser);
-
-        if (token.type == SEMICOLON) {
-            break;
+        if (token.type == RPAREN) {
+            return;
         }
 
+        parser_peek(parser, &token);
+
+        if (token.type == COMMA) {
+            return;
+        }
+
+        parser_advance(parser);
+        parser_current(parser, &token);
+    }
+}
+
+static void parser_recovery_feature(struct parser *parser) {
+    struct token token;
+    parser_current(parser, &token);
+
+    while (token.type != END) {
+        if (token.type == SEMICOLON) {
+            return;
+        }
+
+        parser_advance(parser);
+        parser_current(parser, &token);
+    }
+}
+
+static void parser_recovery_class(struct parser *parser) {
+    struct token token;
+    parser_current(parser, &token);
+
+    while (token.type != END) {
+        if (token.type == SEMICOLON) {
+            return;
+        }
+
+        parser_advance(parser);
         parser_current(parser, &token);
     }
 }
@@ -151,18 +184,7 @@ static int build_attribute(struct parser *parser, attribute_node *attribute) {
         attribute->value.col = token.col;
     }
 
-    parser_current(parser, &token);
-    if (token.type != SEMICOLON) {
-        return_defer(1);
-    }
-    parser_advance(parser);
-
 defer:
-    if (result != 0) {
-        parser_show_error(parser);
-        parser_recovery(parser);
-    }
-
     return result;
 }
 
@@ -197,11 +219,6 @@ static int build_formal(struct parser *parser, formal_node *formal) {
     formal->type.col = token.col;
 
 defer:
-    if (result != 0) {
-        parser_show_error(parser);
-        parser_recovery(parser);
-    }
-
     return result;
 }
 
@@ -231,7 +248,10 @@ static int build_method(struct parser *parser, method_node *method) {
         formal.name.value = NULL;
         formal.type.value = NULL;
 
-        build_formal(parser, &formal);
+        if (build_formal(parser, &formal) != 0) {
+            parser_show_error(parser);
+            parser_recovery_formal(parser);
+        }
 
         ds_dynamic_array_append(&method->formals, &formal);
 
@@ -239,6 +259,10 @@ static int build_method(struct parser *parser, method_node *method) {
     }
 
     while (token.type != RPAREN) {
+        if (token.type == END) {
+            return_defer(1);
+        }
+
         struct formal_node formal;
         formal.name.value = NULL;
         formal.type.value = NULL;
@@ -248,14 +272,14 @@ static int build_method(struct parser *parser, method_node *method) {
         }
         parser_advance(parser);
 
-        build_formal(parser, &formal);
+        if (build_formal(parser, &formal) != 0) {
+            parser_show_error(parser);
+            parser_recovery_formal(parser);
+        }
 
         ds_dynamic_array_append(&method->formals, &formal);
 
         parser_current(parser, &token);
-        if (token.type == END) {
-            return_defer(1);
-        }
     }
     parser_advance(parser);
 
@@ -298,18 +322,7 @@ static int build_method(struct parser *parser, method_node *method) {
     }
     parser_advance(parser);
 
-    parser_current(parser, &token);
-    if (token.type != SEMICOLON) {
-        return_defer(1);
-    }
-    parser_advance(parser);
-
 defer:
-    if (result != 0) {
-        parser_show_error(parser);
-        parser_recovery(parser);
-    }
-
     return result;
 }
 
@@ -388,26 +401,26 @@ static int build_class(struct parser *parser, class_node *class) {
 
     parser_current(parser, &token);
     while (token.type != RBRACE) {
-        build_feature(parser, class);
-
-        parser_current(parser, &token);
         if (token.type == END) {
             return_defer(1);
         }
-    }
-    parser_advance(parser);
 
-    parser_current(parser, &token);
-    if (token.type != SEMICOLON) {
-        return_defer(1);
+        if (build_feature(parser, class) != 0) {
+            parser_show_error(parser);
+            parser_recovery_feature(parser);
+        }
+
+        parser_current(parser, &token);
+        if (token.type != SEMICOLON) {
+            return_defer(1);
+        }
+        parser_advance(parser);
+
+        parser_current(parser, &token);
     }
     parser_advance(parser);
 
 defer:
-    if (result != 0) {
-        parser_show_error(parser);
-        parser_recovery(parser);
-    }
     return result;
 }
 
@@ -422,13 +435,23 @@ static int build_program(struct parser *parser, program_node *program) {
         ds_dynamic_array_init(&class.attributes, sizeof(attribute_node));
         ds_dynamic_array_init(&class.methods, sizeof(method_node));
 
-        build_class(parser, &class);
+        if (build_class(parser, &class) != 0) {
+            parser_show_error(parser);
+            parser_recovery_class(parser);
+        }
 
         ds_dynamic_array_append(&program->classes, &class);
 
         parser_current(parser, &token);
+        if (token.type != SEMICOLON) {
+            return_defer(1);
+        }
+        parser_advance(parser);
+
+        parser_current(parser, &token);
     } while (token.type != END);
 
+defer:
     return result;
 }
 
