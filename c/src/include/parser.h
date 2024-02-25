@@ -17,7 +17,7 @@ typedef struct node_info {
 enum expr_type {
     EXPR_NONE,
     EXPR_ASSIGN,
-    EXPR_STATIC_DISPATCH,
+    EXPR_DISPATCH_FULL,
     EXPR_DISPATCH,
     EXPR_COND,
     EXPR_LOOP,
@@ -75,7 +75,7 @@ typedef struct expr_node {
                         node_info type;
                         node_info method;
                         ds_dynamic_array args; // expr_node
-                } static_dispatch;
+                } dispatch_full;
                 struct {
                         struct expr_node *expr;
                         node_info method;
@@ -109,7 +109,7 @@ typedef struct expr_node {
                 expr_binary_node lt;
                 expr_binary_node le;
                 expr_binary_node eq;
-                expr_unary_node not ;
+                expr_unary_node not_;
                 struct expr_node *paren;
                 node_info ident;
                 node_info integer;

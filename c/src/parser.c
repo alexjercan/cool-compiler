@@ -88,7 +88,7 @@ static void parser_show_errorf(struct parser *parser, const char *format, ...) {
 
 static void build_expr(struct parser *parser, expr_node *expr);
 
-static void build_expr_if(struct parser *parser, expr_node *expr) {
+static void build_node_if(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_COND;
@@ -136,9 +136,10 @@ static void build_expr_if(struct parser *parser, expr_node *expr) {
             return;
         }
     }
+    parser_advance(parser);
 }
 
-static void build_expr_while(struct parser *parser, expr_node *expr) {
+static void build_node_while(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_LOOP;
@@ -174,9 +175,10 @@ static void build_expr_while(struct parser *parser, expr_node *expr) {
             return;
         }
     }
+    parser_advance(parser);
 }
 
-static void build_expr_block(struct parser *parser, expr_node *expr) {
+static void build_node_block(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_BLOCK;
@@ -198,11 +200,11 @@ static void build_expr_block(struct parser *parser, expr_node *expr) {
             return;
         }
 
-        expr_node expr;
+        expr_node line;
 
-        build_expr(parser, &expr);
+        build_expr(parser, &line);
 
-        ds_dynamic_array_append(&expr.block, &expr);
+        ds_dynamic_array_append(&expr->block, &line);
 
         parser_current(parser, &token);
         if (token.type != SEMICOLON) {
@@ -211,11 +213,15 @@ static void build_expr_block(struct parser *parser, expr_node *expr) {
                 return;
             }
         }
+        parser_advance(parser);
+
+        parser_current(parser, &token);
     }
+
     parser_advance(parser);
 }
 
-static void build_let_init(struct parser *parser, let_init_node *init) {
+static void build_node_let_init(struct parser *parser, let_init_node *init) {
     struct token token;
 
     init->name.value = NULL;
@@ -265,7 +271,7 @@ static void build_let_init(struct parser *parser, let_init_node *init) {
     }
 }
 
-static void build_expr_let(struct parser *parser, expr_node *expr) {
+static void build_node_let(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_LET;
@@ -285,7 +291,7 @@ static void build_expr_let(struct parser *parser, expr_node *expr) {
     if (token.type == IDENT) {
         let_init_node init;
 
-        build_let_init(parser, &init);
+        build_node_let_init(parser, &init);
 
         ds_dynamic_array_append(&expr->let.inits, &init);
     } else {
@@ -307,7 +313,7 @@ static void build_expr_let(struct parser *parser, expr_node *expr) {
 
         let_init_node init;
 
-        build_let_init(parser, &init);
+        build_node_let_init(parser, &init);
 
         ds_dynamic_array_append(&expr->let.inits, &init);
 
@@ -318,7 +324,7 @@ static void build_expr_let(struct parser *parser, expr_node *expr) {
     build_expr(parser, expr->let.body);
 }
 
-static void build_branch(struct parser *parser, branch_node *branch) {
+static void build_node_branch(struct parser *parser, branch_node *branch) {
     struct token token;
 
     branch->name.value = NULL;
@@ -372,7 +378,7 @@ static void build_branch(struct parser *parser, branch_node *branch) {
     build_expr(parser, branch->body);
 }
 
-static void build_expr_case(struct parser *parser, expr_node *expr) {
+static void build_node_case(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_CASE;
@@ -403,7 +409,7 @@ static void build_expr_case(struct parser *parser, expr_node *expr) {
     do {
         branch_node branch;
 
-        build_branch(parser, &branch);
+        build_node_branch(parser, &branch);
 
         ds_dynamic_array_append(&expr->case_.cases, &branch);
 
@@ -421,7 +427,7 @@ static void build_expr_case(struct parser *parser, expr_node *expr) {
     parser_advance(parser);
 }
 
-static void build_expr_new(struct parser *parser, expr_node *expr) {
+static void build_node_new(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_NEW;
@@ -450,7 +456,7 @@ static void build_expr_new(struct parser *parser, expr_node *expr) {
     parser_advance(parser);
 }
 
-static void build_expr_isvoid(struct parser *parser, expr_node *expr) {
+static void build_node_isvoid(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_ISVOID;
@@ -468,7 +474,7 @@ static void build_expr_isvoid(struct parser *parser, expr_node *expr) {
     build_expr(parser, expr->isvoid);
 }
 
-static void build_expr_neg(struct parser *parser, expr_node *expr) {
+static void build_node_neg(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_NEG;
@@ -486,11 +492,11 @@ static void build_expr_neg(struct parser *parser, expr_node *expr) {
     build_expr(parser, expr->neg.expr);
 }
 
-static void build_expr_not(struct parser *parser, expr_node *expr) {
+static void build_node_not(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_NOT;
-    expr->not.expr = malloc(sizeof(expr_node));
+    expr->not_.expr = malloc(sizeof(expr_node));
 
     parser_current(parser, &token);
     if (token.type != NOT) {
@@ -501,10 +507,10 @@ static void build_expr_not(struct parser *parser, expr_node *expr) {
     }
     parser_advance(parser);
 
-    build_expr(parser, expr->not.expr);
+    build_expr(parser, expr->not_.expr);
 }
 
-static void build_expr_paren(struct parser *parser, expr_node *expr) {
+static void build_node_paren(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_PAREN;
@@ -531,87 +537,264 @@ static void build_expr_paren(struct parser *parser, expr_node *expr) {
     parser_advance(parser);
 }
 
-static void build_expr(struct parser *parser, expr_node *expr) {
-    struct token token;
+static void build_expr(struct parser *parser, expr_node *expr);
 
-    expr->type = EXPR_NONE;
+static void build_expr_simple(struct parser *parser, expr_node *expr) {
+    struct token token;
 
     parser_current(parser, &token);
     switch (token.type) {
-    case IF: {
-        build_expr_if(parser, expr);
-        break;
-    }
-    case WHILE: {
-        build_expr_while(parser, expr);
-        break;
-    }
-    case LBRACE: {
-        build_expr_block(parser, expr);
-        break;
-    }
-    case LET: {
-        build_expr_let(parser, expr);
-        break;
-    }
-    case CASE: {
-        build_expr_case(parser, expr);
-        break;
-    }
-    case NEW: {
-        build_expr_new(parser, expr);
-        break;
-    }
-    case ISVOID: {
-        build_expr_isvoid(parser, expr);
-        break;
-    }
-    case TILDE: {
-        build_expr_neg(parser, expr);
-        break;
-    }
-    case NOT: {
-        build_expr_not(parser, expr);
-        break;
-    }
-    case LPAREN: {
-        build_expr_paren(parser, expr);
-        break;
-    }
-    case INT_LITERAL: {
-        expr->type = EXPR_INT;
-        expr->integer.value = token.literal;
-        expr->integer.line = token.line;
-        expr->integer.col = token.col;
-        parser_advance(parser);
-        break;
-    }
-    case STRING_LITERAL: {
-        expr->type = EXPR_STRING;
-        expr->string.value = token.literal;
-        expr->string.line = token.line;
-        expr->string.col = token.col;
-        parser_advance(parser);
-        break;
-    }
-    case BOOL_LITERAL: {
-        expr->type = EXPR_BOOL;
-        expr->boolean.value = token.literal;
-        expr->boolean.line = token.line;
-        expr->boolean.col = token.col;
-        parser_advance(parser);
-        break;
-    }
-    case IDENT: {
+    case IDENT:
         expr->type = EXPR_IDENT;
         expr->ident.value = token.literal;
         expr->ident.line = token.line;
         expr->ident.col = token.col;
+
+        parser_advance(parser);
+        break;
+    case INT_LITERAL:
+        expr->type = EXPR_INT;
+        expr->integer.value = token.literal;
+        expr->integer.line = token.line;
+        expr->integer.col = token.col;
+
+        parser_advance(parser);
+        break;
+    case STRING_LITERAL:
+        expr->type = EXPR_STRING;
+        expr->string.value = token.literal;
+        expr->string.line = token.line;
+        expr->string.col = token.col;
+
+        parser_advance(parser);
+        break;
+    case BOOL_LITERAL:
+        expr->type = EXPR_BOOL;
+        expr->boolean.value = token.literal;
+        expr->boolean.line = token.line;
+        expr->boolean.col = token.col;
+
+        parser_advance(parser);
+        break;
+    case LPAREN:
+        build_node_paren(parser, expr);
+        break;
+    case IF:
+        build_node_if(parser, expr);
+        break;
+    case WHILE:
+        build_node_while(parser, expr);
+        break;
+    case LBRACE:
+        build_node_block(parser, expr);
+        break;
+    case LET:
+        build_node_let(parser, expr);
+        break;
+    case CASE:
+        build_node_case(parser, expr);
+        break;
+    case NEW:
+        build_node_new(parser, expr);
+        break;
+    default: {
+        parser_show_errorf(parser, "unexpected token %s",
+                           token_type_to_string(token.type));
         parser_advance(parser);
         break;
     }
-    default:
-        return;
+    }
+}
+
+static void build_expr_neg(struct parser *parser, expr_node *expr) {
+    struct token token;
+
+    parser_current(parser, &token);
+    if (token.type == TILDE) {
+        expr->type = EXPR_NEG;
+        expr->neg.expr = malloc(sizeof(expr_node));
+
+        parser_advance(parser);
+
+        build_expr_simple(parser, expr->neg.expr); // TODO: Should actually do call to build function call
+    } else {
+        build_expr_simple(parser, expr);
+    }
+}
+
+static void build_expr_isvoid(struct parser *parser, expr_node *expr) {
+    struct token token;
+
+    parser_current(parser, &token);
+    if (token.type == ISVOID) {
+        expr->type = EXPR_ISVOID;
+        expr->isvoid = malloc(sizeof(expr_node));
+
+        parser_advance(parser);
+
+        build_expr_neg(parser, expr->isvoid);
+    } else {
+        build_expr_neg(parser, expr);
+    }
+}
+
+static void build_expr_mul(struct parser *parser, expr_node *expr) {
+    struct token token;
+    struct token next;
+
+    expr_node *lhs = malloc(sizeof(expr_node));
+    build_expr_isvoid(parser, lhs);
+
+    parser_current(parser, &token);
+    parser_peek(parser, &next);
+
+    while (token.type == MULTIPLY || token.type == DIVIDE) {
+        expr_node *current = malloc(sizeof(expr_node));
+        expr_binary_node *current_binary;
+
+        if (token.type == MULTIPLY) {
+            current->type = EXPR_MUL;
+            current_binary = &current->mul;
+        } else {
+            current->type = EXPR_DIV;
+            current_binary = &current->div;
+        }
+
+        current_binary->lhs = lhs;
+        current_binary->rhs = malloc(sizeof(expr_node));
+
+        parser_advance(parser);
+
+        build_expr_isvoid(parser, current_binary->rhs);
+
+        lhs = current;
+
+        parser_current(parser, &token);
+        parser_peek(parser, &next);
+    }
+
+    *expr = *lhs;
+}
+
+static void build_expr_add(struct parser *parser, expr_node *expr) {
+    struct token token;
+    struct token next;
+
+    expr_node *lhs = malloc(sizeof(expr_node));
+    build_expr_mul(parser, lhs);
+
+    parser_current(parser, &token);
+    parser_peek(parser, &next);
+
+    while (token.type == PLUS || token.type == MINUS) {
+        expr_node *current = malloc(sizeof(expr_node));
+        expr_binary_node *current_binary;
+
+        if (token.type == PLUS) {
+            current->type = EXPR_ADD;
+            current_binary = &current->add;
+        } else {
+            current->type = EXPR_SUB;
+            current_binary = &current->sub;
+        }
+
+        current_binary->lhs = lhs;
+        current_binary->rhs = malloc(sizeof(expr_node));
+
+        parser_advance(parser);
+
+        build_expr_mul(parser, current_binary->rhs);
+
+        lhs = current;
+
+        parser_current(parser, &token);
+        parser_peek(parser, &next);
+    }
+
+    *expr = *lhs;
+}
+
+static void build_expr_cmp(struct parser *parser, expr_node *expr) {
+    struct token token;
+    struct token next;
+
+    expr_node *lhs = malloc(sizeof(expr_node));
+    build_expr_add(parser, lhs);
+
+    parser_current(parser, &token);
+    parser_peek(parser, &next);
+
+    while (token.type == LESS_THAN_EQ || token.type == LESS_THAN ||
+           token.type == EQUAL) {
+        expr_node *current = malloc(sizeof(expr_node));
+        expr_binary_node *current_binary;
+
+        if (token.type == LESS_THAN_EQ) {
+            current->type = EXPR_LE;
+            current_binary = &current->le;
+        } else if (token.type == LESS_THAN) {
+            current->type = EXPR_LT;
+            current_binary = &current->lt;
+        } else {
+            current->type = EXPR_EQ;
+            current_binary = &current->eq;
+        }
+
+        current_binary->lhs = lhs;
+        current_binary->rhs = malloc(sizeof(expr_node));
+
+        parser_advance(parser);
+
+        build_expr_add(parser, current_binary->rhs);
+
+        lhs = current;
+
+        parser_current(parser, &token);
+        parser_peek(parser, &next);
+    }
+
+    *expr = *lhs;
+}
+
+static void build_expr_not(struct parser *parser, expr_node *expr) {
+    struct token token;
+    struct token next;
+
+    parser_current(parser, &token);
+    parser_peek(parser, &next);
+    if (token.type == NOT) {
+        expr->type = EXPR_NOT;
+        expr->not_.expr = malloc(sizeof(expr_node));
+
+        parser_advance(parser);
+
+        build_expr_cmp(parser, expr->not_.expr);
+    } else {
+        build_expr_cmp(parser, expr);
+    }
+}
+
+static void build_expr(struct parser *parser, expr_node *expr) {
+    struct token token;
+    struct token next;
+
+    expr->type = EXPR_NONE;
+
+    parser_current(parser, &token);
+    parser_peek(parser, &next);
+    if (token.type == IDENT && next.type == ASSIGN) {
+        expr->type = EXPR_ASSIGN;
+        expr->assign.name.value = token.literal;
+        expr->assign.name.line = token.line;
+        expr->assign.name.col = token.col;
+        expr->assign.value = malloc(sizeof(expr_node));
+
+        parser_advance(parser);
+        parser_advance(parser);
+
+        build_expr(parser, expr->assign.value);
+    } else {
+        build_expr_not(parser, expr);
     }
 }
 
@@ -810,12 +993,6 @@ static void build_method(struct parser *parser, method_node *method) {
 
 static void build_feature(struct parser *parser, class_node *class) {
     struct token token;
-
-    parser_current(parser, &token);
-    if (token.type != IDENT) {
-        parser_show_expected(parser, IDENT, token.type);
-        return;
-    }
 
     parser_peek(parser, &token);
     if (token.type == COLON) {

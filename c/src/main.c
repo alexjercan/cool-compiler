@@ -1,3 +1,4 @@
+#include "util.h"
 #include <stdio.h>
 #define ARGPARSE_IMPLEMENTATION
 #include "argparse.h"
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
     }
 
     // Parse the tokens
-    if (parser_run(filename, &tokens, &program) != 0) {
+    if (parser_run(filepath_to_basename(filename), &tokens, &program) != 0) {
         printf("Compilation halted\n");
         return_defer(1);
     }

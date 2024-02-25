@@ -1,6 +1,22 @@
 #include "print_ast.h"
 #include <stdio.h>
 
+static void expr_print(expr_node *expr, unsigned int indent);
+
+static void local_print(let_init_node *init, unsigned int indent) {
+    printf("%*slocal\n", indent, "");
+    printf("%*s%s\n", indent + INDENT_SIZE, "", init->name.value);
+    printf("%*s%s\n", indent + INDENT_SIZE, "", init->type.value);
+    expr_print(init->init, indent + INDENT_SIZE);
+}
+
+static void branch_print(branch_node *branch, unsigned int indent) {
+    printf("%*scase branch\n", indent, "");
+    printf("%*s%s\n", indent + INDENT_SIZE, "", branch->name.value);
+    printf("%*s%s\n", indent + INDENT_SIZE, "", branch->type.value);
+    expr_print(branch->body, indent + INDENT_SIZE);
+}
+
 static void expr_print(expr_node *expr, unsigned int indent) {
     switch (expr->type) {
         case EXPR_INT: {
@@ -17,6 +33,120 @@ static void expr_print(expr_node *expr, unsigned int indent) {
         }
         case EXPR_IDENT: {
             printf("%*s%s\n", indent, "", expr->ident.value);
+            break;
+        }
+        case EXPR_ADD: {
+            printf("%*s+\n", indent, "");
+            expr_print(expr->add.lhs, indent + INDENT_SIZE);
+            expr_print(expr->add.rhs, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_SUB: {
+            printf("%*s-\n", indent, "");
+            expr_print(expr->sub.lhs, indent + INDENT_SIZE);
+            expr_print(expr->sub.rhs, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_MUL: {
+            printf("%*s*\n", indent, "");
+            expr_print(expr->mul.lhs, indent + INDENT_SIZE);
+            expr_print(expr->mul.rhs, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_DIV: {
+            printf("%*s/\n", indent, "");
+            expr_print(expr->div.lhs, indent + INDENT_SIZE);
+            expr_print(expr->div.rhs, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_NEG: {
+            printf("%*s~\n", indent, "");
+            expr_print(expr->neg.expr, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_PAREN: {
+            expr_print(expr->paren, indent);
+            break;
+        }
+        case EXPR_LE: {
+            printf("%*s<=\n", indent, "");
+            expr_print(expr->le.lhs, indent + INDENT_SIZE);
+            expr_print(expr->le.rhs, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_LT: {
+            printf("%*s<\n", indent, "");
+            expr_print(expr->lt.lhs, indent + INDENT_SIZE);
+            expr_print(expr->lt.rhs, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_EQ: {
+            printf("%*s=\n", indent, "");
+            expr_print(expr->eq.lhs, indent + INDENT_SIZE);
+            expr_print(expr->eq.rhs, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_ASSIGN: {
+            printf("%*s<-\n", indent, "");
+            printf("%*s%s\n", indent + INDENT_SIZE, "", expr->assign.name.value);
+            expr_print(expr->assign.value, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_COND: {
+            printf("%*sif\n", indent, "");
+            expr_print(expr->cond.predicate, indent + INDENT_SIZE);
+            expr_print(expr->cond.then, indent + INDENT_SIZE);
+            expr_print(expr->cond.else_, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_LOOP: {
+            printf("%*swhile\n", indent, "");
+            expr_print(expr->loop.predicate, indent + INDENT_SIZE);
+            expr_print(expr->loop.body, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_LET: {
+            printf("%*slet\n", indent, "");
+            for (unsigned int i = 0; i < expr->let.inits.count; i++) {
+                let_init_node init;
+                ds_dynamic_array_get(&expr->let.inits, i, &init);
+                local_print(&init, indent + INDENT_SIZE);
+            }
+            expr_print(expr->let.body, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_CASE: {
+            printf("%*scase\n", indent, "");
+            expr_print(expr->case_.expr, indent + INDENT_SIZE);
+            for (unsigned int i = 0; i < expr->case_.cases.count; i++) {
+                branch_node branch;
+                ds_dynamic_array_get(&expr->case_.cases, i, &branch);
+                branch_print(&branch, indent + INDENT_SIZE);
+            }
+            break;
+        }
+        case EXPR_BLOCK: {
+            printf("%*sblock\n", indent, "");
+            for (unsigned int i = 0; i < expr->block.count; i++) {
+                expr_node subexpr;
+                ds_dynamic_array_get(&expr->block, i, &subexpr);
+                expr_print(&subexpr, indent + INDENT_SIZE);
+            }
+            break;
+        }
+        case EXPR_NEW: {
+            printf("%*snew\n", indent, "");
+            printf("%*s%s\n", indent + INDENT_SIZE, "", expr->new.value);
+            break;
+        }
+        case EXPR_ISVOID: {
+            printf("%*sisvoid\n", indent, "");
+            expr_print(expr->isvoid, indent + INDENT_SIZE);
+            break;
+        }
+        case EXPR_NOT: {
+            printf("%*snot\n", indent, "");
+            expr_print(expr->not_.expr, indent + INDENT_SIZE);
             break;
         }
         default: {
