@@ -20,10 +20,23 @@ typedef struct attribute_node {
         node_info value; // we assume it is gonna be a string
 } attribute_node;
 
+typedef struct formal_node {
+        node_info name;
+        node_info type;
+} formal_node;
+
+typedef struct method_node {
+        node_info name;
+        node_info type;
+        ds_dynamic_array formals;
+        node_info body; // we assume it is gonna be a string
+} method_node;
+
 typedef struct class_node {
         node_info name;
         node_info superclass;
         ds_dynamic_array attributes;
+        ds_dynamic_array methods;
 } class_node;
 
 typedef struct program_node {

@@ -19,6 +19,16 @@ static int parser_current(struct parser *parser, struct token *token) {
     return 0;
 }
 
+static int parser_peek(struct parser *parser, struct token *token) {
+    if (parser->index + 1 >= parser->tokens->count) {
+        return 1;
+    }
+
+    ds_dynamic_array_get(parser->tokens, parser->index + 1, token);
+
+    return 0;
+}
+
 static void parser_show_error(struct parser *parser) {
     parser->result = PARSER_ERROR;
 
@@ -125,9 +135,6 @@ static int build_attribute(struct parser *parser, attribute_node *attribute) {
     attribute->type.line = token.line;
     attribute->type.col = token.col;
 
-    // TODO: fix this
-    attribute->value.value = NULL;
-
     parser_current(parser, &token);
     if (token.type == ASSIGN) {
         parser_advance(parser);
@@ -159,6 +166,182 @@ defer:
     return result;
 }
 
+static int build_formal(struct parser *parser, formal_node *formal) {
+    int result = 0;
+    struct token token;
+
+    parser_current(parser, &token);
+    if (token.type != IDENT) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    formal->name.value = token.literal;
+    formal->name.line = token.line;
+    formal->name.col = token.col;
+
+    parser_current(parser, &token);
+    if (token.type != COLON) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    parser_current(parser, &token);
+    if (token.type != CLASS_NAME) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    formal->type.value = token.literal;
+    formal->type.line = token.line;
+    formal->type.col = token.col;
+
+defer:
+    if (result != 0) {
+        parser_show_error(parser);
+        parser_recovery(parser);
+    }
+
+    return result;
+}
+
+static int build_method(struct parser *parser, method_node *method) {
+    int result = 0;
+    struct token token;
+
+    parser_current(parser, &token);
+    if (token.type != IDENT) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    method->name.value = token.literal;
+    method->name.line = token.line;
+    method->name.col = token.col;
+
+    parser_current(parser, &token);
+    if (token.type != LPAREN) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    parser_current(parser, &token);
+    if (token.type == IDENT) {
+        struct formal_node formal;
+        formal.name.value = NULL;
+        formal.type.value = NULL;
+
+        build_formal(parser, &formal);
+
+        ds_dynamic_array_append(&method->formals, &formal);
+
+        parser_current(parser, &token);
+    }
+
+    while (token.type != RPAREN) {
+        struct formal_node formal;
+        formal.name.value = NULL;
+        formal.type.value = NULL;
+
+        if (token.type != COMMA) {
+            return_defer(1);
+        }
+        parser_advance(parser);
+
+        build_formal(parser, &formal);
+
+        ds_dynamic_array_append(&method->formals, &formal);
+
+        parser_current(parser, &token);
+        if (token.type == END) {
+            return_defer(1);
+        }
+    }
+    parser_advance(parser);
+
+    parser_current(parser, &token);
+    if (token.type != COLON) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    parser_current(parser, &token);
+    if (token.type != CLASS_NAME) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    method->type.value = token.literal;
+    method->type.line = token.line;
+    method->type.col = token.col;
+
+    parser_current(parser, &token);
+    if (token.type != LBRACE) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    // TODO: fix this
+    parser_current(parser, &token);
+    if (token.type != INT_LITERAL) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    method->body.value = token.literal;
+    method->body.line = token.line;
+    method->body.col = token.col;
+
+    parser_current(parser, &token);
+    if (token.type != RBRACE) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+    parser_current(parser, &token);
+    if (token.type != SEMICOLON) {
+        return_defer(1);
+    }
+    parser_advance(parser);
+
+defer:
+    if (result != 0) {
+        parser_show_error(parser);
+        parser_recovery(parser);
+    }
+
+    return result;
+}
+
+static int build_feature(struct parser *parser, class_node *class) {
+    int result = 0;
+    struct token token;
+
+    parser_peek(parser, &token);
+    if (token.type == COLON) {
+        attribute_node attribute;
+        attribute.name.value = NULL;
+        attribute.type.value = NULL;
+        attribute.value.value = NULL;
+
+        result = build_attribute(parser, &attribute);
+
+        ds_dynamic_array_append(&class->attributes, &attribute);
+    } else {
+        method_node method;
+        method.name.value = NULL;
+        method.type.value = NULL;
+        ds_dynamic_array_init(&method.formals, sizeof(formal_node));
+        method.body.value = NULL;
+
+        result = build_method(parser, &method);
+
+        ds_dynamic_array_append(&class->methods, &method);
+    }
+
+    return result;
+}
+
 static int build_class(struct parser *parser, class_node *class) {
     int result = 0;
     struct token token;
@@ -178,8 +361,8 @@ static int build_class(struct parser *parser, class_node *class) {
     class->name.value = token.literal;
     class->name.line = token.line;
     class->name.col = token.col;
-    class->superclass.value = NULL;
     ds_dynamic_array_init(&class->attributes, sizeof(attribute_node));
+    ds_dynamic_array_init(&class->methods, sizeof(method_node));
 
     parser_current(parser, &token);
     if (token.type == INHERITS) {
@@ -205,10 +388,7 @@ static int build_class(struct parser *parser, class_node *class) {
 
     parser_current(parser, &token);
     while (token.type != RBRACE) {
-        attribute_node attribute;
-        build_attribute(parser, &attribute);
-
-        ds_dynamic_array_append(&class->attributes, &attribute);
+        build_feature(parser, class);
 
         parser_current(parser, &token);
         if (token.type == END) {
@@ -237,6 +417,11 @@ static int build_program(struct parser *parser, program_node *program) {
     struct token token;
     do {
         class_node class;
+        class.name.value = NULL;
+        class.superclass.value = NULL;
+        ds_dynamic_array_init(&class.attributes, sizeof(attribute_node));
+        ds_dynamic_array_init(&class.methods, sizeof(method_node));
+
         build_class(parser, &class);
 
         ds_dynamic_array_append(&program->classes, &class);
