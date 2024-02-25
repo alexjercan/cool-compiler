@@ -6,5 +6,5 @@ The C implementation of the compiler.
 
 ```console
 make
-./build/main
+./build/main --help
 ```

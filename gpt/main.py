@@ -118,6 +118,7 @@ class Options:
     input: Optional[str]
     output: Optional[str]
     lex: bool
+    config: str
 
 
 def parse_args() -> Options:
@@ -125,10 +126,11 @@ def parse_args() -> Options:
     parser.add_argument("input", nargs='?', type=str, default=None, help="Input file")
     parser.add_argument("--lex", action="store_true", help="Lex the input file")
     parser.add_argument("-o", "--output", type=str, default=None, help="Output file")
+    parser.add_argument("--config", type=str, default="config.yaml", help="Config file")
 
     args = parser.parse_args()
 
-    return Options(input=args.input, lex=args.lex, output=args.output)
+    return Options(input=args.input, lex=args.lex, output=args.output, config=args.config)
 
 
 @dataclass
@@ -136,8 +138,8 @@ class Config:
     openai_api_key: str
 
 
-def read_config() -> Config:
-    config = OmegaConf.load("config.yaml")
+def read_config(config) -> Config:
+    config = OmegaConf.load(config)
     return Config(openai_api_key=config.openai_api_key)
 
 
@@ -202,7 +204,7 @@ def lexer_run(config: Config, buffer: str) -> List[Token]:
 
 if __name__ == "__main__":
     options = parse_args()
-    config = read_config()
+    config = read_config(options.config)
 
     buffer = read_file(options.input)
 
