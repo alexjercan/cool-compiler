@@ -4,8 +4,8 @@
 #include "ds.h"
 
 enum parser_result {
-        PARSER_OK,
-        PARSER_ERROR,
+    PARSER_OK,
+    PARSER_ERROR,
 };
 
 typedef struct node_info {
@@ -15,6 +15,7 @@ typedef struct node_info {
 } node_info;
 
 enum expr_type {
+    EXPR_NONE,
     EXPR_INT,
     EXPR_STRING,
     EXPR_BOOL,
@@ -23,7 +24,12 @@ enum expr_type {
 
 typedef struct expr_node {
         enum expr_type type;
-        node_info value; // TODO: change to void*
+        union {
+                node_info ident;
+                node_info string;
+                node_info integer;
+                node_info boolean;
+        };
 } expr_node;
 
 typedef struct attribute_node {

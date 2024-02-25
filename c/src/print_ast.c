@@ -2,8 +2,26 @@
 #include <stdio.h>
 
 static void expr_print(expr_node *expr, unsigned int indent) {
-    if (expr->value.value != NULL) { // TODO: this is a hack
-        printf("%*s%s\n", indent, "", expr->value.value);
+    switch (expr->type) {
+        case EXPR_INT: {
+            printf("%*s%s\n", indent, "", expr->integer.value);
+            break;
+        }
+        case EXPR_BOOL: {
+            printf("%*s%s\n", indent, "", expr->boolean.value);
+            break;
+        }
+        case EXPR_STRING: {
+            printf("%*s%s\n", indent, "", expr->string.value);
+            break;
+        }
+        case EXPR_IDENT: {
+            printf("%*s%s\n", indent, "", expr->ident.value);
+            break;
+        }
+        default: {
+            break;
+        }
     }
 }
 

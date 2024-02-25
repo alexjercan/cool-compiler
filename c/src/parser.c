@@ -153,9 +153,7 @@ static void parser_recovery_expr(struct parser *parser) {
 }
 
 static void expr_node_init(expr_node *expr) {
-    expr->value.value = NULL;
-    expr->value.line = 0;
-    expr->value.col = 0;
+    expr->type = EXPR_NONE;
 }
 
 static int build_expr(struct parser *parser, expr_node *expr) {
@@ -165,30 +163,34 @@ static int build_expr(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     switch (token.type) {
     case INT_LITERAL: {
-        expr->value.value = token.literal;
-        expr->value.line = token.line;
-        expr->value.col = token.col;
+        expr->type = EXPR_INT;
+        expr->integer.value = token.literal;
+        expr->integer.line = token.line;
+        expr->integer.col = token.col;
         parser_advance(parser);
         break;
     }
     case STRING_LITERAL: {
-        expr->value.value = token.literal;
-        expr->value.line = token.line;
-        expr->value.col = token.col;
+        expr->type = EXPR_STRING;
+        expr->string.value = token.literal;
+        expr->string.line = token.line;
+        expr->string.col = token.col;
         parser_advance(parser);
         break;
     }
     case BOOL_LITERAL: {
-        expr->value.value = token.literal;
-        expr->value.line = token.line;
-        expr->value.col = token.col;
+        expr->type = EXPR_BOOL;
+        expr->boolean.value = token.literal;
+        expr->boolean.line = token.line;
+        expr->boolean.col = token.col;
         parser_advance(parser);
         break;
     }
     case IDENT: {
-        expr->value.value = token.literal;
-        expr->value.line = token.line;
-        expr->value.col = token.col;
+        expr->type = EXPR_IDENT;
+        expr->ident.value = token.literal;
+        expr->ident.line = token.line;
+        expr->ident.col = token.col;
         parser_advance(parser);
         break;
     }
