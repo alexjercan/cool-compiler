@@ -138,6 +138,68 @@ static void parser_recovery_class(struct parser *parser) {
     }
 }
 
+static void parser_recovery_expr(struct parser *parser) {
+    struct token token;
+    parser_current(parser, &token);
+
+    while (token.type != END) {
+        if (token.type == SEMICOLON) {
+            return;
+        }
+
+        parser_advance(parser);
+        parser_current(parser, &token);
+    }
+}
+
+static void expr_node_init(expr_node *expr) {
+    expr->value.value = NULL;
+    expr->value.line = 0;
+    expr->value.col = 0;
+}
+
+static int build_expr(struct parser *parser, expr_node *expr) {
+    int result = 0;
+    struct token token;
+
+    parser_current(parser, &token);
+    switch (token.type) {
+    case INT_LITERAL: {
+        expr->value.value = token.literal;
+        expr->value.line = token.line;
+        expr->value.col = token.col;
+        parser_advance(parser);
+        break;
+    }
+    case STRING_LITERAL: {
+        expr->value.value = token.literal;
+        expr->value.line = token.line;
+        expr->value.col = token.col;
+        parser_advance(parser);
+        break;
+    }
+    case BOOL_LITERAL: {
+        expr->value.value = token.literal;
+        expr->value.line = token.line;
+        expr->value.col = token.col;
+        parser_advance(parser);
+        break;
+    }
+    case IDENT: {
+        expr->value.value = token.literal;
+        expr->value.line = token.line;
+        expr->value.col = token.col;
+        parser_advance(parser);
+        break;
+    }
+    default:
+        return_defer(1);
+    }
+
+defer:
+    return result;
+}
+
 static int build_attribute(struct parser *parser, attribute_node *attribute) {
     int result = 0;
     struct token token;
@@ -172,16 +234,10 @@ static int build_attribute(struct parser *parser, attribute_node *attribute) {
     if (token.type == ASSIGN) {
         parser_advance(parser);
 
-        // TODO: fix this
-        parser_current(parser, &token);
-        if (token.type != INT_LITERAL) {
-            return_defer(1);
+        if (build_expr(parser, &attribute->value) != 0) {
+            parser_show_error(parser);
+            parser_recovery_expr(parser);
         }
-        parser_advance(parser);
-
-        attribute->value.value = token.literal;
-        attribute->value.line = token.line;
-        attribute->value.col = token.col;
     }
 
 defer:
@@ -305,16 +361,10 @@ static int build_method(struct parser *parser, method_node *method) {
     }
     parser_advance(parser);
 
-    // TODO: fix this
-    parser_current(parser, &token);
-    if (token.type != INT_LITERAL) {
-        return_defer(1);
+    if (build_expr(parser, &method->body) != 0) {
+        parser_show_error(parser);
+        parser_recovery_expr(parser);
     }
-    parser_advance(parser);
-
-    method->body.value = token.literal;
-    method->body.line = token.line;
-    method->body.col = token.col;
 
     parser_current(parser, &token);
     if (token.type != RBRACE) {
@@ -335,7 +385,7 @@ static int build_feature(struct parser *parser, class_node *class) {
         attribute_node attribute;
         attribute.name.value = NULL;
         attribute.type.value = NULL;
-        attribute.value.value = NULL;
+        expr_node_init(&attribute.value);
 
         result = build_attribute(parser, &attribute);
 
@@ -345,7 +395,7 @@ static int build_feature(struct parser *parser, class_node *class) {
         method.name.value = NULL;
         method.type.value = NULL;
         ds_dynamic_array_init(&method.formals, sizeof(formal_node));
-        method.body.value = NULL;
+        expr_node_init(&method.body);
 
         result = build_method(parser, &method);
 

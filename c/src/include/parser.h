@@ -14,10 +14,22 @@ typedef struct node_info {
         unsigned int col;
 } node_info;
 
+enum expr_type {
+    EXPR_INT,
+    EXPR_STRING,
+    EXPR_BOOL,
+    EXPR_IDENT,
+};
+
+typedef struct expr_node {
+        enum expr_type type;
+        node_info value; // TODO: change to void*
+} expr_node;
+
 typedef struct attribute_node {
         node_info name;
         node_info type;
-        node_info value; // we assume it is gonna be a string
+        expr_node value;
 } attribute_node;
 
 typedef struct formal_node {
@@ -29,7 +41,7 @@ typedef struct method_node {
         node_info name;
         node_info type;
         ds_dynamic_array formals;
-        node_info body; // we assume it is gonna be a string
+        expr_node body;
 } method_node;
 
 typedef struct class_node {

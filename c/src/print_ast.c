@@ -1,13 +1,17 @@
 #include "print_ast.h"
 #include <stdio.h>
 
+static void expr_print(expr_node *expr, unsigned int indent) {
+    if (expr->value.value != NULL) { // TODO: this is a hack
+        printf("%*s%s\n", indent, "", expr->value.value);
+    }
+}
+
 static void attribute_print(attribute_node *attribute, unsigned int indent) {
     printf("%*sattribute\n", indent, "");
     printf("%*s%s\n", indent + INDENT_SIZE, "", attribute->name.value);
     printf("%*s%s\n", indent + INDENT_SIZE, "", attribute->type.value);
-    if (attribute->value.value != NULL) { // TODO: this is a hack
-        printf("%*s%s\n", indent + INDENT_SIZE, "", attribute->value.value);
-    }
+    expr_print(&attribute->value, indent + INDENT_SIZE);
 }
 
 static void formal_print(formal_node *formal, unsigned int indent) {
@@ -25,9 +29,7 @@ static void method_print(method_node *method, unsigned int indent) {
         formal_print(&formal, indent + INDENT_SIZE);
     }
     printf("%*s%s\n", indent + INDENT_SIZE, "", method->type.value);
-    if (method->body.value != NULL) { // TODO: this is a hack
-        printf("%*s%s\n", indent + INDENT_SIZE, "", method->body.value);
-    }
+    expr_print(&method->body, indent + INDENT_SIZE);
 }
 
 static void class_print(class_node *class, unsigned int indent) {
