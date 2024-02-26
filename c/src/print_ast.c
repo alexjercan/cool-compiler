@@ -149,6 +149,30 @@ static void expr_print(expr_node *expr, unsigned int indent) {
             expr_print(expr->not_.expr, indent + INDENT_SIZE);
             break;
         }
+        case EXPR_DISPATCH_FULL: {
+            printf("%*s.\n", indent, "");
+            expr_print(expr->dispatch_full.expr, indent + INDENT_SIZE);
+            if (expr->dispatch_full.type.value != NULL) {
+                printf("%*s%s\n", indent + INDENT_SIZE, "", expr->dispatch_full.type.value);
+            }
+            printf("%*s%s\n", indent + INDENT_SIZE, "", expr->dispatch_full.dispatch->method.value);
+            for (unsigned int i = 0; i < expr->dispatch_full.dispatch->args.count; i++) {
+                expr_node arg;
+                ds_dynamic_array_get(&expr->dispatch_full.dispatch->args, i, &arg);
+                expr_print(&arg, indent + INDENT_SIZE);
+            }
+            break;
+        }
+        case EXPR_DISPATCH: {
+            printf("%*simplicit dispatch\n", indent, "");
+            printf("%*s%s\n", indent + INDENT_SIZE, "", expr->dispatch.method.value);
+            for (unsigned int i = 0; i < expr->dispatch.args.count; i++) {
+                expr_node arg;
+                ds_dynamic_array_get(&expr->dispatch.args, i, &arg);
+                expr_print(&arg, indent + INDENT_SIZE);
+            }
+            break;
+        }
         default: {
             break;
         }

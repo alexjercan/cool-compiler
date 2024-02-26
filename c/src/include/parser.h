@@ -63,6 +63,11 @@ typedef struct case_node {
         struct expr_node *body;
 } branch_node;
 
+typedef struct dispatch_node {
+    node_info method;
+    ds_dynamic_array args; // expr_node
+} dispatch_node;
+
 typedef struct expr_node {
         enum expr_type type;
         union {
@@ -73,14 +78,9 @@ typedef struct expr_node {
                 struct {
                         struct expr_node *expr;
                         node_info type;
-                        node_info method;
-                        ds_dynamic_array args; // expr_node
+                        dispatch_node *dispatch;
                 } dispatch_full;
-                struct {
-                        struct expr_node *expr;
-                        node_info method;
-                        ds_dynamic_array args; // expr_node
-                } dispatch;
+                dispatch_node dispatch;
                 struct {
                         struct expr_node *predicate;
                         struct expr_node *then;

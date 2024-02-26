@@ -537,6 +537,63 @@ static void build_node_paren(struct parser *parser, expr_node *expr) {
     parser_advance(parser);
 }
 
+static void build_node_fcall(struct parser *parser, expr_node *expr) {
+    struct token token;
+
+    expr->type = EXPR_DISPATCH;
+    ds_dynamic_array_init(&expr->dispatch.args, sizeof(expr_node));
+
+    parser_current(parser, &token);
+    if (token.type == IDENT) {
+        expr->dispatch.method.value = token.literal;
+        expr->dispatch.method.line = token.line;
+        expr->dispatch.method.col = token.col;
+    } else {
+        parser_show_expected(parser, IDENT, token.type);
+        if (token.type == END) {
+            return;
+        }
+    }
+    parser_advance(parser);
+
+    parser_current(parser, &token);
+    if (token.type != LPAREN) {
+        parser_show_expected(parser, LPAREN, token.type);
+        if (token.type == END) {
+            return;
+        }
+    }
+    parser_advance(parser);
+
+    parser_current(parser, &token);
+    if (token.type != RPAREN) {
+        expr_node arg;
+
+        build_expr(parser, &arg);
+
+        ds_dynamic_array_append(&expr->dispatch.args, &arg);
+
+        parser_current(parser, &token);
+        while (token.type != RPAREN) {
+            if (token.type != COMMA) {
+                parser_show_extected_2(parser, COMMA, RPAREN, token.type);
+                if (token.type == END) {
+                    return;
+                }
+            }
+            parser_advance(parser);
+
+            build_expr(parser, &arg);
+
+            ds_dynamic_array_append(&expr->dispatch.args, &arg);
+
+            parser_current(parser, &token);
+        }
+    }
+
+    parser_advance(parser);
+}
+
 static void build_expr(struct parser *parser, expr_node *expr);
 
 static void build_expr_simple(struct parser *parser, expr_node *expr) {
@@ -544,14 +601,21 @@ static void build_expr_simple(struct parser *parser, expr_node *expr) {
 
     parser_current(parser, &token);
     switch (token.type) {
-    case IDENT:
-        expr->type = EXPR_IDENT;
-        expr->ident.value = token.literal;
-        expr->ident.line = token.line;
-        expr->ident.col = token.col;
+    case IDENT: {
+        struct token next;
+        parser_peek(parser, &next);
+        if (next.type == LPAREN) {
+            build_node_fcall(parser, expr);
+        } else {
+            expr->type = EXPR_IDENT;
+            expr->ident.value = token.literal;
+            expr->ident.line = token.line;
+            expr->ident.col = token.col;
 
-        parser_advance(parser);
+            parser_advance(parser);
+        }
         break;
+    }
     case INT_LITERAL:
         expr->type = EXPR_INT;
         expr->integer.value = token.literal;
@@ -606,6 +670,67 @@ static void build_expr_simple(struct parser *parser, expr_node *expr) {
     }
 }
 
+static void build_expr_at(struct parser *parser, expr_node *expr) {
+    struct token token;
+    struct token next;
+
+    expr_node *root = malloc(sizeof(expr_node));
+    build_expr_simple(parser, root);
+
+    parser_current(parser, &token);
+    parser_peek(parser, &next);
+    while (token.type == AT || token.type == DOT) {
+        expr_node *current = malloc(sizeof(expr_node));
+
+        current->type = EXPR_DISPATCH_FULL;
+        current->dispatch_full.expr = root;
+        current->dispatch_full.type.value = NULL;
+        current->dispatch_full.dispatch = malloc(sizeof(struct dispatch_node));
+
+        parser_current(parser, &token);
+        if (token.type == AT) {
+            parser_advance(parser);
+
+            parser_current(parser, &token);
+            if (token.type == CLASS_NAME) {
+                current->dispatch_full.type.value = token.literal;
+                current->dispatch_full.type.line = token.line;
+                current->dispatch_full.type.col = token.col;
+            } else {
+                parser_show_expected(parser, CLASS_NAME, token.type);
+                if (token.type == END) {
+                    return;
+                }
+            }
+            parser_advance(parser);
+        }
+
+        parser_current(parser, &token);
+        if (token.type != DOT) {
+            parser_show_expected(parser, DOT, token.type);
+            if (token.type == END) {
+                return;
+            }
+        }
+        parser_advance(parser);
+
+        expr_node fcall;
+
+        build_node_fcall(parser, &fcall);
+
+        if (fcall.type == EXPR_DISPATCH) {
+            *current->dispatch_full.dispatch = fcall.dispatch;
+        }
+
+        root = current;
+
+        parser_current(parser, &token);
+        parser_peek(parser, &next);
+    }
+
+    *expr = *root;
+}
+
 static void build_expr_neg(struct parser *parser, expr_node *expr) {
     struct token token;
 
@@ -616,9 +741,9 @@ static void build_expr_neg(struct parser *parser, expr_node *expr) {
 
         parser_advance(parser);
 
-        build_expr_simple(parser, expr->neg.expr); // TODO: Should actually do call to build function call
+        build_expr_at(parser, expr->neg.expr);
     } else {
-        build_expr_simple(parser, expr);
+        build_expr_at(parser, expr);
     }
 }
 
