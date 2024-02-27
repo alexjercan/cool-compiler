@@ -8,6 +8,7 @@ struct parser {
         ds_dynamic_array *tokens;
         unsigned int index;
         int result;
+        int panicd;
 };
 
 static int parser_current(struct parser *parser, struct token *token) {
@@ -37,6 +38,8 @@ static int parser_advance(struct parser *parser) {
 
     parser->index++;
 
+    parser->panicd = 0;
+
     return 0;
 }
 
@@ -61,7 +64,7 @@ static void parser_show_errorf(struct parser *parser, const char *format, ...) {
         }
 
         printf("\n");
-    } else {
+    } else if (parser->panicd == 0) {
         if (filename != NULL) {
             printf("\"%s\", ", filename);
         }
@@ -86,6 +89,31 @@ static void parser_show_errorf(struct parser *parser, const char *format, ...) {
         parser, "expected %s or %s, got %s", token_type_to_string(expected1),  \
         token_type_to_string(expected2), token_type_to_string(got))
 
+static int parser_is_sync_point(struct parser *parser) {
+    struct token token;
+    parser_current(parser, &token);
+    switch (token.type) {
+    case FI:
+    case POOL:
+    case ESAC:
+    case RBRACE:
+    case RPAREN:
+    case SEMICOLON:
+    case END:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static void parser_panic_mode(struct parser *parser) {
+    while (!parser_is_sync_point(parser)) {
+        parser_advance(parser);
+    }
+
+    parser->panicd = 1;
+}
+
 static void build_expr(struct parser *parser, expr_node *expr);
 
 static void build_node_if(struct parser *parser, expr_node *expr) {
@@ -99,9 +127,7 @@ static void build_node_if(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != IF) {
         parser_show_expected(parser, IF, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -110,9 +136,7 @@ static void build_node_if(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != THEN) {
         parser_show_expected(parser, THEN, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -121,9 +145,7 @@ static void build_node_if(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != ELSE) {
         parser_show_expected(parser, ELSE, token.type);
-        if (token.type == END || token.type == FI) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -132,9 +154,7 @@ static void build_node_if(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != FI) {
         parser_show_expected(parser, FI, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 }
@@ -149,9 +169,7 @@ static void build_node_while(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != WHILE) {
         parser_show_expected(parser, WHILE, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -160,9 +178,7 @@ static void build_node_while(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != LOOP) {
         parser_show_expected(parser, LOOP, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -171,9 +187,7 @@ static void build_node_while(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != POOL) {
         parser_show_expected(parser, POOL, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 }
@@ -187,9 +201,7 @@ static void build_node_block(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != LBRACE) {
         parser_show_expected(parser, LBRACE, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -209,9 +221,7 @@ static void build_node_block(struct parser *parser, expr_node *expr) {
         parser_current(parser, &token);
         if (token.type != SEMICOLON) {
             parser_show_expected(parser, SEMICOLON, token.type);
-            if (token.type == END || token.type == RBRACE) {
-                return;
-            }
+            return parser_panic_mode(parser);
         }
         parser_advance(parser);
 
@@ -235,18 +245,14 @@ static void build_node_let_init(struct parser *parser, let_init_node *init) {
         init->name.col = token.col;
     } else {
         parser_show_expected(parser, IDENT, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != COLON) {
         parser_show_expected(parser, COLON, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -257,9 +263,7 @@ static void build_node_let_init(struct parser *parser, let_init_node *init) {
         init->type.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -281,9 +285,7 @@ static void build_node_let(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != LET) {
         parser_show_expected(parser, LET, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -296,9 +298,7 @@ static void build_node_let(struct parser *parser, expr_node *expr) {
         ds_dynamic_array_append(&expr->let.inits, &init);
     } else {
         parser_show_expected(parser, IDENT, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
 
     parser_current(parser, &token);
@@ -338,18 +338,14 @@ static void build_node_branch(struct parser *parser, branch_node *branch) {
         branch->name.col = token.col;
     } else {
         parser_show_expected(parser, IDENT, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != COLON) {
         parser_show_expected(parser, COLON, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -360,18 +356,14 @@ static void build_node_branch(struct parser *parser, branch_node *branch) {
         branch->type.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != ARROW) {
         parser_show_expected(parser, ARROW, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -388,9 +380,7 @@ static void build_node_case(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != CASE) {
         parser_show_expected(parser, CASE, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -399,9 +389,7 @@ static void build_node_case(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != OF) {
         parser_show_expected(parser, OF, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -416,9 +404,7 @@ static void build_node_case(struct parser *parser, expr_node *expr) {
         parser_current(parser, &token);
         if (token.type != SEMICOLON) {
             parser_show_expected(parser, SEMICOLON, token.type);
-            if (token.type == END || token.type == ESAC) {
-                return;
-            }
+            return parser_panic_mode(parser);
         }
         parser_advance(parser);
 
@@ -436,9 +422,7 @@ static void build_node_new(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != NEW) {
         parser_show_expected(parser, NEW, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -449,9 +433,7 @@ static void build_node_new(struct parser *parser, expr_node *expr) {
         expr->new.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 }
@@ -465,9 +447,7 @@ static void build_node_isvoid(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != ISVOID) {
         parser_show_expected(parser, ISVOID, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -483,9 +463,7 @@ static void build_node_neg(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != TILDE) {
         parser_show_expected(parser, TILDE, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -501,9 +479,7 @@ static void build_node_not(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != NOT) {
         parser_show_expected(parser, NOT, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -519,9 +495,7 @@ static void build_node_paren(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != LPAREN) {
         parser_show_expected(parser, LPAREN, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -530,9 +504,7 @@ static void build_node_paren(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type != RPAREN) {
         parser_show_expected(parser, RPAREN, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 }
@@ -550,18 +522,14 @@ static void build_node_fcall(struct parser *parser, expr_node *expr) {
         expr->dispatch.method.col = token.col;
     } else {
         parser_show_expected(parser, IDENT, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != LPAREN) {
         parser_show_expected(parser, LPAREN, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -664,7 +632,7 @@ static void build_expr_simple(struct parser *parser, expr_node *expr) {
     default: {
         parser_show_errorf(parser, "unexpected token %s",
                            token_type_to_string(token.type));
-        parser_advance(parser);
+        parser_panic_mode(parser);
         break;
     }
     }
@@ -698,9 +666,7 @@ static void build_expr_at(struct parser *parser, expr_node *expr) {
                 current->dispatch_full.type.col = token.col;
             } else {
                 parser_show_expected(parser, CLASS_NAME, token.type);
-                if (token.type == END) {
-                    return;
-                }
+                return parser_panic_mode(parser);
             }
             parser_advance(parser);
         }
@@ -708,9 +674,7 @@ static void build_expr_at(struct parser *parser, expr_node *expr) {
         parser_current(parser, &token);
         if (token.type != DOT) {
             parser_show_expected(parser, DOT, token.type);
-            if (token.type == END) {
-                return;
-            }
+            return parser_panic_mode(parser);
         }
         parser_advance(parser);
 
@@ -936,18 +900,14 @@ static void build_attribute(struct parser *parser, attribute_node *attribute) {
         attribute->name.col = token.col;
     } else {
         parser_show_expected(parser, IDENT, token.type);
-        if (token.type == END || token.type == SEMICOLON) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != COLON) {
         parser_show_expected(parser, COLON, token.type);
-        if (token.type == END || token.type == SEMICOLON) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -958,9 +918,7 @@ static void build_attribute(struct parser *parser, attribute_node *attribute) {
         attribute->type.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
-        if (token.type == END || token.type == SEMICOLON) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -985,18 +943,14 @@ static void build_formal(struct parser *parser, formal_node *formal) {
         formal->name.col = token.col;
     } else {
         parser_show_expected(parser, IDENT, token.type);
-        if (token.type == END || token.type == COMMA || token.type == RPAREN) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != COLON) {
         parser_show_expected(parser, COLON, token.type);
-        if (token.type == END || token.type == COMMA || token.type == RPAREN) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -1007,9 +961,7 @@ static void build_formal(struct parser *parser, formal_node *formal) {
         formal->type.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
-        if (token.type == END || token.type == COMMA || token.type == RPAREN) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 }
@@ -1028,18 +980,14 @@ static void build_method(struct parser *parser, method_node *method) {
         method->name.col = token.col;
     } else {
         parser_show_expected(parser, IDENT, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != LPAREN) {
         parser_show_expected(parser, LPAREN, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -1076,9 +1024,7 @@ static void build_method(struct parser *parser, method_node *method) {
     parser_current(parser, &token);
     if (token.type != COLON) {
         parser_show_expected(parser, COLON, token.type);
-        if (token.type == END || token.type == SEMICOLON) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -1089,18 +1035,14 @@ static void build_method(struct parser *parser, method_node *method) {
         method->type.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type != LBRACE) {
         parser_show_expected(parser, LBRACE, token.type);
-        if (token.type == END || token.type == SEMICOLON) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -1109,9 +1051,7 @@ static void build_method(struct parser *parser, method_node *method) {
     parser_current(parser, &token);
     if (token.type != RBRACE) {
         parser_show_expected(parser, RBRACE, token.type);
-        if (token.type == END || token.type == SEMICOLON) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 }
@@ -1146,9 +1086,7 @@ static void build_class(struct parser *parser, class_node *class) {
     parser_current(parser, &token);
     if (token.type != CLASS) {
         parser_show_expected(parser, CLASS, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -1159,9 +1097,7 @@ static void build_class(struct parser *parser, class_node *class) {
         class->name.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
-        if (token.type == END) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -1176,9 +1112,7 @@ static void build_class(struct parser *parser, class_node *class) {
             class->superclass.col = token.col;
         } else {
             parser_show_expected(parser, CLASS_NAME, token.type);
-            if (token.type == END) {
-                return;
-            }
+            return parser_panic_mode(parser);
         }
 
         parser_advance(parser);
@@ -1187,9 +1121,7 @@ static void build_class(struct parser *parser, class_node *class) {
     parser_current(parser, &token);
     if (token.type != LBRACE) {
         parser_show_expected(parser, LBRACE, token.type);
-        if (token.type == END || token.type == SEMICOLON) {
-            return;
-        }
+        return parser_panic_mode(parser);
     }
     parser_advance(parser);
 
@@ -1205,9 +1137,7 @@ static void build_class(struct parser *parser, class_node *class) {
         parser_current(parser, &token);
         if (token.type != SEMICOLON) {
             parser_show_expected(parser, SEMICOLON, token.type);
-            if (token.type == END || token.type == RBRACE) {
-                return;
-            }
+            return parser_panic_mode(parser);
         }
         parser_advance(parser);
 
@@ -1228,9 +1158,7 @@ static void build_program(struct parser *parser, program_node *program) {
         parser_current(parser, &token);
         if (token.type != SEMICOLON) {
             parser_show_expected(parser, SEMICOLON, token.type);
-            if (token.type == END) {
-                return;
-            }
+            return parser_panic_mode(parser);
         }
         parser_advance(parser);
 
