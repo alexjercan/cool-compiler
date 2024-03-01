@@ -1,0 +1,2 @@
+"14-type-block.cl", line 10:14, Semantic error: Type String of assigned expression is incompatible with declared type Int of identifier x
+Compilation halted

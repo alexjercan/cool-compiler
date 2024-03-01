@@ -1,0 +1,3 @@
+"11-type-while.cl", line 11:20, Semantic error: While condition has type A instead of Bool
+"11-type-while.cl", line 11:14, Semantic error: Type Object of assigned expression is incompatible with declared type A of identifier a
+Compilation halted

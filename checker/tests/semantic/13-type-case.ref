@@ -1,0 +1,4 @@
+"13-type-case.cl", line 9:14, Semantic error: Type Object of assigned expression is incompatible with declared type Int of identifier x
+"13-type-case.cl", line 25:14, Semantic error: Type B of assigned expression is incompatible with declared type C of identifier c
+"13-type-case.cl", line 33:14, Semantic error: Type B of assigned expression is incompatible with declared type D of identifier d
+Compilation halted

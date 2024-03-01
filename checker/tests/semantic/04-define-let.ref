@@ -1,0 +1,3 @@
+"04-define-let.cl", line 6:13, Semantic error: Let variable has illegal name self
+"04-define-let.cl", line 7:20, Semantic error: Let variable x has undefined type C
+Compilation halted

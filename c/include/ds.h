@@ -289,6 +289,8 @@ DSHDEF int ds_dynamic_array_append_many(ds_dynamic_array *da, void **new_items,
                                         unsigned int new_items_count);
 DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
                                 void *item);
+DSHDEF void ds_dynamic_array_get_ref(ds_dynamic_array *da, unsigned int index,
+                                     void **item);
 DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da);
 
 // (DOUBLY) LINKED LIST
@@ -658,6 +660,11 @@ DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
 
 defer:
     return result;
+}
+
+DSHDEF void ds_dynamic_array_get_ref(ds_dynamic_array *da, unsigned int index,
+                                     void **item) {
+    *item = (char *)da->items + index * da->item_size;
 }
 
 DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da) {

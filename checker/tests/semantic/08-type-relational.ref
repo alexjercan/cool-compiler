@@ -1,0 +1,6 @@
+"08-type-relational.cl", line 4:21, Semantic error: Operand of < has type Bool instead of Int
+"08-type-relational.cl", line 5:21, Semantic error: Operand of not has type Int instead of Bool
+"08-type-relational.cl", line 8:19, Semantic error: Cannot compare Int with Bool
+"08-type-relational.cl", line 9:19, Semantic error: Cannot compare Int with String
+"08-type-relational.cl", line 10:23, Semantic error: Cannot compare String with Bool
+Compilation halted

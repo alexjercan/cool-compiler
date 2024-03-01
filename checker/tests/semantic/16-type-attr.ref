@@ -1,0 +1,3 @@
+"16-type-attr.cl", line 4:16, Semantic error: Type Bool of initialization expression of attribute z is incompatible with declared type Int
+"16-type-attr.cl", line 7:15, Semantic error: Type B of initialization expression of attribute c is incompatible with declared type C
+Compilation halted

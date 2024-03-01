@@ -1,0 +1,13 @@
+"18-type-dispatch.cl", line 4:18, Semantic error: Type Int of assigned expression is incompatible with declared type C of identifier c
+"18-type-dispatch.cl", line 5:15, Semantic error: Method f of class B is applied to wrong number of arguments
+"18-type-dispatch.cl", line 6:17, Semantic error: In call to method f of class B, actual type Bool of formal parameter x is incompatible with declared type Int
+"18-type-dispatch.cl", line 8:15, Semantic error: Undefined method g in class C
+"18-type-dispatch.cl", line 9:17, Semantic error: In call to method f of class C, actual type String of formal parameter x is incompatible with declared type Int
+"18-type-dispatch.cl", line 11:15, Semantic error: Type of static dispatch cannot be SELF_TYPE
+"18-type-dispatch.cl", line 12:15, Semantic error: Type Y of static dispatch is undefined
+"18-type-dispatch.cl", line 13:15, Semantic error: Type A of static dispatch is not a superclass of type C
+"18-type-dispatch.cl", line 15:17, Semantic error: Undefined method f in class Z
+"18-type-dispatch.cl", line 19:23, Semantic error: In call to method f of class A, actual type B of formal parameter c is incompatible with declared type C
+"18-type-dispatch.cl", line 23:23, Semantic error: In call to method f of class A, actual type B of formal parameter c is incompatible with declared type C
+"18-type-dispatch.cl", line 23:18, Semantic error: Type Int of assigned expression is incompatible with declared type C of identifier c
+Compilation halted

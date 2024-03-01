@@ -7,6 +7,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "print_ast.h"
+#include "semantic.h"
 
 int main(int argc, char **argv) {
     int result = 0;
@@ -31,6 +32,13 @@ int main(int argc, char **argv) {
                                       .description = "Parse the input file",
                                       .type = ARGUMENT_TYPE_FLAG,
                                       .required = 0}));
+
+    argparse_add_argument(
+        parser, ((struct argparse_options){.short_name = 'S',
+                                           .long_name = "sem",
+                                           .description = "Semantic check the input file",
+                                           .type = ARGUMENT_TYPE_FLAG,
+                                           .required = 0}));
 
     argparse_add_argument(
         parser, ((struct argparse_options){.short_name = 'i',
@@ -95,6 +103,19 @@ int main(int argc, char **argv) {
     unsigned int syn = argparse_get_flag(parser, "syn");
     if (syn == 1) {
         print_ast(&program);
+        return_defer(0);
+    }
+
+
+    // Semantic check the input file
+    unsigned int sem = argparse_get_flag(parser, "sem");
+    program_context context = { .filename = filepath_to_basename(filename) };
+    if (semantic_check(&program, &context) != 0) {
+        printf("Compilation halted\n");
+        return_defer(1);
+    }
+
+    if (sem == 1) {
         return_defer(0);
     }
 

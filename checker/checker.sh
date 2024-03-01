@@ -43,6 +43,11 @@ syntax_analyzer() {
     analyzer parser --syn
 }
 
+semantic_analyzer() {
+    echo "Testing the semantic analyzer"
+    analyzer semantic --sem
+}
+
 make clean && make
 
 ARG1=$1
@@ -50,10 +55,13 @@ if [ "$ARG1" == "--lex" ]; then
     lexical_analyzer
 elif [ "$ARG1" == "--syn" ]; then
     syntax_analyzer
+elif [ "$ARG1" == "--sem" ]; then
+    semantic_analyzer
 elif [ -z "$ARG1" ]; then
     lexical_analyzer
     syntax_analyzer
+    semantic_analyzer
 else
-    echo "Usage: $0 [--lex | --syn]"
+    echo "Usage: $0 [--lex | --syn | --sem]"
     exit 1
 fi

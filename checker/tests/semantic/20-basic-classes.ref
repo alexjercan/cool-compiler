@@ -1,0 +1,5 @@
+"20-basic-classes.cl", line 2:16, Semantic error: Type Object of initialization expression of attribute x is incompatible with declared type Int
+"20-basic-classes.cl", line 4:16, Semantic error: Type SELF_TYPE of initialization expression of attribute a is incompatible with declared type Int
+"20-basic-classes.cl", line 7:20, Semantic error: Type Int of initialization expression of attribute s2 is incompatible with declared type String
+"20-basic-classes.cl", line 11:33, Semantic error: In call to method substr of class String, actual type String of formal parameter l is incompatible with declared type Int
+Compilation halted

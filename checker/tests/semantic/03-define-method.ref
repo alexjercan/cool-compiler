@@ -1,0 +1,9 @@
+"03-define-method.cl", line 6:5, Semantic error: Class A redefines method f
+"03-define-method.cl", line 14:10, Semantic error: Method self of class B has formal parameter with illegal name self
+"03-define-method.cl", line 16:16, Semantic error: Method h of class B redefines formal parameter x
+"03-define-method.cl", line 18:11, Semantic error: Method i of class B has formal parameter x with illegal type SELF_TYPE
+"03-define-method.cl", line 20:11, Semantic error: Method j of class B has formal parameter x with undefined type Z
+"03-define-method.cl", line 28:5, Semantic error: Class D overrides method f with different number of formal parameters
+"03-define-method.cl", line 32:20, Semantic error: Class E overrides method f but changes type of formal parameter v from Int to Bool
+"03-define-method.cl", line 36:27, Semantic error: Class F overrides method f but changes return type from Int to Bool
+Compilation halted

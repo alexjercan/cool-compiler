@@ -1,0 +1,3 @@
+"10-type-new-isvoid.cl", line 11:14, Semantic error: Type A of assigned expression is incompatible with declared type B of identifier b
+"10-type-new-isvoid.cl", line 15:18, Semantic error: new is used with undefined type C
+Compilation halted

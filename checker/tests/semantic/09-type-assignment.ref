@@ -1,0 +1,4 @@
+"09-type-assignment.cl", line 16:14, Semantic error: Type B of assigned expression is incompatible with declared type C of identifier c
+"09-type-assignment.cl", line 20:9, Semantic error: Cannot assign to self
+"09-type-assignment.cl", line 24:14, Semantic error: Type Int of assigned expression is incompatible with declared type Bool of identifier x
+Compilation halted
