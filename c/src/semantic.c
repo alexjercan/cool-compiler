@@ -150,12 +150,25 @@ static void context_init(program_context *context) {
 }
 
 static class_context *class_to_context(program_context *context, char *name) {
-    for (unsigned int j = 0; j < context->classes.count; j++) {
+    for (unsigned int i = 0; i < context->classes.count; i++) {
         class_context *c = NULL;
-        ds_dynamic_array_get_ref(&context->classes, j, (void **)&c);
+        ds_dynamic_array_get_ref(&context->classes, i, (void **)&c);
 
         if (strcmp(c->name.value, name) == 0) {
             return c;
+        }
+    }
+
+    return NULL;
+}
+
+static attribute_info *attribute_to_info(class_context *class, char *name) {
+    for (unsigned int i = 0; i < class->attributes.count; i++) {
+        struct attribute_info *attr = NULL;
+        ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attr);
+
+        if (strcmp(attr->name.value, name) == 0) {
+            return attr;
         }
     }
 
@@ -290,18 +303,12 @@ static void check_parent_class_attributes(program_node *program,
             ds_dynamic_array_get(&class->attributes, j, &attr);
 
             class_context *parent = class->parent;
-            int should_run = 1;
-            while (parent != NULL && should_run) {
-                for (unsigned int k = 0; k < parent->attributes.count; k++) {
-                    struct attribute_info parent_attr;
-                    ds_dynamic_array_get(&parent->attributes, k, &parent_attr);
-
-                    if (strcmp(parent_attr.name.value, attr.name.value) == 0) {
-                        attribute_redefined_parent_error(context, class->name,
-                                                         attr.name);
-                        should_run = 0;
-                        break;
-                    }
+            while (parent != NULL) {
+                attribute_info *parent_attr = attribute_to_info(parent, attr.name.value);
+                if (parent_attr != NULL) {
+                    attribute_redefined_parent_error(context, class->name,
+                                                     attr.name);
+                    break;
                 }
 
                 parent = parent->parent;
