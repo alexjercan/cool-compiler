@@ -3,15 +3,24 @@
 
 #include "parser.h"
 
-typedef struct attribute_info {
+typedef struct typed_symbol {
         node_info name;
         node_info type;
-} attribute_info;
+        struct class_context *class;
+} typed_symbol;
+
+typedef struct method_context {
+        node_info name;
+        node_info type;
+        struct class_context *return_type;
+        ds_dynamic_array formals;
+} method_context;
 
 typedef struct class_context {
         node_info name;
         struct class_context *parent;
         ds_dynamic_array attributes;
+        ds_dynamic_array methods;
 } class_context;
 
 typedef struct program_context {
