@@ -32,7 +32,9 @@ typedef struct object_kv {
 } object_kv;
 
 typedef struct method_context {
-        char *name;
+        const char *name;
+        const char *type;
+        ds_dynamic_array formals;
 } method_context;
 
 static void context_show_errorf(semantic_context *context, unsigned int line,
@@ -182,8 +184,9 @@ static void semantic_check_class_nodes(semantic_context *context,
         class_context class_ctx = {.name = class.name.value, .parent = NULL};
         ds_hash_table_init(&class_ctx.objects, sizeof(char *),
                            sizeof(object_kv), 100, hash_string, compare_string);
-        ds_hash_table_init(&class_ctx.methods, sizeof(char *), sizeof(object_kv),
-                           100, hash_string, compare_string);
+        ds_hash_table_init(&class_ctx.methods, sizeof(char *),
+                           sizeof(method_context), 100, hash_string,
+                           compare_string);
         ds_hash_table_insert(&context->classes, &class_ctx.name, &class_ctx);
     }
 
@@ -374,6 +377,119 @@ static int is_method_redefined(semantic_context *context,
                         "Class %s redefines method %s", class.name.value,      \
                         method.name.value)
 
+static int is_formal_name_illegal(semantic_context *context,
+                                  formal_node formal) {
+    if (strcmp(formal.name.value, "self") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_formal_name_illegal(context, class, method, formal) \
+    context_show_errorf(context, formal.name.line, formal.name.col,            \
+                        "Method %s of class %s has formal parameter with "     \
+                        "illegal name %s",                                     \
+                        method.name.value, class.name.value,                   \
+                        formal.name.value)
+
+static int is_formal_type_illegal(semantic_context *context,
+                                  formal_node formal) {
+    if (strcmp(formal.type.value, "SELF_TYPE") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_formal_type_illegal(context, class, method, formal) \
+    context_show_errorf(context, formal.type.line, formal.type.col,            \
+                        "Method %s of class %s has formal parameter %s with "  \
+                        "illegal type %s",                                     \
+                        method.name.value, class.name.value,                   \
+                        formal.name.value, formal.type.value)
+
+static int is_formal_redefined(semantic_context *context, method_context method,
+                               formal_node formal) {
+    for (unsigned int i = 0; i < method.formals.count; i++) {
+        object_kv object;
+        ds_dynamic_array_get(&method.formals, i, &object);
+
+        if (strcmp(object.name, formal.name.value) == 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+#define context_show_error_formal_redefined(context, class, method, formal)    \
+    context_show_errorf(context, formal.name.line, formal.name.col,            \
+                        "Method %s of class %s redefines formal parameter %s", \
+                        method.name.value, class.name.value,                   \
+                        formal.name.value)
+
+static int is_formal_type_undefiend(semantic_context *context,
+                                    formal_node formal) {
+    return !ds_hash_table_has(&context->classes, &formal.type.value);
+}
+
+#define context_show_error_formal_type_undefined(context, class, method,       \
+                                                 formal)                       \
+    context_show_errorf(context, formal.type.line, formal.type.col,            \
+                        "Method %s of class %s has formal parameter %s with "  \
+                        "undefined type %s",                                   \
+                        method.name.value, class.name.value,                   \
+                        formal.name.value, formal.type.value)
+
+static int is_return_type_undefiend(semantic_context *context,
+                                    method_node method) {
+    return !ds_hash_table_has(&context->classes, &method.type.value);
+}
+
+#define context_show_error_return_type_undefined(context, class, method)       \
+    context_show_errorf(context, method.type.line, method.type.col,            \
+                        "Method %s of class %s has undefined return type %s",  \
+                        method.name.value, class.name.value,                   \
+                        method.type.value)
+
+static int is_formals_different_count(method_context *method_ctx,
+                                      unsigned int formals_count) {
+    return method_ctx->formals.count != formals_count;
+}
+
+#define context_show_error_formals_different_count(context, class, method)     \
+    context_show_errorf(context, method.name.line, method.name.col,            \
+                        "Class %s overrides method %s with different number "  \
+                        "of formal parameters",                                \
+                        class.name.value, method.name.value)
+
+static int is_formals_different_types(object_kv parent_formal,
+                                      formal_node formal) {
+    return strcmp(parent_formal.type, formal.type.value) != 0;
+}
+
+#define context_show_error_formals_different_types(context, class, method,     \
+                                                   parent_formal, formal)      \
+    context_show_errorf(context, formal.type.line, formal.type.col,            \
+                        "Class %s overrides method %s but changes type of "    \
+                        "formal parameter %s from %s to %s",                   \
+                        class.name.value, method.name.value,                   \
+                        formal.name.value, parent_formal.type,                 \
+                        formal.type.value)
+
+static int is_return_type_different(method_context *parent_method_ctx,
+                                   method_node method) {
+    return strcmp(parent_method_ctx->type, method.type.value) != 0;
+}
+
+#define context_show_error_return_type_different(context, class, method)       \
+    context_show_errorf(context, method.type.line, method.type.col,            \
+                        "Class %s overrides method %s but changes return "     \
+                        "type from %s to %s",                                  \
+                        class.name.value, method.name.value,                   \
+                        parent_method_ctx->type, method.type.value)
+
 static void semantic_check_methods(semantic_context *context,
                                    program_node *program) {
     for (unsigned int i = 0; i < program->classes.count; i++) {
@@ -398,8 +514,116 @@ static void semantic_check_methods(semantic_context *context,
             }
 
             method_context method_ctx = {.name = method.name.value};
+            ds_dynamic_array_init(&method_ctx.formals, sizeof(object_kv));
+
+            for (unsigned int k = 0; k < method.formals.count; k++) {
+                formal_node formal;
+                ds_dynamic_array_get(&method.formals, k, &formal);
+
+                if (is_formal_name_illegal(context, formal)) {
+                    context_show_error_formal_name_illegal(context, class,
+                                                           method, formal);
+                    continue;
+                }
+
+                if (is_formal_type_illegal(context, formal)) {
+                    context_show_error_formal_type_illegal(context, class,
+                                                           method, formal);
+                    continue;
+                }
+
+                if (is_formal_redefined(context, method_ctx, formal)) {
+                    context_show_error_formal_redefined(context, class, method,
+                                                        formal);
+                    continue;
+                }
+
+                if (is_formal_type_undefiend(context, formal)) {
+                    context_show_error_formal_type_undefined(context, class,
+                                                             method, formal);
+                    continue;
+                }
+
+                object_kv object = {.name = formal.name.value,
+                                    .type = formal.type.value};
+                ds_dynamic_array_append(&method_ctx.formals, &object);
+            }
+
+            if (is_return_type_undefiend(context, method)) {
+                context_show_error_return_type_undefined(context, class,
+                                                         method);
+                continue;
+            }
+
+            method_ctx.type = method.type.value;
+
             ds_hash_table_insert(&class_ctx->methods, &method_ctx.name,
                                  &method_ctx);
+        }
+    }
+
+    for (unsigned int i = 0; i < program->classes.count; i++) {
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
+
+        class_context *class_ctx = NULL;
+        ds_hash_table_get_ref(&context->classes, &class.name.value,
+                              (void **)&class_ctx);
+
+        if (class_ctx == NULL) {
+            continue;
+        }
+
+        for (unsigned int j = 0; j < class.methods.count; j++) {
+            method_node method;
+            ds_dynamic_array_get(&class.methods, j, &method);
+
+            method_context *method_ctx = NULL;
+            ds_hash_table_get_ref(&class_ctx->methods, &method.name.value,
+                                  (void **)&method_ctx);
+
+            if (method_ctx == NULL) {
+                continue;
+            }
+
+            class_context *parent_ctx = class_ctx->parent;
+            while (parent_ctx != NULL) {
+                method_context *parent_method_ctx = NULL;
+                ds_hash_table_get_ref(&parent_ctx->methods, &method.name.value,
+                                      (void **)&parent_method_ctx);
+
+                if (parent_method_ctx != NULL) {
+                    if (is_formals_different_count(parent_method_ctx,
+                                                   method.formals.count)) {
+                        context_show_error_formals_different_count(
+                            context, class, method);
+                        break;
+                    }
+
+                    for (unsigned int k = 0; k < method.formals.count; k++) {
+                        formal_node formal;
+                        ds_dynamic_array_get(&method.formals, k, &formal);
+
+                        object_kv parent_formal;
+                        ds_dynamic_array_get(&parent_method_ctx->formals, k,
+                                             &parent_formal);
+
+                        if (is_formals_different_types(parent_formal, formal)) {
+                            context_show_error_formals_different_types(
+                                context, class, method, parent_formal, formal);
+                            break;
+                        }
+                    }
+
+                    if (is_return_type_different(parent_method_ctx, method)) {
+                        context_show_error_return_type_different(context, class,
+                                                                 method);
+                        break;
+                    }
+                }
+
+                parent_ctx = parent_ctx->parent;
+            }
         }
     }
 }
@@ -411,7 +635,6 @@ int semantic_check(program_node *program, semantic_context *context) {
     semantic_check_attributes(context, program);
     semantic_check_methods(context, program);
 
-    /*
     for (unsigned int i = 0; i < context->classes.capacity; i++) {
         ds_dynamic_array *keys = &context->classes.keys[i];
         ds_dynamic_array *values = &context->classes.values[i];
@@ -442,9 +665,30 @@ int semantic_check(program_node *program, semantic_context *context) {
                     printf("  %s: %s\n", key, value.type);
                 }
             }
+            printf("Methods:\n");
+            for (unsigned int k = 0; k < value.methods.capacity; k++) {
+                ds_dynamic_array *keys = &value.methods.keys[k];
+                ds_dynamic_array *values = &value.methods.values[k];
+
+                for (unsigned int l = 0; l < keys->count; l++) {
+                    char *key;
+                    ds_dynamic_array_get(keys, l, &key);
+
+                    method_context value;
+                    ds_dynamic_array_get(values, l, &value);
+
+                    printf("  %s: %s\n", key, value.type);
+                    printf("  Formals:\n");
+                    for (unsigned int m = 0; m < value.formals.count; m++) {
+                        object_kv formal;
+                        ds_dynamic_array_get(&value.formals, m, &formal);
+
+                        printf("    %s: %s\n", formal.name, formal.type);
+                    }
+                }
+            }
         }
     }
-    */
 
     return context->result;
 }

@@ -347,6 +347,7 @@ DSHDEF int ds_hash_table_insert(ds_hash_table *ht, const void *key, void *value)
 DSHDEF int ds_hash_table_has(ds_hash_table *ht, const void *key);
 DSHDEF int ds_hash_table_get(ds_hash_table *ht, const void *key, void *value);
 DSHDEF int ds_hash_table_get_ref(ds_hash_table *ht, const void *key, void **value);
+DSHDEF unsigned int ds_hash_table_count(ds_hash_table *ht);
 DSHDEF int ds_hash_table_remove(ds_hash_table *ht, const void *key);
 DSHDEF void ds_hash_table_free(ds_hash_table *ht);
 
@@ -1049,6 +1050,14 @@ DSHDEF int ds_hash_table_get_ref(ds_hash_table *ht, const void *key, void **valu
 
 defer:
     return result;
+}
+
+DSHDEF unsigned int ds_hash_table_count(ds_hash_table *ht) {
+    unsigned int count = 0;
+    for (unsigned int i = 0; i < ht->capacity; i++) {
+        count += (ht->keys + i)->count;
+    }
+    return count;
 }
 
 DSHDEF int ds_hash_table_remove(ds_hash_table *ht, const void *key) {
