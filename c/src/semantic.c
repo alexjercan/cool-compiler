@@ -702,6 +702,25 @@ typedef struct method_environment {
         ds_dynamic_array items;
 } method_environment;
 
+static void method_env_show(method_environment method_env) {
+    for (unsigned int i = 0; i < method_env.items.count; i++) {
+        method_environment_item item;
+        ds_dynamic_array_get(&method_env.items, i, &item);
+
+        printf("M(%s, %s) = (", item.class_name, item.method_name);
+        for (unsigned int m = 0; m < item.formals.count; m++) {
+            const char *formal_type;
+            ds_dynamic_array_get(&item.formals, m, &formal_type);
+
+            printf("%s", formal_type);
+            if (m < item.formals.count - 1) {
+                printf(", ");
+            }
+        }
+        printf(")\n");
+    }
+}
+
 static void build_method_environment(semantic_context *context,
                                      program_node *program,
                                      method_environment *env) {
@@ -745,6 +764,16 @@ typedef struct object_environment_item {
 typedef struct object_environment {
         ds_dynamic_array items;
 } object_environment;
+
+static void object_env_show(object_environment_item item) {
+    printf("class %s\n", item.class_name);
+    for (unsigned int m = 0; m < item.objects.count; m++) {
+        object_kv object;
+        ds_dynamic_array_get(&item.objects, m, &object);
+
+        printf("O(%s) = %s\n", object.name, object.type);
+    }
+}
 
 static void build_object_environment(semantic_context *context,
                                      program_node *program,
@@ -818,7 +847,7 @@ static int is_let_init_type_undefined(semantic_context *context,
 
 #define context_show_error_let_init_type_undefined(context, init)              \
     context_show_errorf(context, init.type.line, init.type.col,                \
-                        "Let variable %s has undefined type %s",              \
+                        "Let variable %s has undefined type %s",               \
                         init.name.value, init.type.value)
 
 static void semantic_check_let_expression(semantic_context *context,
@@ -826,7 +855,7 @@ static void semantic_check_let_expression(semantic_context *context,
                                           method_environment *method_env,
                                           object_environment_item *object_env) {
 
-    int depth = 0;
+    unsigned int depth = 0;
     for (unsigned int i = 0; i < expr->inits.count; i++) {
         let_init_node init;
         ds_dynamic_array_get(&expr->inits, i, &init);
@@ -849,7 +878,80 @@ static void semantic_check_let_expression(semantic_context *context,
 
     semantic_check_expression(context, expr->body, method_env, object_env);
 
-    for (int i = 0; i < depth; i++) {
+    for (unsigned int i = 0; i < depth; i++) {
+        ds_dynamic_array_pop(&object_env->objects, NULL);
+    }
+}
+
+static int is_case_variable_name_illegal(semantic_context *context,
+                                         branch_node branch) {
+    if (strcmp(branch.name.value, "self") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_case_variable_name_illegal(context, branch)         \
+    context_show_errorf(context, branch.name.line, branch.name.col,            \
+                        "Case variable has illegal name %s",                   \
+                        branch.name.value)
+
+static int is_case_variable_type_illegal(semantic_context *context,
+                                         branch_node branch) {
+    if (strcmp(branch.type.value, "SELF_TYPE") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_case_variable_type_illegal(context, branch)         \
+    context_show_errorf(context, branch.type.line, branch.type.col,            \
+                        "Case variable %s has illegal type %s",                \
+                        branch.name.value, branch.type.value)
+
+static int is_case_variable_type_undefined(semantic_context *context,
+                                           branch_node branch) {
+    class_context *class_ctx = NULL;
+    find_class_ctx(context, branch.type.value, &class_ctx);
+    return class_ctx == NULL;
+}
+
+#define context_show_error_case_variable_type_undefined(context, branch)       \
+    context_show_errorf(context, branch.type.line, branch.type.col,            \
+                        "Case variable %s has undefined type %s",              \
+                        branch.name.value, branch.type.value)
+
+static void
+semantic_check_case_expression(semantic_context *context, case_node *expr,
+                               method_environment *method_env,
+                               object_environment_item *object_env) {
+    for (unsigned int i = 0; i < expr->cases.count; i++) {
+        branch_node branch;
+        ds_dynamic_array_get(&expr->cases, i, &branch);
+
+        if (is_case_variable_name_illegal(context, branch)) {
+            context_show_error_case_variable_name_illegal(context, branch);
+            continue;
+        }
+
+        if (is_case_variable_type_illegal(context, branch)) {
+            context_show_error_case_variable_type_illegal(context, branch);
+            continue;
+        }
+
+        if (is_case_variable_type_undefined(context, branch)) {
+            context_show_error_case_variable_type_undefined(context, branch);
+            continue;
+        }
+
+        object_kv object = {.name = branch.name.value,
+                            .type = branch.type.value};
+        ds_dynamic_array_append(&object_env->objects, &object);
+
+        semantic_check_expression(context, branch.body, method_env, object_env);
+
         ds_dynamic_array_pop(&object_env->objects, NULL);
     }
 }
@@ -861,37 +963,63 @@ static void semantic_check_expression(semantic_context *context,
     switch (expr->type) {
     case EXPR_NONE:
     case EXPR_ASSIGN:
+        break;
     case EXPR_DISPATCH_FULL:
+        break;
     case EXPR_DISPATCH:
+        break;
     case EXPR_COND:
+        break;
     case EXPR_LOOP:
+        break;
     case EXPR_BLOCK:
+        break;
     case EXPR_LET:
         return semantic_check_let_expression(context, &expr->let, method_env,
                                              object_env);
     case EXPR_CASE:
+        return semantic_check_case_expression(context, &expr->case_, method_env,
+                                              object_env);
     case EXPR_NEW:
+        break;
     case EXPR_ISVOID:
+        break;
     case EXPR_ADD:
+        break;
     case EXPR_SUB:
+        break;
     case EXPR_MUL:
+        break;
     case EXPR_DIV:
+        break;
     case EXPR_NEG:
+        break;
     case EXPR_LT:
+        break;
     case EXPR_LE:
+        break;
     case EXPR_EQ:
+        break;
     case EXPR_NOT:
+        break;
     case EXPR_PAREN:
+        break;
     case EXPR_IDENT:
+        break;
     case EXPR_INT:
+        break;
     case EXPR_STRING:
+        break;
     case EXPR_BOOL:
+        break;
     default:
         break;
     }
+
+    // object_env_show(*object_env);
 }
 
-static void semantic_check_expressions(semantic_context *context,
+static void semantic_check_method_body(semantic_context *context,
                                        program_node *program,
                                        method_environment *method_env,
                                        object_environment *object_envs) {
@@ -920,15 +1048,22 @@ static void semantic_check_expressions(semantic_context *context,
                 continue;
             }
 
+            unsigned int depth = 0;
             for (unsigned int k = 0; k < method_ctx->formals.count; k++) {
                 object_kv formal_ctx;
                 ds_dynamic_array_get(&method_ctx->formals, k, &formal_ctx);
 
                 ds_dynamic_array_append(&object_env.objects, &formal_ctx);
+
+                depth++;
             }
 
             expr_node body = method.body;
             semantic_check_expression(context, &body, method_env, &object_env);
+
+            for (unsigned int k = 0; k < depth; k++) {
+                ds_dynamic_array_pop(&object_env.objects, NULL);
+            }
         }
     }
 }
@@ -946,37 +1081,17 @@ int semantic_check(program_node *program, semantic_context *context) {
     method_environment method_env;
     build_method_environment(context, program, &method_env);
 
-    semantic_check_expressions(context, program, &method_env, &object_env);
+    semantic_check_method_body(context, program, &method_env, &object_env);
 
     /*for (unsigned int i = 0; i < object_env.items.count; i++) {
         object_environment_item item;
         ds_dynamic_array_get(&object_env.items, i, &item);
 
-        printf("class %s\n", item.class_name);
-        for (unsigned int m = 0; m < item.objects.count; m++) {
-            object_kv object;
-            ds_dynamic_array_get(&item.objects, m, &object);
-
-            printf("O(%s) = %s\n", object.name, object.type);
-        }
+        object_env_show(item);
     }
 
-    for (unsigned int i = 0; i < method_env.items.count; i++) {
-        method_environment_item item;
-        ds_dynamic_array_get(&method_env.items, i, &item);
-
-        printf("M(%s, %s) = (", item.class_name, item.method_name);
-        for (unsigned int m = 0; m < item.formals.count; m++) {
-            const char *formal_type;
-            ds_dynamic_array_get(&item.formals, m, &formal_type);
-
-            printf("%s", formal_type);
-            if (m < item.formals.count - 1) {
-                printf(", ");
-            }
-        }
-        printf(")\n");
-    }*/
+    method_env_show(method_env);
+    */
 
     return context->result;
 }
