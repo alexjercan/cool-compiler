@@ -122,12 +122,12 @@ static int is_class_inheritance_cycle(semantic_context *context,
     context_show_errorf(context, class.name.line, class.name.col,              \
                         "Inheritance cycle for class %s", class.name.value)
 
-static void semantic_check_class_nodes(semantic_context *context,
-                                       program_node *program) {
+static void semantic_check_classes(semantic_context *context,
+                                   program_node *program) {
     ds_hash_table_init(&context->classes, sizeof(char *), sizeof(class_context),
                        100, hash_string, compare_string);
 
-    class_context object_instance = {.name = ("Object"), .parent = NULL};
+    class_context object_instance = {.name = "Object", .parent = NULL};
     ds_hash_table_init(&object_instance.objects, sizeof(char *),
                        sizeof(object_kv), 100, hash_string, compare_string);
     ds_hash_table_init(&object_instance.methods, sizeof(char *),
@@ -135,37 +135,85 @@ static void semantic_check_class_nodes(semantic_context *context,
     ds_hash_table_insert(&context->classes, &object_instance.name,
                          &object_instance);
 
+    method_context abort = {.name = "abort", .type = "Object"};
+    ds_dynamic_array_init(&abort.formals, sizeof(object_kv));
+    ds_hash_table_insert(&object_instance.methods, &abort.name, &abort);
+
+    method_context type_name = {.name = "type_name", .type = "String"};
+    ds_dynamic_array_init(&type_name.formals, sizeof(object_kv));
+    ds_hash_table_insert(&object_instance.methods, &type_name.name, &type_name);
+
+    method_context copy = {.name = "copy", .type = "SELF_TYPE"};
+    ds_dynamic_array_init(&copy.formals, sizeof(object_kv));
+    ds_hash_table_insert(&object_instance.methods, &copy.name, &copy);
+
     class_context *object = NULL;
     ds_hash_table_get_ref(&context->classes, &object_instance.name,
                           (void **)&object);
 
-    class_context string = {.name = ("String"), .parent = object};
+    class_context string = {.name = "String", .parent = object};
     ds_hash_table_init(&string.objects, sizeof(char *), sizeof(object_kv), 100,
                        hash_string, compare_string);
     ds_hash_table_init(&string.methods, sizeof(char *), sizeof(object_kv), 100,
                        hash_string, compare_string);
     ds_hash_table_insert(&context->classes, &string.name, &string);
 
-    class_context int_class = {.name = ("Int"), .parent = object};
+    method_context length = {.name = "length", .type = "Int"};
+    ds_dynamic_array_init(&length.formals, sizeof(object_kv));
+    ds_hash_table_insert(&string.methods, &length.name, &length);
+
+    method_context concat = {.name = "concat", .type = "String"};
+    ds_dynamic_array_init(&concat.formals, sizeof(object_kv));
+    object_kv concat_formal = {.name = "s", .type = "String"};
+    ds_dynamic_array_append(&concat.formals, &concat_formal);
+    ds_hash_table_insert(&string.methods, &concat.name, &concat);
+
+    method_context substr = {.name = "substr", .type = "String"};
+    ds_dynamic_array_init(&substr.formals, sizeof(object_kv));
+    object_kv substr_formal1 = {.name = "i", .type = "Int"};
+    object_kv substr_formal2 = {.name = "l", .type = "Int"};
+    ds_dynamic_array_append(&substr.formals, &substr_formal1);
+    ds_dynamic_array_append(&substr.formals, &substr_formal2);
+    ds_hash_table_insert(&string.methods, &substr.name, &substr);
+
+    class_context int_class = {.name = "Int", .parent = object};
     ds_hash_table_init(&int_class.objects, sizeof(char *), sizeof(object_kv),
                        100, hash_string, compare_string);
     ds_hash_table_init(&int_class.methods, sizeof(char *), sizeof(object_kv),
                        100, hash_string, compare_string);
     ds_hash_table_insert(&context->classes, &int_class.name, &int_class);
 
-    class_context bool_class = {.name = ("Bool"), .parent = object};
+    class_context bool_class = {.name = "Bool", .parent = object};
     ds_hash_table_init(&bool_class.objects, sizeof(char *), sizeof(object_kv),
                        100, hash_string, compare_string);
     ds_hash_table_init(&bool_class.methods, sizeof(char *), sizeof(object_kv),
                        100, hash_string, compare_string);
     ds_hash_table_insert(&context->classes, &bool_class.name, &bool_class);
 
-    class_context io = {.name = ("IO"), .parent = object};
+    class_context io = {.name = "IO", .parent = object};
     ds_hash_table_init(&io.objects, sizeof(char *), sizeof(object_kv), 100,
                        hash_string, compare_string);
     ds_hash_table_init(&io.methods, sizeof(char *), sizeof(object_kv), 100,
                        hash_string, compare_string);
     ds_hash_table_insert(&context->classes, &io.name, &io);
+
+    method_context out_string = {.name = "out_string", .type = "SELF_TYPE"};
+    ds_dynamic_array_init(&out_string.formals, sizeof(object_kv));
+    object_kv out_string_formal = {.name = "x", .type = "String"};
+    ds_dynamic_array_append(&out_string.formals, &out_string_formal);
+
+    method_context out_int = {.name = "out_int", .type = "SELF_TYPE"};
+    ds_dynamic_array_init(&out_int.formals, sizeof(object_kv));
+    object_kv out_int_formal = {.name = "x", .type = "Int"};
+    ds_dynamic_array_append(&out_int.formals, &out_int_formal);
+
+    method_context in_string = {.name = "in_string", .type = "String"};
+    ds_dynamic_array_init(&in_string.formals, sizeof(object_kv));
+    ds_hash_table_insert(&io.methods, &in_string.name, &in_string);
+
+    method_context in_int = {.name = "in_int", .type = "Int"};
+    ds_dynamic_array_init(&in_int.formals, sizeof(object_kv));
+    ds_hash_table_insert(&io.methods, &in_int.name, &in_int);
 
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
@@ -479,7 +527,7 @@ static int is_formals_different_types(object_kv parent_formal,
                         formal.type.value)
 
 static int is_return_type_different(method_context *parent_method_ctx,
-                                   method_node method) {
+                                    method_node method) {
     return strcmp(parent_method_ctx->type, method.type.value) != 0;
 }
 
@@ -628,66 +676,156 @@ static void semantic_check_methods(semantic_context *context,
     }
 }
 
-int semantic_check(program_node *program, semantic_context *context) {
-    context->result = 0;
+typedef struct method_environment_item {
+        const char *class_name;
+        const char *method_name;
+        ds_dynamic_array formals;
+} method_environment_item;
 
-    semantic_check_class_nodes(context, program);
-    semantic_check_attributes(context, program);
-    semantic_check_methods(context, program);
+typedef struct method_environment {
+        ds_dynamic_array items;
+} method_environment;
+
+static void build_method_environment(program_node *program,
+                                     semantic_context *context,
+                                     method_environment *env) {
+    ds_dynamic_array_init(&env->items, sizeof(method_environment_item));
 
     for (unsigned int i = 0; i < context->classes.capacity; i++) {
         ds_dynamic_array *keys = &context->classes.keys[i];
         ds_dynamic_array *values = &context->classes.values[i];
 
         for (unsigned int j = 0; j < keys->count; j++) {
-            char *key;
-            ds_dynamic_array_get(keys, j, &key);
+            char *class_name;
+            ds_dynamic_array_get(keys, j, &class_name);
 
-            class_context value;
-            ds_dynamic_array_get(values, j, &value);
+            class_context class_ctx;
+            ds_dynamic_array_get(values, j, &class_ctx);
 
-            printf("Class: %s\n", key);
-            if (value.parent != NULL) {
-                printf("Parent: %s\n", value.parent->name);
-            }
-            printf("Objects:\n");
-            for (unsigned int k = 0; k < value.objects.capacity; k++) {
-                ds_dynamic_array *keys = &value.objects.keys[k];
-                ds_dynamic_array *values = &value.objects.values[k];
+            for (unsigned int k = 0; k < class_ctx.methods.capacity; k++) {
+                ds_dynamic_array *keys = &class_ctx.methods.keys[k];
+                ds_dynamic_array *values = &class_ctx.methods.values[k];
 
                 for (unsigned int l = 0; l < keys->count; l++) {
-                    char *key;
-                    ds_dynamic_array_get(keys, l, &key);
+                    char *method_name;
+                    ds_dynamic_array_get(keys, l, &method_name);
 
-                    object_kv value;
-                    ds_dynamic_array_get(values, l, &value);
+                    method_context method_ctx = {0};
+                    ds_dynamic_array_get(values, l, &method_ctx);
 
-                    printf("  %s: %s\n", key, value.type);
-                }
-            }
-            printf("Methods:\n");
-            for (unsigned int k = 0; k < value.methods.capacity; k++) {
-                ds_dynamic_array *keys = &value.methods.keys[k];
-                ds_dynamic_array *values = &value.methods.values[k];
+                    method_environment_item item = {.class_name = class_name,
+                                                    .method_name = method_name};
+                    ds_dynamic_array_init(&item.formals, sizeof(const char *));
 
-                for (unsigned int l = 0; l < keys->count; l++) {
-                    char *key;
-                    ds_dynamic_array_get(keys, l, &key);
+                    for (unsigned int m = 0; m < method_ctx.formals.count;
+                         m++) {
+                        object_kv formal_ctx;
+                        ds_dynamic_array_get(&method_ctx.formals, m,
+                                             &formal_ctx);
 
-                    method_context value;
-                    ds_dynamic_array_get(values, l, &value);
-
-                    printf("  %s: %s\n", key, value.type);
-                    printf("  Formals:\n");
-                    for (unsigned int m = 0; m < value.formals.count; m++) {
-                        object_kv formal;
-                        ds_dynamic_array_get(&value.formals, m, &formal);
-
-                        printf("    %s: %s\n", formal.name, formal.type);
+                        ds_dynamic_array_append(&item.formals,
+                                                &formal_ctx.type);
                     }
+
+                    ds_dynamic_array_append(&item.formals, &method_ctx.type);
+                    ds_dynamic_array_append(&env->items, &item);
                 }
             }
         }
+    }
+}
+
+typedef struct object_environment_item {
+        const char *class_name;
+        ds_dynamic_array objects;
+} object_environment_item;
+
+typedef struct object_environment {
+        ds_dynamic_array items;
+} object_environment;
+
+static void build_object_environment(program_node *program,
+                                     semantic_context *context,
+                                     object_environment *env) {
+    ds_dynamic_array_init(&env->items, sizeof(object_environment_item));
+
+    for (unsigned int i = 0; i < context->classes.capacity; i++) {
+        ds_dynamic_array *keys = &context->classes.keys[i];
+        ds_dynamic_array *values = &context->classes.values[i];
+
+        for (unsigned int j = 0; j < keys->count; j++) {
+            char *class_name;
+            ds_dynamic_array_get(keys, j, &class_name);
+
+            object_environment_item item = {.class_name = class_name};
+            ds_dynamic_array_init(&item.objects, sizeof(object_kv));
+
+            class_context *class_ctx;
+            ds_dynamic_array_get_ref(values, j, (void **)&class_ctx);
+
+            while (class_ctx != NULL) {
+                for (unsigned int k = 0; k < class_ctx->objects.capacity; k++) {
+                    ds_dynamic_array *keys = &class_ctx->objects.keys[k];
+                    ds_dynamic_array *values = &class_ctx->objects.values[k];
+
+                    for (unsigned int l = 0; l < keys->count; l++) {
+                        object_kv attribute_ctx;
+                        ds_dynamic_array_get(values, l, &attribute_ctx);
+
+                        ds_dynamic_array_append(&item.objects, &attribute_ctx);
+                    }
+                }
+
+                class_ctx = class_ctx->parent;
+            }
+
+            ds_dynamic_array_append(&env->items, &item);
+        }
+    }
+}
+
+
+int semantic_check(program_node *program, semantic_context *context) {
+    context->result = 0;
+
+    semantic_check_classes(context, program);
+    semantic_check_attributes(context, program);
+    semantic_check_methods(context, program);
+
+    object_environment object_env;
+    build_object_environment(program, context, &object_env);
+
+    method_environment method_env;
+    build_method_environment(program, context, &method_env);
+
+    for (unsigned int i = 0; i < object_env.items.count; i++) {
+        object_environment_item item;
+        ds_dynamic_array_get(&object_env.items, i, &item);
+
+        printf("class %s\n", item.class_name);
+        for (unsigned int m = 0; m < item.objects.count; m++) {
+            object_kv object;
+            ds_dynamic_array_get(&item.objects, m, &object);
+
+            printf("O(%s) = %s\n", object.name, object.type);
+        }
+    }
+
+    for (unsigned int i = 0; i < method_env.items.count; i++) {
+        method_environment_item item;
+        ds_dynamic_array_get(&method_env.items, i, &item);
+
+        printf("M(%s, %s) = (", item.class_name, item.method_name);
+        for (unsigned int m = 0; m < item.formals.count; m++) {
+            const char *formal_type;
+            ds_dynamic_array_get(&item.formals, m, &formal_type);
+
+            printf("%s", formal_type);
+            if (m < item.formals.count - 1) {
+                printf(", ");
+            }
+        }
+        printf(")\n");
     }
 
     return context->result;
