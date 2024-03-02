@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
 
     // Semantic check the input file
     unsigned int sem = argparse_get_flag(parser, "sem");
-    program_context context = { .filename = filepath_to_basename(filename) };
+    semantic_context context = { .filename = filepath_to_basename(filename) };
     if (semantic_check(&program, &context) != 0) {
         printf("Compilation halted\n");
         return_defer(1);

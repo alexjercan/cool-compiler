@@ -3,7 +3,39 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-static void context_show_errorf(program_context *context, unsigned int line,
+static unsigned int hash_string(const void *key) {
+    const char *str = *(char **)key;
+    unsigned int hash = 5381;
+    int c;
+
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+
+    return hash;
+}
+
+static int compare_string(const void *a, const void *b) {
+    return strcmp(*(const char **)a, *(const char **)b);
+}
+
+typedef struct class_context {
+        const char *name;
+        struct class_context *parent;
+        ds_hash_table objects;
+        ds_hash_table methods;
+} class_context;
+
+typedef struct object_kv {
+        const char *name;
+        const char *type;
+} object_kv;
+
+typedef struct method_context {
+        char *name;
+} method_context;
+
+static void context_show_errorf(semantic_context *context, unsigned int line,
                                 unsigned int col, const char *format, ...) {
     context->result = 1;
 
@@ -23,569 +55,396 @@ static void context_show_errorf(program_context *context, unsigned int line,
     printf("\n");
 }
 
-// Error messages
+static int is_class_redefined(semantic_context *context, class_node class) {
+    return ds_hash_table_has(&context->classes, &class.name.value);
+}
 
-#define class_redefined_error(context, class)                                  \
-    context_show_errorf(context, class.line, class.col,                        \
-                        "Class %s is redefined", class.value)
+#define context_show_error_class_redefined(context, class)                     \
+    context_show_errorf(context, class.name.line, class.name.col,              \
+                        "Class %s is redefined", class.name.value)
 
-#define class_invalid_error(context, class)                                    \
-    context_show_errorf(context, class.line, class.col,                        \
-                        "Class has illegal name %s", class.value)
+static int is_class_name_illegal(semantic_context *context, class_node class) {
+    if (strcmp(class.name.value, "SELF_TYPE") == 0) {
+        return 1;
+    }
 
-#define class_illegal_parent_error(context, class, parent)                     \
-    context_show_errorf(context, parent.line, parent.col,                      \
-                        "Class %s has illegal parent %s", class.value, parent)
+    return 0;
+}
 
-#define class_undefined_parent_error(context, class, parent)                   \
-    context_show_errorf(context, parent.line, parent.col,                      \
-                        "Class %s has undefined parent %s", class.value,       \
-                        parent)
+#define context_show_error_class_name_illegal(context, class)                  \
+    context_show_errorf(context, class.name.line, class.name.col,              \
+                        "Class has illegal name %s", class.name.value)
 
-#define class_inheritance_cycle_error(context, class)                          \
-    context_show_errorf(context, class.line, class.col,                        \
-                        "Inheritance cycle for class %s", class.value)
+static int is_class_parent_undefined(semantic_context *context,
+                                     class_node class) {
+    return !ds_hash_table_has(&context->classes, &class.superclass.value);
+}
 
-#define attribute_illegal_error(context, class, attribute)                     \
-    context_show_errorf(context, attribute.line, attribute.col,                \
+#define context_show_error_class_parent_undefined(context, class)              \
+    context_show_errorf(context, class.superclass.line, class.superclass.col,  \
+                        "Class %s has undefined parent %s", class.name.value,  \
+                        class.superclass.value)
+
+static int is_class_parent_illegal(semantic_context *context,
+                                   class_node class) {
+    if (strcmp(class.superclass.value, "Int") == 0 ||
+        strcmp(class.superclass.value, "String") == 0 ||
+        strcmp(class.superclass.value, "Bool") == 0 ||
+        strcmp(class.superclass.value, "SELF_TYPE") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_class_parent_illegal(context, class)                \
+    context_show_errorf(context, class.superclass.line, class.superclass.col,  \
+                        "Class %s has illegal parent %s", class.name.value,    \
+                        class.superclass.value)
+
+static int is_class_inheritance_cycle(semantic_context *context,
+                                      class_context *class_ctx) {
+    class_context *parent_ctx = class_ctx->parent;
+    while (parent_ctx != NULL) {
+        if (strcmp(parent_ctx->name, class_ctx->name) == 0) {
+            return 1;
+        }
+
+        parent_ctx = parent_ctx->parent;
+    }
+
+    return 0;
+}
+
+#define context_show_error_class_inheritance(context, class)                   \
+    context_show_errorf(context, class.name.line, class.name.col,              \
+                        "Inheritance cycle for class %s", class.name.value)
+
+static void semantic_check_class_nodes(semantic_context *context,
+                                       program_node *program) {
+    ds_hash_table_init(&context->classes, sizeof(char *), sizeof(class_context),
+                       100, hash_string, compare_string);
+
+    class_context object_instance = {.name = ("Object"), .parent = NULL};
+    ds_hash_table_init(&object_instance.objects, sizeof(char *),
+                       sizeof(object_kv), 100, hash_string, compare_string);
+    ds_hash_table_init(&object_instance.methods, sizeof(char *),
+                       sizeof(object_kv), 100, hash_string, compare_string);
+    ds_hash_table_insert(&context->classes, &object_instance.name,
+                         &object_instance);
+
+    class_context *object = NULL;
+    ds_hash_table_get_ref(&context->classes, &object_instance.name,
+                          (void **)&object);
+
+    class_context string = {.name = ("String"), .parent = object};
+    ds_hash_table_init(&string.objects, sizeof(char *), sizeof(object_kv), 100,
+                       hash_string, compare_string);
+    ds_hash_table_init(&string.methods, sizeof(char *), sizeof(object_kv), 100,
+                       hash_string, compare_string);
+    ds_hash_table_insert(&context->classes, &string.name, &string);
+
+    class_context int_class = {.name = ("Int"), .parent = object};
+    ds_hash_table_init(&int_class.objects, sizeof(char *), sizeof(object_kv),
+                       100, hash_string, compare_string);
+    ds_hash_table_init(&int_class.methods, sizeof(char *), sizeof(object_kv),
+                       100, hash_string, compare_string);
+    ds_hash_table_insert(&context->classes, &int_class.name, &int_class);
+
+    class_context bool_class = {.name = ("Bool"), .parent = object};
+    ds_hash_table_init(&bool_class.objects, sizeof(char *), sizeof(object_kv),
+                       100, hash_string, compare_string);
+    ds_hash_table_init(&bool_class.methods, sizeof(char *), sizeof(object_kv),
+                       100, hash_string, compare_string);
+    ds_hash_table_insert(&context->classes, &bool_class.name, &bool_class);
+
+    class_context io = {.name = ("IO"), .parent = object};
+    ds_hash_table_init(&io.objects, sizeof(char *), sizeof(object_kv), 100,
+                       hash_string, compare_string);
+    ds_hash_table_init(&io.methods, sizeof(char *), sizeof(object_kv), 100,
+                       hash_string, compare_string);
+    ds_hash_table_insert(&context->classes, &io.name, &io);
+
+    for (unsigned int i = 0; i < program->classes.count; i++) {
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
+
+        if (is_class_name_illegal(context, class)) {
+            context_show_error_class_name_illegal(context, class);
+            continue;
+        }
+
+        if (is_class_redefined(context, class)) {
+            context_show_error_class_redefined(context, class);
+            continue;
+        }
+
+        class_context class_ctx = {.name = class.name.value, .parent = NULL};
+        ds_hash_table_init(&class_ctx.objects, sizeof(char *),
+                           sizeof(object_kv), 100, hash_string, compare_string);
+        ds_hash_table_init(&class_ctx.methods, sizeof(char *), sizeof(object_kv),
+                           100, hash_string, compare_string);
+        ds_hash_table_insert(&context->classes, &class_ctx.name, &class_ctx);
+    }
+
+    for (unsigned int i = 0; i < program->classes.count; i++) {
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
+
+        class_context *class_ctx = NULL;
+        ds_hash_table_get_ref(&context->classes, &class.name.value,
+                              (void **)&class_ctx);
+
+        if (class_ctx == NULL) {
+            continue;
+        }
+
+        if (class.superclass.value == NULL) {
+            class_ctx->parent = object;
+            continue;
+        }
+
+        if (is_class_parent_illegal(context, class)) {
+            context_show_error_class_parent_illegal(context, class);
+            continue;
+        }
+
+        if (is_class_parent_undefined(context, class)) {
+            context_show_error_class_parent_undefined(context, class);
+            continue;
+        }
+
+        class_context *parent_ctx = NULL;
+        ds_hash_table_get_ref(&context->classes, &class.superclass.value,
+                              (void **)&parent_ctx);
+
+        class_ctx->parent = parent_ctx;
+    }
+
+    for (unsigned int i = 0; i < program->classes.count; i++) {
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
+
+        class_context *class_ctx = NULL;
+        ds_hash_table_get_ref(&context->classes, &class.name.value,
+                              (void **)&class_ctx);
+
+        if (class_ctx == NULL) {
+            continue;
+        }
+
+        if (is_class_inheritance_cycle(context, class_ctx)) {
+            context_show_error_class_inheritance(context, class);
+            continue;
+        }
+    }
+}
+
+static int is_attribute_name_illegal(semantic_context *context,
+                                     attribute_node attribute) {
+    if (strcmp(attribute.name.value, "self") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_attribute_name_illegal(context, class, attribute)   \
+    context_show_errorf(context, attribute.name.line, attribute.name.col,      \
                         "Class %s has attribute with illegal name %s",         \
-                        class.value, attribute.value)
+                        class.name.value, attribute.name.value)
 
-#define attribute_redefined_error(context, class, attribute)                   \
-    context_show_errorf(context, attribute.line, attribute.col,                \
-                        "Class %s redefines attribute %s", class.value,        \
-                        attribute.value)
+static int is_attribute_redefined(semantic_context *context,
+                                  class_context *class_ctx,
+                                  attribute_node attribute) {
+    return ds_hash_table_has(&class_ctx->objects, &attribute.name.value);
+}
 
-#define attribute_undefined_type_error(context, class, attr, type)             \
-    context_show_errorf(context, type.line, type.col,                          \
+#define context_show_error_attribute_redefined(context, class, attribute)      \
+    context_show_errorf(context, attribute.name.line, attribute.name.col,      \
+                        "Class %s redefines attribute %s", class.name.value,   \
+                        attribute.name.value)
+
+static int is_attribute_type_undefiend(semantic_context *context,
+                                       attribute_node attribute) {
+    return !ds_hash_table_has(&context->classes, &attribute.type.value);
+}
+
+#define context_show_error_attribute_type_undefined(context, class, attribute) \
+    context_show_errorf(context, attribute.type.line, attribute.type.col,      \
                         "Class %s has attribute %s with undefined type %s",    \
-                        class.value, attr.value, type.value)
+                        class.name.value, attribute.name.value,                \
+                        attribute.type.value)
 
-#define attribute_redefined_parent_error(context, class, attribute)            \
-    context_show_errorf(context, attribute.line, attribute.col,                \
+static int is_attribute_parent_redefined(semantic_context *context,
+                                         class_context *class_ctx,
+                                         attribute_node attribute) {
+    class_context *parent_ctx = class_ctx->parent;
+    while (parent_ctx != NULL) {
+        if (ds_hash_table_has(&parent_ctx->objects, &attribute.name.value)) {
+            return 1;
+        }
+
+        parent_ctx = parent_ctx->parent;
+    }
+
+    return 0;
+}
+
+#define context_show_error_attribute_parent_redefined(context, class,          \
+                                                      attribute)               \
+    context_show_errorf(context, attribute.name.line, attribute.name.col,      \
                         "Class %s redefines inherited attribute %s",           \
-                        class.value, attribute.value)
+                        class.name.value, attribute.name.value)
 
-#define method_redefined_error(context, class, method)                         \
-    context_show_errorf(context, method.line, method.col,                      \
-                        "Class %s redefines method %s", class.value,           \
-                        method.value)
-
-#define formal_illegal_error(context, class, method, formal)                   \
-    context_show_errorf(context, formal.line, formal.col,                      \
-                        "Method %s of class %s has formal parameter with "     \
-                        "illegal name %s",                                     \
-                        method.value, class.value, formal.value)
-
-#define formal_undefined_type_error(context, class, method, name, type)        \
-    context_show_errorf(context, type.line, type.col,                          \
-                        "Method %s of class %s has formal parameter %s with "  \
-                        "undefined type %s",                                   \
-                        method.value, class.value, name.value, type.value)
-
-#define formal_type_illegal_error(context, class, method, name, type)          \
-    context_show_errorf(context, type.line, type.col,                          \
-                        "Method %s of class %s has formal parameter %s with "  \
-                        "illegal type %s",                                     \
-                        method.value, class.value, name.value, type.value)
-
-#define formal_redefined_error(context, class, method, formal)                 \
-    context_show_errorf(context, formal.line, formal.col,                      \
-                        "Method %s of class %s redefines formal parameter "    \
-                        "%s",                                                  \
-                        method.value, class.value, formal.value)
-
-#define formals_count_error(context, class, method)                            \
-    context_show_errorf(context, method.line, method.col,                      \
-                        "Class %s overrides method %s with different number "  \
-                        "of formal parameters",                                \
-                        class.value, method.value)
-
-#define formal_type_mismatch_error(context, class, method, name, type1, type2) \
-    context_show_errorf(context, type1.line, type1.col,                        \
-                        "Class %s overrides method %s but changes type of "    \
-                        "formal parameter %s from %s to %s",                   \
-                        class.value, method.value, name.value, type2.value,    \
-                        type1.value)
-
-#define return_type_missmatch_error(context, class, method, type1, type2)      \
-    context_show_errorf(context, type1.line, type1.col,                        \
-                        "Class %s overrides method %s but changes return "     \
-                        "type from %s to %s",                                  \
-                        class.value, method.value, type2.value, type1.value)
-
-#define return_type_undefined_error(context, class, method, type)              \
-    context_show_errorf(context, type.line, type.col,                          \
-                        "Class %s has method %s with undefined return type "   \
-                        "%s",                                                  \
-                        class.value, method.value, type.value)
-
-// Error checking
-
-static int is_class_redefined(program_context *context, const char *name) {
-    for (unsigned int i = 0; i < context->classes.count; i++) {
-        class_context class;
-        ds_dynamic_array_get(&context->classes, i, &class);
-
-        if (strcmp(class.name.value, name) == 0) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-static int is_class_invalid(const char *name) {
-    if (strcmp(name, "SELF_TYPE") == 0) {
-        return 1;
-    }
-
-    return 0;
-}
-
-static int is_parent_invalid(const char *name) {
-    if (strcmp(name, "Int") == 0 || strcmp(name, "String") == 0 ||
-        strcmp(name, "Bool") == 0 || strcmp(name, "SELF_TYPE") == 0) {
-        return 1;
-    }
-
-    return 0;
-}
-
-static int is_attribute_illegal(const char *name) {
-    if (strcmp(name, "self") == 0) {
-        return 1;
-    }
-
-    return 0;
-}
-
-static int is_attribute_redefined(class_context *class, const char *name) {
-    for (unsigned int i = 0; i < class->attributes.count; i++) {
-        typed_symbol attr;
-        ds_dynamic_array_get(&class->attributes, i, &attr);
-
-        if (strcmp(attr.name.value, name) == 0) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-static int is_method_redefined(class_context *class, const char *name) {
-    for (unsigned int i = 0; i < class->methods.count; i++) {
-        method_context method;
-        ds_dynamic_array_get(&class->methods, i, &method);
-
-        if (strcmp(method.name.value, name) == 0) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-static int is_formal_illegal(const char *name) {
-    if (strcmp(name, "self") == 0) {
-        return 1;
-    }
-
-    return 0;
-}
-
-static int is_formal_type_illegal(const char *name) {
-    if (strcmp(name, "SELF_TYPE") == 0) {
-        return 1;
-    }
-
-    return 0;
-}
-
-static int is_formal_redefined(ds_dynamic_array formals, const char *name) {
-    for (unsigned int i = 0; i < formals.count; i++) {
-        typed_symbol formal;
-        ds_dynamic_array_get(&formals, i, &formal);
-
-        if (strcmp(formal.name.value, name) == 0) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-static int is_formals_different_count(ds_dynamic_array formals1,
-                                      ds_dynamic_array formals2) {
-    return formals1.count != formals2.count;
-}
-
-static int is_formals_different_types(typed_symbol formal1,
-                                      typed_symbol formal2) {
-    return strcmp(formal1.type.value, formal2.type.value) != 0;
-}
-
-// Implementation
-
-static void context_init(program_context *context) {
-    ds_dynamic_array_init(&context->classes, sizeof(class_context));
-
-    class_context object_class = {.name = {.value = "Object"}};
-    ds_dynamic_array_append(&context->classes, &object_class);
-
-    class_context *object_context = NULL;
-    ds_dynamic_array_get_ref(&context->classes, 0, (void **)&object_context);
-
-    class_context int_class = {.name = {.value = "Int"},
-                               .parent = object_context};
-    ds_dynamic_array_append(&context->classes, &int_class);
-
-    class_context string_class = {.name = {.value = "String"},
-                                  .parent = object_context};
-    ds_dynamic_array_append(&context->classes, &string_class);
-
-    class_context bool_class = {.name = {.value = "Bool"},
-                                .parent = object_context};
-    ds_dynamic_array_append(&context->classes, &bool_class);
-
-    class_context io_class = {.name = {.value = "IO"},
-                              .parent = object_context};
-    ds_dynamic_array_append(&context->classes, &io_class);
-}
-
-static class_context *class_to_context(program_context *context, char *name) {
-    for (unsigned int i = 0; i < context->classes.count; i++) {
-        class_context *c = NULL;
-        ds_dynamic_array_get_ref(&context->classes, i, (void **)&c);
-
-        if (strcmp(c->name.value, name) == 0) {
-            return c;
-        }
-    }
-
-    return NULL;
-}
-
-static method_context *method_to_context(class_context *class, char *name) {
-    for (unsigned int i = 0; i < class->methods.count; i++) {
-        method_context *method = NULL;
-        ds_dynamic_array_get_ref(&class->methods, i, (void **)&method);
-
-        if (strcmp(method->name.value, name) == 0) {
-            return method;
-        }
-    }
-
-    return NULL;
-}
-
-static typed_symbol *attribute_to_info(class_context *class, char *name) {
-    for (unsigned int i = 0; i < class->attributes.count; i++) {
-        typed_symbol *attr = NULL;
-        ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attr);
-
-        if (strcmp(attr->name.value, name) == 0) {
-            return attr;
-        }
-    }
-
-    return NULL;
-}
-
-static void build_class_hierarchy(program_node *program,
-                                  program_context *context) {
+static void semantic_check_attributes(semantic_context *context,
+                                      program_node *program) {
     for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node node;
-        ds_dynamic_array_get(&program->classes, i, &node);
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
 
-        if (is_class_redefined(context, node.name.value)) {
-            class_redefined_error(context, node.name);
-        } else if (is_class_invalid(node.name.value)) {
-            class_invalid_error(context, node.name);
-        } else {
-            class_context class = {.name = node.name, .parent = NULL};
-            ds_dynamic_array_init(&class.attributes, sizeof(typed_symbol));
-            ds_dynamic_array_init(&class.methods, sizeof(method_context));
-            ds_dynamic_array_append(&context->classes, &class);
-        }
-    }
-}
+        class_context *class_ctx = NULL;
+        ds_hash_table_get_ref(&context->classes, &class.name.value,
+                              (void **)&class_ctx);
 
-static void build_parent_hierarchy(program_node *program,
-                                   program_context *context) {
-    for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node node;
-        ds_dynamic_array_get(&program->classes, i, &node);
-
-        char *name = node.name.value;
-        class_context *class = class_to_context(context, name);
-
-        if (class == NULL) {
+        if (class_ctx == NULL) {
             continue;
         }
 
-        char *parent_name = node.superclass.value;
-        if (parent_name == NULL) {
-            parent_name = "Object";
-        }
+        for (unsigned int j = 0; j < class.attributes.count; j++) {
+            attribute_node attribute;
+            ds_dynamic_array_get(&class.attributes, j, &attribute);
 
-        if (is_parent_invalid(parent_name)) {
-            class_illegal_parent_error(context, node.name, node.superclass);
-            continue;
-        }
-
-        class_context *parent_class = class_to_context(context, parent_name);
-
-        if (parent_class == NULL) {
-            class_undefined_parent_error(context, node.name, node.superclass);
-            continue;
-        }
-
-        class->parent = parent_class;
-    }
-}
-
-static void check_inheritance_cycle(program_context *context) {
-    for (unsigned int i = 0; i < context->classes.count; i++) {
-        class_context *class = NULL;
-        ds_dynamic_array_get_ref(&context->classes, i, (void **)&class);
-
-        class_context *parent = class->parent;
-        while (parent != NULL) {
-            if (parent == class) {
-                class_inheritance_cycle_error(context, class->name);
-                break;
-            }
-
-            parent = parent->parent;
-        }
-    }
-}
-
-static void build_class_attributes(program_node *program,
-                                   program_context *context) {
-    for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node node;
-        ds_dynamic_array_get(&program->classes, i, &node);
-
-        char *name = node.name.value;
-        class_context *class = class_to_context(context, name);
-
-        if (class == NULL) {
-            continue;
-        }
-
-        for (unsigned int j = 0; j < node.attributes.count; j++) {
-            attribute_node attr;
-            ds_dynamic_array_get(&node.attributes, j, &attr);
-
-            if (is_attribute_illegal(attr.name.value)) {
-                attribute_illegal_error(context, node.name, attr.name);
+            if (is_attribute_name_illegal(context, attribute)) {
+                context_show_error_attribute_name_illegal(context, class,
+                                                          attribute);
                 continue;
             }
 
-            if (is_attribute_redefined(class, attr.name.value)) {
-                attribute_redefined_error(context, node.name, attr.name);
+            if (is_attribute_redefined(context, class_ctx, attribute)) {
+                context_show_error_attribute_redefined(context, class,
+                                                       attribute);
                 continue;
             }
 
-            class_context *type = class_to_context(context, attr.type.value);
-            if (type == NULL) {
-                attribute_undefined_type_error(context, node.name, attr.name,
-                                               attr.type);
+            if (is_attribute_type_undefiend(context, attribute)) {
+                context_show_error_attribute_type_undefined(context, class,
+                                                            attribute);
                 continue;
             }
 
-            typed_symbol info = {
-                .name = attr.name, .type = attr.type, .class = type};
-            ds_dynamic_array_append(&class->attributes, &info);
+            object_kv object = {.name = attribute.name.value,
+                                .type = attribute.type.value};
+            ds_hash_table_insert(&class_ctx->objects, &object.name, &object);
         }
     }
-}
 
-static void check_parent_class_attributes(program_node *program,
-                                          program_context *context) {
     for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node node;
-        ds_dynamic_array_get(&program->classes, i, &node);
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
 
-        char *name = node.name.value;
-        class_context *class = class_to_context(context, name);
+        class_context *class_ctx = NULL;
+        ds_hash_table_get_ref(&context->classes, &class.name.value,
+                              (void **)&class_ctx);
 
-        if (class == NULL) {
+        if (class_ctx == NULL) {
             continue;
         }
 
-        for (unsigned int j = 0; j < class->attributes.count; j++) {
-            typed_symbol attr;
-            ds_dynamic_array_get(&class->attributes, j, &attr);
+        for (unsigned int j = 0; j < class.attributes.count; j++) {
+            attribute_node attribute;
+            ds_dynamic_array_get(&class.attributes, j, &attribute);
 
-            class_context *parent = class->parent;
-            while (parent != NULL) {
-                typed_symbol *parent_attr =
-                    attribute_to_info(parent, attr.name.value);
-                if (parent_attr != NULL) {
-                    attribute_redefined_parent_error(context, class->name,
-                                                     attr.name);
-                    break;
-                }
-
-                parent = parent->parent;
+            if (is_attribute_parent_redefined(context, class_ctx, attribute)) {
+                context_show_error_attribute_parent_redefined(context, class,
+                                                              attribute);
+                continue;
             }
         }
     }
 }
 
-static void build_class_methods(program_node *program,
-                                program_context *context) {
+static int is_method_redefined(semantic_context *context,
+                               class_context *class_ctx, method_node method) {
+    return ds_hash_table_has(&class_ctx->methods, &method.name.value);
+}
 
+#define context_show_error_method_redefined(context, class, method)            \
+    context_show_errorf(context, method.name.line, method.name.col,            \
+                        "Class %s redefines method %s", class.name.value,      \
+                        method.name.value)
+
+static void semantic_check_methods(semantic_context *context,
+                                   program_node *program) {
     for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node node;
-        ds_dynamic_array_get(&program->classes, i, &node);
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
 
-        char *name = node.name.value;
-        class_context *class = class_to_context(context, name);
+        class_context *class_ctx = NULL;
+        ds_hash_table_get_ref(&context->classes, &class.name.value,
+                              (void **)&class_ctx);
 
-        if (class == NULL) {
+        if (class_ctx == NULL) {
             continue;
         }
 
-        for (unsigned int j = 0; j < node.methods.count; j++) {
+        for (unsigned int j = 0; j < class.methods.count; j++) {
             method_node method;
-            ds_dynamic_array_get(&node.methods, j, &method);
+            ds_dynamic_array_get(&class.methods, j, &method);
 
-            if (is_method_redefined(class, method.name.value)) {
-                method_redefined_error(context, node.name, method.name);
+            if (is_method_redefined(context, class_ctx, method)) {
+                context_show_error_method_redefined(context, class, method);
                 continue;
             }
 
-            method_context info = {.name = method.name};
-            ds_dynamic_array_init(&info.formals, sizeof(typed_symbol));
-
-            for (unsigned int k = 0; k < method.formals.count; k++) {
-                formal_node formal;
-                ds_dynamic_array_get(&method.formals, k, &formal);
-
-                if (is_formal_illegal(formal.name.value)) {
-                    formal_illegal_error(context, class->name, method.name,
-                                         formal.name);
-                    continue;
-                }
-
-                if (is_formal_type_illegal(formal.type.value)) {
-                    formal_type_illegal_error(context, class->name, method.name,
-                                              formal.name, formal.type);
-                    continue;
-                }
-
-                if (is_formal_redefined(info.formals, formal.name.value)) {
-                    formal_redefined_error(context, class->name, method.name,
-                                           formal.name);
-                    continue;
-                }
-
-                class_context *type =
-                    class_to_context(context, formal.type.value);
-                if (type == NULL) {
-                    formal_undefined_type_error(context, class->name,
-                                                method.name, formal.name,
-                                                formal.type);
-                }
-
-                typed_symbol formal_info = {
-                    .name = formal.name, .type = formal.type, .class = type};
-                ds_dynamic_array_append(&info.formals, &formal_info);
-            }
-
-            class_context *type = class_to_context(context, method.type.value);
-            if (type == NULL) {
-                return_type_undefined_error(context, class->name, method.name,
-                                            method.type);
-            }
-
-            info.type = method.type;
-            info.return_type = type;
-
-            ds_dynamic_array_append(&class->methods, &info);
+            method_context method_ctx = {.name = method.name.value};
+            ds_hash_table_insert(&class_ctx->methods, &method_ctx.name,
+                                 &method_ctx);
         }
     }
 }
 
-static void check_parent_class_methods(program_node *program,
-                                       program_context *context) {
-    for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node node;
-        ds_dynamic_array_get(&program->classes, i, &node);
-
-        char *name = node.name.value;
-        class_context *class = class_to_context(context, name);
-
-        if (class == NULL) {
-            continue;
-        }
-
-        for (unsigned int j = 0; j < class->methods.count; j++) {
-            method_context method;
-            ds_dynamic_array_get(&class->methods, j, &method);
-
-            class_context *parent = class->parent;
-            while (parent != NULL) {
-                method_context *parent_method =
-                    method_to_context(parent, method.name.value);
-
-                if (parent_method != NULL) {
-                    if (is_formals_different_count(method.formals,
-                                                   parent_method->formals)) {
-                        formals_count_error(context, class->name, method.name);
-                        break;
-                    }
-
-                    for (unsigned int k = 0; k < method.formals.count; k++) {
-                        typed_symbol formal;
-                        ds_dynamic_array_get(&method.formals, k, &formal);
-
-                        typed_symbol parent_formal;
-                        ds_dynamic_array_get(&parent_method->formals, k,
-                                             &parent_formal);
-
-                        if (is_formals_different_types(formal, parent_formal)) {
-                            formal_type_mismatch_error(
-                                context, class->name, method.name, formal.name,
-                                formal.type, parent_formal.type);
-                            break;
-                        }
-                    }
-
-                    if (strcmp(method.type.value, parent_method->type.value) !=
-                        0) {
-                        return_type_missmatch_error(context, class->name,
-                                                    method.name, method.type,
-                                                    parent_method->type);
-                    }
-
-                    break;
-                }
-
-                parent = parent->parent;
-            }
-        }
-    }
-}
-
-int semantic_check(program_node *program, program_context *context) {
+int semantic_check(program_node *program, semantic_context *context) {
     context->result = 0;
 
-    context_init(context);
+    semantic_check_class_nodes(context, program);
+    semantic_check_attributes(context, program);
+    semantic_check_methods(context, program);
 
-    build_class_hierarchy(program, context);
-    build_parent_hierarchy(program, context);
-    check_inheritance_cycle(context);
+    /*
+    for (unsigned int i = 0; i < context->classes.capacity; i++) {
+        ds_dynamic_array *keys = &context->classes.keys[i];
+        ds_dynamic_array *values = &context->classes.values[i];
 
-    build_class_attributes(program, context);
-    check_parent_class_attributes(program, context);
+        for (unsigned int j = 0; j < keys->count; j++) {
+            char *key;
+            ds_dynamic_array_get(keys, j, &key);
 
-    build_class_methods(program, context);
-    check_parent_class_methods(program, context);
+            class_context value;
+            ds_dynamic_array_get(values, j, &value);
+
+            printf("Class: %s\n", key);
+            if (value.parent != NULL) {
+                printf("Parent: %s\n", value.parent->name);
+            }
+            printf("Objects:\n");
+            for (unsigned int k = 0; k < value.objects.capacity; k++) {
+                ds_dynamic_array *keys = &value.objects.keys[k];
+                ds_dynamic_array *values = &value.objects.values[k];
+
+                for (unsigned int l = 0; l < keys->count; l++) {
+                    char *key;
+                    ds_dynamic_array_get(keys, l, &key);
+
+                    object_kv value;
+                    ds_dynamic_array_get(values, l, &value);
+
+                    printf("  %s: %s\n", key, value.type);
+                }
+            }
+        }
+    }
+    */
 
     return context->result;
 }
