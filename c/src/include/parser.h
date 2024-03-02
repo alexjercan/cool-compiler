@@ -57,48 +57,60 @@ typedef struct let_init_node {
         struct expr_node *init;
 } let_init_node;
 
-typedef struct case_node {
+typedef struct branch_node {
         node_info name;
         node_info type;
         struct expr_node *body;
 } branch_node;
+
+typedef struct assign_node {
+    node_info name;
+    struct expr_node *value;
+} assign_node;
 
 typedef struct dispatch_node {
     node_info method;
     ds_dynamic_array args; // expr_node
 } dispatch_node;
 
+typedef struct dispatch_full_node {
+    struct expr_node *expr;
+    node_info type;
+    dispatch_node *dispatch;
+} dispatch_full_node;
+
+typedef struct cond_node {
+    struct expr_node *predicate;
+    struct expr_node *then;
+    struct expr_node *else_;
+} cond_node;
+
+typedef struct loop_node {
+    struct expr_node *predicate;
+    struct expr_node *body;
+} loop_node;
+
+typedef struct let_node {
+    ds_dynamic_array inits; // let_init_node
+    struct expr_node *body;
+} let_node;
+
+typedef struct case_node {
+    struct expr_node *expr;
+    ds_dynamic_array cases; // branch_node
+} case_node;
+
 typedef struct expr_node {
         enum expr_type type;
         union {
-                struct {
-                        node_info name;
-                        struct expr_node *value;
-                } assign;
-                struct {
-                        struct expr_node *expr;
-                        node_info type;
-                        dispatch_node *dispatch;
-                } dispatch_full;
+                assign_node assign;
+                dispatch_full_node dispatch_full;
                 dispatch_node dispatch;
-                struct {
-                        struct expr_node *predicate;
-                        struct expr_node *then;
-                        struct expr_node *else_;
-                } cond;
-                struct {
-                        struct expr_node *predicate;
-                        struct expr_node *body;
-                } loop;
+                cond_node cond;
+                loop_node loop;
                 ds_dynamic_array block;
-                struct {
-                        ds_dynamic_array inits; // let_init_node
-                        struct expr_node *body;
-                } let;
-                struct {
-                        struct expr_node *expr;
-                        ds_dynamic_array cases; // branch_node
-                } case_;
+                let_node let;
+                case_node case_;
                 node_info new;
                 struct expr_node *isvoid;
                 expr_binary_node add;

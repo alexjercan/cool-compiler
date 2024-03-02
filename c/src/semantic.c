@@ -702,8 +702,8 @@ typedef struct method_environment {
         ds_dynamic_array items;
 } method_environment;
 
-static void build_method_environment(program_node *program,
-                                     semantic_context *context,
+static void build_method_environment(semantic_context *context,
+                                     program_node *program,
                                      method_environment *env) {
     ds_dynamic_array_init(&env->items, sizeof(method_environment_item));
 
@@ -746,8 +746,8 @@ typedef struct object_environment {
         ds_dynamic_array items;
 } object_environment;
 
-static void build_object_environment(program_node *program,
-                                     semantic_context *context,
+static void build_object_environment(semantic_context *context,
+                                     program_node *program,
                                      object_environment *env) {
     ds_dynamic_array_init(&env->items, sizeof(object_environment_item));
 
@@ -776,6 +776,163 @@ static void build_object_environment(program_node *program,
     }
 }
 
+static void get_object_environment(object_environment *env,
+                                   const char *class_name,
+                                   object_environment_item *item) {
+    for (unsigned int i = 0; i < env->items.count; i++) {
+        object_environment_item *env_item;
+        ds_dynamic_array_get_ref(&env->items, i, (void **)&env_item);
+
+        if (strcmp(env_item->class_name, class_name) == 0) {
+            (*item).class_name = env_item->class_name;
+            ds_dynamic_array_copy(&env_item->objects, &(*item).objects);
+            return;
+        }
+    }
+}
+
+static void semantic_check_expression(semantic_context *context,
+                                      expr_node *expr,
+                                      method_environment *method_env,
+                                      object_environment_item *object_env);
+
+static int is_let_init_name_illegal(semantic_context *context,
+                                    let_init_node init) {
+    if (strcmp(init.name.value, "self") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_let_init_name_illegal(context, init)                \
+    context_show_errorf(context, init.name.line, init.name.col,                \
+                        "Let variable has illegal name %s", init.name.value)
+
+static int is_let_init_type_undefined(semantic_context *context,
+                                      let_init_node init) {
+    class_context *class_ctx = NULL;
+    find_class_ctx(context, init.type.value, &class_ctx);
+    return class_ctx == NULL;
+}
+
+#define context_show_error_let_init_type_undefined(context, init)              \
+    context_show_errorf(context, init.type.line, init.type.col,                \
+                        "Let variable %s has undefined type %s",              \
+                        init.name.value, init.type.value)
+
+static void semantic_check_let_expression(semantic_context *context,
+                                          let_node *expr,
+                                          method_environment *method_env,
+                                          object_environment_item *object_env) {
+
+    int depth = 0;
+    for (unsigned int i = 0; i < expr->inits.count; i++) {
+        let_init_node init;
+        ds_dynamic_array_get(&expr->inits, i, &init);
+
+        if (is_let_init_name_illegal(context, init)) {
+            context_show_error_let_init_name_illegal(context, init);
+            continue;
+        }
+
+        if (is_let_init_type_undefined(context, init)) {
+            context_show_error_let_init_type_undefined(context, init);
+            continue;
+        }
+
+        object_kv object = {.name = init.name.value, .type = init.type.value};
+        ds_dynamic_array_append(&object_env->objects, &object);
+
+        depth++;
+    }
+
+    semantic_check_expression(context, expr->body, method_env, object_env);
+
+    for (int i = 0; i < depth; i++) {
+        ds_dynamic_array_pop(&object_env->objects, NULL);
+    }
+}
+
+static void semantic_check_expression(semantic_context *context,
+                                      expr_node *expr,
+                                      method_environment *method_env,
+                                      object_environment_item *object_env) {
+    switch (expr->type) {
+    case EXPR_NONE:
+    case EXPR_ASSIGN:
+    case EXPR_DISPATCH_FULL:
+    case EXPR_DISPATCH:
+    case EXPR_COND:
+    case EXPR_LOOP:
+    case EXPR_BLOCK:
+    case EXPR_LET:
+        return semantic_check_let_expression(context, &expr->let, method_env,
+                                             object_env);
+    case EXPR_CASE:
+    case EXPR_NEW:
+    case EXPR_ISVOID:
+    case EXPR_ADD:
+    case EXPR_SUB:
+    case EXPR_MUL:
+    case EXPR_DIV:
+    case EXPR_NEG:
+    case EXPR_LT:
+    case EXPR_LE:
+    case EXPR_EQ:
+    case EXPR_NOT:
+    case EXPR_PAREN:
+    case EXPR_IDENT:
+    case EXPR_INT:
+    case EXPR_STRING:
+    case EXPR_BOOL:
+    default:
+        break;
+    }
+}
+
+static void semantic_check_expressions(semantic_context *context,
+                                       program_node *program,
+                                       method_environment *method_env,
+                                       object_environment *object_envs) {
+    for (unsigned int i = 0; i < program->classes.count; i++) {
+        class_node class;
+        ds_dynamic_array_get(&program->classes, i, &class);
+
+        class_context *class_ctx = NULL;
+        find_class_ctx(context, class.name.value, &class_ctx);
+
+        if (class_ctx == NULL) {
+            continue;
+        }
+
+        object_environment_item object_env = {0};
+        get_object_environment(object_envs, class.name.value, &object_env);
+
+        for (unsigned int j = 0; j < class.methods.count; j++) {
+            method_node method;
+            ds_dynamic_array_get(&class.methods, j, &method);
+
+            method_context *method_ctx = NULL;
+            find_method_ctx(class_ctx, method.name.value, &method_ctx);
+
+            if (method_ctx == NULL) {
+                continue;
+            }
+
+            for (unsigned int k = 0; k < method_ctx->formals.count; k++) {
+                object_kv formal_ctx;
+                ds_dynamic_array_get(&method_ctx->formals, k, &formal_ctx);
+
+                ds_dynamic_array_append(&object_env.objects, &formal_ctx);
+            }
+
+            expr_node body = method.body;
+            semantic_check_expression(context, &body, method_env, &object_env);
+        }
+    }
+}
+
 int semantic_check(program_node *program, semantic_context *context) {
     context->result = 0;
 
@@ -784,10 +941,12 @@ int semantic_check(program_node *program, semantic_context *context) {
     semantic_check_methods(context, program);
 
     object_environment object_env;
-    build_object_environment(program, context, &object_env);
+    build_object_environment(context, program, &object_env);
 
     method_environment method_env;
-    build_method_environment(program, context, &method_env);
+    build_method_environment(context, program, &method_env);
+
+    semantic_check_expressions(context, program, &method_env, &object_env);
 
     /*for (unsigned int i = 0; i < object_env.items.count; i++) {
         object_environment_item item;
