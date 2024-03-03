@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -g
+CFLAGS=-Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -g
 BUILD_DIR=build
 
 SRC_DIR=src

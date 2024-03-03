@@ -438,54 +438,6 @@ static void build_node_new(struct parser *parser, expr_node *expr) {
     parser_advance(parser);
 }
 
-static void build_node_isvoid(struct parser *parser, expr_node *expr) {
-    struct token token;
-
-    expr->type = EXPR_ISVOID;
-    expr->isvoid = malloc(sizeof(expr_node));
-
-    parser_current(parser, &token);
-    if (token.type != ISVOID) {
-        parser_show_expected(parser, ISVOID, token.type);
-        return parser_panic_mode(parser);
-    }
-    parser_advance(parser);
-
-    build_expr(parser, expr->isvoid);
-}
-
-static void build_node_neg(struct parser *parser, expr_node *expr) {
-    struct token token;
-
-    expr->type = EXPR_NEG;
-    expr->neg.expr = malloc(sizeof(expr_node));
-
-    parser_current(parser, &token);
-    if (token.type != TILDE) {
-        parser_show_expected(parser, TILDE, token.type);
-        return parser_panic_mode(parser);
-    }
-    parser_advance(parser);
-
-    build_expr(parser, expr->neg.expr);
-}
-
-static void build_node_not(struct parser *parser, expr_node *expr) {
-    struct token token;
-
-    expr->type = EXPR_NOT;
-    expr->not_.expr = malloc(sizeof(expr_node));
-
-    parser_current(parser, &token);
-    if (token.type != NOT) {
-        parser_show_expected(parser, NOT, token.type);
-        return parser_panic_mode(parser);
-    }
-    parser_advance(parser);
-
-    build_expr(parser, expr->not_.expr);
-}
-
 static void build_node_paren(struct parser *parser, expr_node *expr) {
     struct token token;
 
@@ -703,6 +655,11 @@ static void build_expr_neg(struct parser *parser, expr_node *expr) {
         expr->type = EXPR_NEG;
         expr->neg.expr = malloc(sizeof(expr_node));
 
+        expr->neg.op.value = "~";
+
+        expr->neg.op.line = token.line;
+        expr->neg.op.col = token.col;
+
         parser_advance(parser);
 
         build_expr_at(parser, expr->neg.expr);
@@ -744,10 +701,15 @@ static void build_expr_mul(struct parser *parser, expr_node *expr) {
         if (token.type == MULTIPLY) {
             current->type = EXPR_MUL;
             current_binary = &current->mul;
+            current_binary->op.value = "*";
         } else {
             current->type = EXPR_DIV;
             current_binary = &current->div;
+            current_binary->op.value = "/";
         }
+
+        current_binary->op.line = token.line;
+        current_binary->op.col = token.col;
 
         current_binary->lhs = root;
         current_binary->rhs = malloc(sizeof(expr_node));
@@ -782,10 +744,15 @@ static void build_expr_add(struct parser *parser, expr_node *expr) {
         if (token.type == PLUS) {
             current->type = EXPR_ADD;
             current_binary = &current->add;
+            current_binary->op.value = "+";
         } else {
             current->type = EXPR_SUB;
             current_binary = &current->sub;
+            current_binary->op.value = "-";
         }
+
+        current_binary->op.line = token.line;
+        current_binary->op.col = token.col;
 
         current_binary->lhs = root;
         current_binary->rhs = malloc(sizeof(expr_node));
@@ -821,13 +788,19 @@ static void build_expr_cmp(struct parser *parser, expr_node *expr) {
         if (token.type == LESS_THAN_EQ) {
             current->type = EXPR_LE;
             current_binary = &current->le;
+            current_binary->op.value = "<=";
         } else if (token.type == LESS_THAN) {
             current->type = EXPR_LT;
             current_binary = &current->lt;
+            current_binary->op.value = "<";
         } else {
             current->type = EXPR_EQ;
             current_binary = &current->eq;
+            current_binary->op.value = "=";
         }
+
+        current_binary->op.line = token.line;
+        current_binary->op.col = token.col;
 
         current_binary->lhs = root;
         current_binary->rhs = malloc(sizeof(expr_node));
@@ -854,6 +827,11 @@ static void build_expr_not(struct parser *parser, expr_node *expr) {
     if (token.type == NOT) {
         expr->type = EXPR_NOT;
         expr->not_.expr = malloc(sizeof(expr_node));
+
+        expr->not_.op.value = "not";
+
+        expr->not_.op.line = token.line;
+        expr->not_.op.col = token.col;
 
         parser_advance(parser);
 
@@ -1178,4 +1156,45 @@ int parser_run(const char *filename, ds_dynamic_array *tokens,
     build_program(&parser, program);
 
     return parser.result;
+}
+
+// Get the default token for a given node
+node_info *get_default_token(expr_node *node) {
+    switch (node->type) {
+    case EXPR_ASSIGN:
+    case EXPR_DISPATCH_FULL:
+    case EXPR_DISPATCH:
+    case EXPR_COND:
+    case EXPR_LOOP:
+    case EXPR_BLOCK:
+    case EXPR_LET:
+    case EXPR_CASE:
+    case EXPR_NEW:
+    case EXPR_ISVOID:
+    case EXPR_ADD:
+        return get_default_token(node->add.lhs);
+    case EXPR_SUB:
+        return get_default_token(node->sub.lhs);
+    case EXPR_MUL:
+        return get_default_token(node->mul.lhs);
+    case EXPR_DIV:
+        return get_default_token(node->div.lhs);
+    case EXPR_NEG:
+        return get_default_token(node->neg.expr);
+    case EXPR_LT:
+    case EXPR_LE:
+    case EXPR_EQ:
+    case EXPR_NOT:
+    case EXPR_PAREN:
+    case EXPR_IDENT:
+        return &node->ident;
+    case EXPR_INT:
+        return &node->integer;
+    case EXPR_STRING:
+        return &node->string;
+    case EXPR_BOOL:
+        return &node->boolean;
+    default:
+        return NULL;
+    }
 }

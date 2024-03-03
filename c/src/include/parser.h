@@ -43,10 +43,12 @@ enum expr_type {
 };
 
 typedef struct expr_unary_node {
+        node_info op;
         struct expr_node *expr;
 } expr_unary_node;
 
 typedef struct expr_binary_node {
+        node_info op;
         struct expr_node *lhs;
         struct expr_node *rhs;
 } expr_binary_node;
@@ -161,5 +163,6 @@ typedef struct program_node {
 
 int parser_run(const char *filename, ds_dynamic_array *tokens,
                program_node *program);
+node_info *get_default_token(expr_node *node);
 
 #endif // PARSER_H
