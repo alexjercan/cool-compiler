@@ -129,6 +129,12 @@ static void build_node_if(struct parser *parser, expr_node *expr) {
         parser_show_expected(parser, IF, token.type);
         return parser_panic_mode(parser);
     }
+
+    expr->cond.node.value = "if";
+
+    expr->cond.node.line = token.line;
+    expr->cond.node.col = token.col;
+
     parser_advance(parser);
 
     build_expr(parser, expr->cond.predicate);
@@ -171,6 +177,12 @@ static void build_node_while(struct parser *parser, expr_node *expr) {
         parser_show_expected(parser, WHILE, token.type);
         return parser_panic_mode(parser);
     }
+
+    expr->loop.node.value = "while";
+
+    expr->loop.node.line = token.line;
+    expr->loop.node.col = token.col;
+
     parser_advance(parser);
 
     build_expr(parser, expr->loop.predicate);
@@ -417,20 +429,26 @@ static void build_node_new(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_NEW;
-    expr->new.value = NULL;
 
     parser_current(parser, &token);
     if (token.type != NEW) {
         parser_show_expected(parser, NEW, token.type);
         return parser_panic_mode(parser);
     }
+
+    expr->new.node.value = "new";
+
+    expr->new.node.line = token.line;
+    expr->new.node.col = token.col;
+
     parser_advance(parser);
 
     parser_current(parser, &token);
     if (token.type == CLASS_NAME) {
-        expr->new.value = token.literal;
-        expr->new.line = token.line;
-        expr->new.col = token.col;
+        expr->new.type.value = token.literal;
+
+        expr->new.type.line = token.line;
+        expr->new.type.col = token.col;
     } else {
         parser_show_expected(parser, CLASS_NAME, token.type);
         return parser_panic_mode(parser);
@@ -662,7 +680,7 @@ static void build_expr_neg(struct parser *parser, expr_node *expr) {
 
         parser_advance(parser);
 
-        build_expr_at(parser, expr->neg.expr);
+        build_expr_neg(parser, expr->neg.expr);
     } else {
         build_expr_at(parser, expr);
     }
@@ -674,11 +692,16 @@ static void build_expr_isvoid(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     if (token.type == ISVOID) {
         expr->type = EXPR_ISVOID;
-        expr->isvoid = malloc(sizeof(expr_node));
+        expr->isvoid.expr = malloc(sizeof(expr_node));
+
+        expr->isvoid.op.value = "isvoid";
+
+        expr->isvoid.op.line = token.line;
+        expr->isvoid.op.col = token.col;
 
         parser_advance(parser);
 
-        build_expr_neg(parser, expr->isvoid);
+        build_expr_isvoid(parser, expr->isvoid.expr);
     } else {
         build_expr_neg(parser, expr);
     }
@@ -835,7 +858,7 @@ static void build_expr_not(struct parser *parser, expr_node *expr) {
 
         parser_advance(parser);
 
-        build_expr_cmp(parser, expr->not_.expr);
+        build_expr_not(parser, expr->not_.expr);
     } else {
         build_expr_cmp(parser, expr);
     }
@@ -1162,15 +1185,20 @@ int parser_run(const char *filename, ds_dynamic_array *tokens,
 node_info *get_default_token(expr_node *node) {
     switch (node->type) {
     case EXPR_ASSIGN:
-    case EXPR_DISPATCH_FULL:
-    case EXPR_DISPATCH:
+        return &node->assign.name;
+    case EXPR_DISPATCH_FULL: return NULL;
+    case EXPR_DISPATCH: return NULL;
     case EXPR_COND:
+        return &node->cond.node;
     case EXPR_LOOP:
-    case EXPR_BLOCK:
-    case EXPR_LET:
-    case EXPR_CASE:
+        return &node->loop.node;
+    case EXPR_BLOCK: return NULL;
+    case EXPR_LET: return NULL;
+    case EXPR_CASE: return NULL;
     case EXPR_NEW:
+        return &node->new.node;
     case EXPR_ISVOID:
+        return &node->isvoid.op;
     case EXPR_ADD:
         return get_default_token(node->add.lhs);
     case EXPR_SUB:
@@ -1182,10 +1210,15 @@ node_info *get_default_token(expr_node *node) {
     case EXPR_NEG:
         return get_default_token(node->neg.expr);
     case EXPR_LT:
+        return get_default_token(node->lt.lhs);
     case EXPR_LE:
+        return get_default_token(node->le.lhs);
     case EXPR_EQ:
+        return get_default_token(node->eq.lhs);
     case EXPR_NOT:
+        return get_default_token(node->not_.expr);
     case EXPR_PAREN:
+        return get_default_token(node->paren);
     case EXPR_IDENT:
         return &node->ident;
     case EXPR_INT:

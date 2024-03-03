@@ -82,12 +82,14 @@ typedef struct dispatch_full_node {
 } dispatch_full_node;
 
 typedef struct cond_node {
+    node_info node;
     struct expr_node *predicate;
     struct expr_node *then;
     struct expr_node *else_;
 } cond_node;
 
 typedef struct loop_node {
+    node_info node;
     struct expr_node *predicate;
     struct expr_node *body;
 } loop_node;
@@ -102,6 +104,11 @@ typedef struct case_node {
     ds_dynamic_array cases; // branch_node
 } case_node;
 
+typedef struct new_node {
+    node_info node;
+    node_info type;
+} new_node;
+
 typedef struct expr_node {
         enum expr_type type;
         union {
@@ -113,8 +120,8 @@ typedef struct expr_node {
                 ds_dynamic_array block;
                 let_node let;
                 case_node case_;
-                node_info new;
-                struct expr_node *isvoid;
+                new_node new;
+                expr_unary_node isvoid;
                 expr_binary_node add;
                 expr_binary_node sub;
                 expr_binary_node mul;

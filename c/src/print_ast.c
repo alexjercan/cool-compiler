@@ -136,12 +136,12 @@ static void expr_print(expr_node *expr, unsigned int indent) {
         }
         case EXPR_NEW: {
             printf("%*snew\n", indent, "");
-            printf("%*s%s\n", indent + INDENT_SIZE, "", expr->new.value);
+            printf("%*s%s\n", indent + INDENT_SIZE, "", expr->new.type.value);
             break;
         }
         case EXPR_ISVOID: {
             printf("%*sisvoid\n", indent, "");
-            expr_print(expr->isvoid, indent + INDENT_SIZE);
+            expr_print(expr->isvoid.expr, indent + INDENT_SIZE);
             break;
         }
         case EXPR_NOT: {

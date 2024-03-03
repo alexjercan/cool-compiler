@@ -986,9 +986,10 @@ semantic_check_ident_expression(semantic_context *context, node_info *expr,
         context_show_error_ident_undefined(context, expr);
     }
 
-    for (unsigned int i = 0; i < object_env->objects.count; i++) {
+    unsigned int n = object_env->objects.count;
+    for (unsigned int i = 0; i < n; i++) {
         object_context object;
-        ds_dynamic_array_get(&object_env->objects, i, &object);
+        ds_dynamic_array_get(&object_env->objects, n - i - 1, &object);
 
         if (strcmp(object.name, expr->value) == 0) {
             return object.type;
@@ -1055,21 +1056,284 @@ semantic_check_neg_expression(semantic_context *context, expr_unary_node *expr,
 }
 
 static const char *
+semantic_check_cmp_expression(semantic_context *context, expr_binary_node *expr,
+                              method_environment *method_env,
+                              object_environment_item *object_env) {
+    const char *left_type =
+        semantic_check_expression(context, expr->lhs, method_env, object_env);
+    const char *right_type =
+        semantic_check_expression(context, expr->rhs, method_env, object_env);
+
+    if (left_type == NULL || right_type == NULL) {
+        return BOOL_TYPE;
+    }
+
+    if (is_operand_not_int(left_type)) {
+        context_show_error_operand_not_int(
+            context, get_default_token(expr->lhs), expr->op, left_type);
+        return BOOL_TYPE;
+    }
+
+    if (is_operand_not_int(right_type)) {
+        context_show_error_operand_not_int(
+            context, get_default_token(expr->rhs), expr->op, right_type);
+        return BOOL_TYPE;
+    }
+
+    return BOOL_TYPE;
+}
+
+static int is_operand_types_not_comparable(const char *left_type,
+                                           const char *right_type) {
+    return strcmp(left_type, right_type) != 0 &&
+           (strcmp(left_type, INT_TYPE) == 0 ||
+            strcmp(right_type, INT_TYPE) == 0 ||
+            strcmp(left_type, STRING_TYPE) == 0 ||
+            strcmp(right_type, STRING_TYPE) == 0 ||
+            strcmp(left_type, BOOL_TYPE) == 0 ||
+            strcmp(right_type, BOOL_TYPE) == 0);
+}
+
+#define context_show_error_operand_types_not_comparable(context, op, left,     \
+                                                        right)                 \
+    context_show_errorf(context, op.line, op.col, "Cannot compare %s with %s", \
+                        left, right)
+
+static const char *
+semantic_check_eq_expression(semantic_context *context, expr_binary_node *expr,
+                             method_environment *method_env,
+                             object_environment_item *object_env) {
+    const char *left_type =
+        semantic_check_expression(context, expr->lhs, method_env, object_env);
+    const char *right_type =
+        semantic_check_expression(context, expr->rhs, method_env, object_env);
+
+    if (left_type == NULL || right_type == NULL) {
+        return BOOL_TYPE;
+    }
+
+    if (is_operand_types_not_comparable(left_type, right_type)) {
+        context_show_error_operand_types_not_comparable(context, expr->op,
+                                                        left_type, right_type);
+        return BOOL_TYPE;
+    }
+
+    return BOOL_TYPE;
+}
+static int is_operand_not_bool(const char *type) {
+    return strcmp(type, BOOL_TYPE) != 0;
+}
+
+#define context_show_error_operand_not_bool(context, expr, op, type)           \
+    context_show_errorf(context, expr->line, expr->col,                        \
+                        "Operand of %s has type %s instead of Bool", op.value, \
+                        type)
+
+static char *
+semantic_check_not_expression(semantic_context *context, expr_unary_node *expr,
+                              method_environment *method_env,
+                              object_environment_item *object_env) {
+    const char *expr_type =
+        semantic_check_expression(context, expr->expr, method_env, object_env);
+
+    if (expr_type == NULL) {
+        return BOOL_TYPE;
+    }
+
+    if (is_operand_not_bool(expr_type)) {
+        context_show_error_operand_not_bool(
+            context, get_default_token(expr->expr), expr->op, expr_type);
+        return BOOL_TYPE;
+    }
+
+    return BOOL_TYPE;
+}
+
+static int is_assign_name_illegal(semantic_context *context,
+                                  assign_node *expr) {
+    if (strcmp(expr->name.value, "self") == 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+#define context_show_error_assign_name_illegal(context, expr)                  \
+    context_show_errorf(context, expr->name.line, expr->name.col,              \
+                        "Cannot assign to self")
+
+static int is_assign_incopatible_types(semantic_context *context,
+                                       const char *left_type,
+                                       const char *right_type) {
+    if (strcmp(left_type, right_type) == 0) {
+        return 0;
+    }
+
+    for (unsigned int i = 0; i < context->classes.count; i++) {
+        class_context *class_ctx = NULL;
+        ds_dynamic_array_get_ref(&context->classes, i, (void **)&class_ctx);
+
+        if (strcmp(class_ctx->name, right_type) == 0) {
+            class_context *parent_ctx = class_ctx->parent;
+            while (parent_ctx != NULL) {
+                if (strcmp(parent_ctx->name, left_type) == 0) {
+                    return 0;
+                }
+
+                parent_ctx = parent_ctx->parent;
+            }
+
+            break;
+        }
+    }
+
+    return 1;
+}
+
+#define context_show_error_assign_incompatible_types(context, expr, init,      \
+                                                     left, right)              \
+    context_show_errorf(context, init->line, init->col,                        \
+                        "Type %s of assigned expression is incompatible with " \
+                        "declared type %s of identifier %s",                   \
+                        right, left, expr->name.value)
+
+static const char *
+semantic_check_assign_expression(semantic_context *context, assign_node *expr,
+                                 method_environment *method_env,
+                                 object_environment_item *object_env) {
+
+    if (is_assign_name_illegal(context, expr)) {
+        context_show_error_assign_name_illegal(context, expr);
+        return NULL;
+    }
+
+    const char *object_type = NULL;
+    for (unsigned int i = 0; i < object_env->objects.count; i++) {
+        object_context object;
+        ds_dynamic_array_get(&object_env->objects, i, &object);
+
+        if (strcmp(object.name, expr->name.value) == 0) {
+            object_type = object.type;
+            break;
+        }
+    }
+    if (object_type == NULL) {
+        return NULL;
+    }
+
+    const char *expr_type =
+        semantic_check_expression(context, expr->value, method_env, object_env);
+
+    if (expr_type == NULL) {
+        return object_type;
+    }
+
+    if (is_assign_incopatible_types(context, object_type, expr_type)) {
+        context_show_error_assign_incompatible_types(
+            context, expr, get_default_token(expr->value), object_type,
+            expr_type);
+    }
+
+    return expr_type;
+}
+
+static int is_new_type_undefined(semantic_context *context, node_info *expr) {
+    class_context *class_ctx = NULL;
+    find_class_ctx(context, expr->value, &class_ctx);
+    return class_ctx == NULL;
+}
+
+#define context_show_error_new_type_undefined(context, expr)                   \
+    context_show_errorf(context, expr->node.line, expr->type.col,              \
+                        "new is used with undefined type %s",                  \
+                        expr->type.value)
+
+static const char *
+semantic_check_new_expression(semantic_context *context, new_node *expr,
+                              method_environment *method_env,
+                              object_environment_item *object_env) {
+    if (is_new_type_undefined(context, &expr->type)) {
+        context_show_error_new_type_undefined(context, expr);
+        return NULL;
+    }
+
+    return expr->type.value;
+}
+
+static int is_while_condition_not_bool(const char *type) {
+    return strcmp(type, BOOL_TYPE) != 0;
+}
+
+#define context_show_error_while_condition_not_bool(context, expr, type)       \
+    context_show_errorf(context, expr->line, expr->col,                        \
+                        "While condition has type %s instead of Bool", type)
+
+static const char *
+semantic_check_loop_expression(semantic_context *context, loop_node *expr,
+                               method_environment *method_env,
+                               object_environment_item *object_env) {
+    const char *cond_type = semantic_check_expression(context, expr->predicate,
+                                                      method_env, object_env);
+    if (cond_type != NULL && is_while_condition_not_bool(cond_type)) {
+        context_show_error_while_condition_not_bool(
+            context, get_default_token(expr->predicate), cond_type);
+    }
+
+    // https://dijkstra.eecs.umich.edu/eecs483/crm/Loops.html
+    const char *_ =
+        semantic_check_expression(context, expr->body, method_env, object_env);
+
+    return OBJECT_TYPE;
+}
+
+static int is_if_condition_not_bool(const char *type) {
+    return strcmp(type, BOOL_TYPE) != 0;
+}
+
+#define context_show_error_if_condition_not_bool(context, expr, type)          \
+    context_show_errorf(context, expr->line, expr->col,                        \
+                        "If condition has type %s instead of Bool", type)
+
+static const char *
+semantic_check_if_expression(semantic_context *context, cond_node *expr,
+                             method_environment *method_env,
+                             object_environment_item *object_env) {
+    const char *cond_type = semantic_check_expression(context, expr->predicate,
+                                                      method_env, object_env);
+    if (cond_type != NULL && is_if_condition_not_bool(cond_type)) {
+        context_show_error_if_condition_not_bool(
+            context, get_default_token(expr->predicate), cond_type);
+    }
+
+    const char *then =
+        semantic_check_expression(context, expr->then, method_env, object_env);
+    const char *else_ =
+        semantic_check_expression(context, expr->else_, method_env, object_env);
+
+    // TODO: Compute the least common ancestor of then and else types
+
+    return OBJECT_TYPE;
+}
+
+static const char *
 semantic_check_expression(semantic_context *context, expr_node *expr,
                           method_environment *method_env,
                           object_environment_item *object_env) {
     switch (expr->type) {
     case EXPR_NONE:
     case EXPR_ASSIGN:
-        break;
+        return semantic_check_assign_expression(context, &expr->assign,
+                                                method_env, object_env);
     case EXPR_DISPATCH_FULL:
         break;
     case EXPR_DISPATCH:
         break;
     case EXPR_COND:
-        break;
+        return semantic_check_if_expression(context, &expr->cond, method_env,
+                                            object_env);
     case EXPR_LOOP:
-        break;
+        return semantic_check_loop_expression(context, &expr->loop, method_env,
+                                              object_env);
     case EXPR_BLOCK:
         break;
     case EXPR_LET:
@@ -1079,7 +1343,8 @@ semantic_check_expression(semantic_context *context, expr_node *expr,
         return semantic_check_case_expression(context, &expr->case_, method_env,
                                               object_env);
     case EXPR_NEW:
-        break;
+        return semantic_check_new_expression(context, &expr->new, method_env,
+                                             object_env);
     case EXPR_ISVOID:
         break;
     case EXPR_ADD:
@@ -1098,13 +1363,17 @@ semantic_check_expression(semantic_context *context, expr_node *expr,
         return semantic_check_neg_expression(context, &expr->neg, method_env,
                                              object_env);
     case EXPR_LT:
-        break;
+        return semantic_check_cmp_expression(context, &expr->lt, method_env,
+                                             object_env);
     case EXPR_LE:
-        break;
+        return semantic_check_cmp_expression(context, &expr->lt, method_env,
+                                             object_env);
     case EXPR_EQ:
-        break;
+        return semantic_check_eq_expression(context, &expr->eq, method_env,
+                                            object_env);
     case EXPR_NOT:
-        break;
+        return semantic_check_not_expression(context, &expr->not_, method_env,
+                                             object_env);
     case EXPR_PAREN:
         return semantic_check_expression(context, expr->paren, method_env,
                                          object_env);
