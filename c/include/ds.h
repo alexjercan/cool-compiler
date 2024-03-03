@@ -19,6 +19,8 @@
 //  implementation of the dynamic array data structure
 //  - DS_LL_IMPLEMENTATION: Define this macro in one source file to include the
 //  implementation of the linked list data structure
+//  - DS_HT_IMPLEMENTATION: Define this macro in one source file to include the
+//  implementation of the hash table data structure
 //
 // MEMORY MANAGEMENT
 //
@@ -336,6 +338,11 @@ DSHDEF int ds_linked_list_pop_front(ds_linked_list *ll, void *item);
 DSHDEF void ds_linked_list_free(ds_linked_list *ll);
 
 // HASH TABLE
+//
+// The hash table is a simple table that uses a hash function to store and
+// retrieve items. The hash table uses separate chaining to handle collisions.
+// You can define the hash and compare functions to use when inserting and
+// retrieving items.
 typedef struct ds_hash_table {
         ds_dynamic_array *keys;
         ds_dynamic_array *values;
@@ -957,6 +964,12 @@ DSHDEF void ds_linked_list_free(ds_linked_list *ll) {
 
 #ifdef DS_HT_IMPLEMENTATION
 
+// Initialize the hash table
+//
+// The key_size and value_size parameters are the size of each key and value in
+// the table. The capacity parameter is the initial capacity of the table. The
+// hash and compare parameters are the hash and compare functions to use when
+// inserting and retrieving items.
 DSHDEF int ds_hash_table_init(ds_hash_table *ht, unsigned int key_size,
                               unsigned int value_size, unsigned int capacity,
                               unsigned int (*hash)(const void *),
@@ -999,6 +1012,10 @@ defer:
     return result;
 }
 
+// Insert an item into the hash table
+//
+// Returns 0 if the item was inserted successfully, 1 if the item could not be
+// inserted.
 DSHDEF int ds_hash_table_insert(ds_hash_table *ht, const void *key,
                                 void *value) {
     int result = 0;
@@ -1035,6 +1052,9 @@ defer:
     return result;
 }
 
+// Check if the hash table has an item with the given key
+//
+// Returns 1 if the item was found, 0 if the item was not found.
 DSHDEF int ds_hash_table_has(ds_hash_table *ht, const void *key) {
     unsigned int index = ht->hash(key) % ht->capacity;
 
@@ -1052,6 +1072,9 @@ DSHDEF int ds_hash_table_has(ds_hash_table *ht, const void *key) {
     return 0;
 }
 
+// Get an item from the hash table
+//
+// Returns 0 if the item was retrieved successfully, 1 if the item was not found.
 DSHDEF int ds_hash_table_get(ds_hash_table *ht, const void *key, void *value) {
     int result = 0;
 
@@ -1076,6 +1099,9 @@ defer:
     return result;
 }
 
+// Get a reference to an item from the hash table
+//
+// Returns 0 if the item was retrieved successfully, 1 if the item was not found.
 DSHDEF int ds_hash_table_get_ref(ds_hash_table *ht, const void *key,
                                  void **value) {
     int result = 0;
@@ -1101,6 +1127,9 @@ defer:
     return result;
 }
 
+// Get the number of items in the hash table
+//
+// Returns the number of items in the hash table.
 DSHDEF unsigned int ds_hash_table_count(ds_hash_table *ht) {
     unsigned int count = 0;
     for (unsigned int i = 0; i < ht->capacity; i++) {
@@ -1109,11 +1138,17 @@ DSHDEF unsigned int ds_hash_table_count(ds_hash_table *ht) {
     return count;
 }
 
+// Remove an item from the hash table
+//
+// Returns 0 if the item was removed successfully, 1 if the item was not found.
 DSHDEF int ds_hash_table_remove(ds_hash_table *ht, const void *key) {
     DS_LOG_ERROR("Not implemented");
     return 1;
 }
 
+// Free the hash table
+//
+// This function frees all the memory used by the hash table.
 DSHDEF void ds_hash_table_free(ds_hash_table *ht) {
     for (unsigned int i = 0; i < ht->capacity; i++) {
         ds_dynamic_array_free(ht->keys + i);
