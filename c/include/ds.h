@@ -309,13 +309,18 @@ DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
 DSHDEF void ds_dynamic_array_get_ref(ds_dynamic_array *da, unsigned int index,
                                      void **item);
 DSHDEF void ds_dynamic_array_copy(ds_dynamic_array *da, ds_dynamic_array *copy);
+DSHDEF void ds_dynamic_array_reverse(ds_dynamic_array *da);
 DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da);
 
 // (DOUBLY) LINKED LIST
 //
 // The linked list is a simple list that can be used to push and pop items from
 // the front and back of the list.
-typedef struct ds_linked_list_node ds_linked_list_node;
+typedef struct ds_linked_list_node {
+        void *item;
+        struct ds_linked_list_node *prev;
+        struct ds_linked_list_node *next;
+} ds_linked_list_node;
 
 typedef struct ds_linked_list {
         unsigned int item_size;
@@ -748,6 +753,18 @@ DSHDEF void ds_dynamic_array_copy(ds_dynamic_array *da,
     DS_MEMCPY(copy->items, da->items, da->count * da->item_size);
 }
 
+DSHDEF void ds_dynamic_array_reverse(ds_dynamic_array *da) {
+    for (unsigned int i = 0; i < da->count / 2; i++) {
+        unsigned int j = da->count - i - 1;
+        void *temp = DS_MALLOC(da->item_size);
+        DS_MEMCPY(temp, (char *)da->items + i * da->item_size, da->item_size);
+        DS_MEMCPY((char *)da->items + i * da->item_size,
+                  (char *)da->items + j * da->item_size, da->item_size);
+        DS_MEMCPY((char *)da->items + j * da->item_size, temp, da->item_size);
+        DS_FREE(temp);
+    }
+}
+
 DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da) {
     if (da->items != NULL) {
         DS_FREE(da->items);
@@ -760,12 +777,6 @@ DSHDEF void ds_dynamic_array_free(ds_dynamic_array *da) {
 #endif // DS_DA_IMPLEMENTATION
 
 #ifdef DS_LL_IMPLEMENTATION
-
-typedef struct ds_linked_list_node {
-        void *item;
-        struct ds_linked_list_node *prev;
-        struct ds_linked_list_node *next;
-} ds_linked_list_node;
 
 // Initialize the linked list
 //
