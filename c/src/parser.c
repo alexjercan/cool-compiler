@@ -394,6 +394,12 @@ static void build_node_case(struct parser *parser, expr_node *expr) {
         parser_show_expected(parser, CASE, token.type);
         return parser_panic_mode(parser);
     }
+
+    expr->case_.node.value = "case";
+
+    expr->case_.node.line = token.line;
+    expr->case_.node.col = token.col;
+
     parser_advance(parser);
 
     build_expr(parser, expr->case_.expr);
@@ -893,6 +899,7 @@ static void build_attribute(struct parser *parser, attribute_node *attribute) {
 
     attribute->name.value = NULL;
     attribute->type.value = NULL;
+    attribute->value.type = EXPR_NONE;
 
     parser_current(parser, &token);
     if (token.type == IDENT) {
@@ -1194,7 +1201,7 @@ node_info *get_default_token(expr_node *node) {
         return &node->loop.node;
     case EXPR_BLOCK: return NULL;
     case EXPR_LET: return NULL;
-    case EXPR_CASE: return NULL;
+    case EXPR_CASE: return &node->case_.node;
     case EXPR_NEW:
         return &node->new.node;
     case EXPR_ISVOID:

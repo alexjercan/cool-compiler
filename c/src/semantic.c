@@ -73,6 +73,35 @@ static int is_class_redefined(semantic_context *context, class_node class) {
     return class_ctx != NULL;
 }
 
+static const char *least_common_ancestor(semantic_context *context,
+                                         const char *type1, const char *type2) {
+    class_context *class_ctx1 = NULL;
+    find_class_ctx(context, type1, &class_ctx1);
+
+    class_context *class_ctx2 = NULL;
+    find_class_ctx(context, type2, &class_ctx2);
+
+    if (class_ctx1 == NULL || class_ctx2 == NULL) {
+        return NULL;
+    }
+
+    class_context *current_ctx = class_ctx1;
+    while (current_ctx != NULL) {
+        class_context *iterator_ctx = class_ctx2;
+        while (iterator_ctx != NULL) {
+            if (strcmp(current_ctx->name, iterator_ctx->name) == 0) {
+                return current_ctx->name;
+            }
+
+            iterator_ctx = iterator_ctx->parent;
+        }
+
+        current_ctx = current_ctx->parent;
+    }
+
+    return NULL;
+}
+
 #define context_show_error_class_redefined(context, class)                     \
     context_show_errorf(context, class.name.line, class.name.col,              \
                         "Class %s is redefined", class.name.value)
@@ -926,6 +955,7 @@ static const char *
 semantic_check_case_expression(semantic_context *context, case_node *expr,
                                method_environment *method_env,
                                object_environment_item *object_env) {
+    const char *case_type = NULL;
     for (unsigned int i = 0; i < expr->cases.count; i++) {
         branch_node branch;
         ds_dynamic_array_get(&expr->cases, i, &branch);
@@ -949,15 +979,19 @@ semantic_check_case_expression(semantic_context *context, case_node *expr,
                                  .type = branch.type.value};
         ds_dynamic_array_append(&object_env->objects, &object);
 
-        // TODO: unused variable
         const char *branch_type = semantic_check_expression(
             context, branch.body, method_env, object_env);
+
+        if (case_type == NULL) {
+            case_type = branch_type;
+        } else {
+            case_type = least_common_ancestor(context, case_type, branch_type);
+        }
 
         ds_dynamic_array_pop(&object_env->objects, NULL);
     }
 
-    // TODO: return proper type
-    return OBJECT_TYPE;
+    return case_type;
 }
 
 static int is_ident_undefined(object_environment_item *object_env,
@@ -1310,9 +1344,7 @@ semantic_check_if_expression(semantic_context *context, cond_node *expr,
     const char *else_ =
         semantic_check_expression(context, expr->else_, method_env, object_env);
 
-    // TODO: Compute the least common ancestor of then and else types
-
-    return OBJECT_TYPE;
+    return least_common_ancestor(context, then, else_);
 }
 
 static const char *
@@ -1320,7 +1352,7 @@ semantic_check_expression(semantic_context *context, expr_node *expr,
                           method_environment *method_env,
                           object_environment_item *object_env) {
     switch (expr->type) {
-    case EXPR_NONE:
+    case EXPR_NONE: break;
     case EXPR_ASSIGN:
         return semantic_check_assign_expression(context, &expr->assign,
                                                 method_env, object_env);

@@ -100,6 +100,7 @@ typedef struct let_node {
 } let_node;
 
 typedef struct case_node {
+    node_info node;
     struct expr_node *expr;
     ds_dynamic_array cases; // branch_node
 } case_node;
