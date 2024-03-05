@@ -127,9 +127,9 @@ static void expr_print(expr_node *expr, unsigned int indent) {
         }
         case EXPR_BLOCK: {
             printf("%*sblock\n", indent, "");
-            for (unsigned int i = 0; i < expr->block.count; i++) {
+            for (unsigned int i = 0; i < expr->block.exprs.count; i++) {
                 expr_node subexpr;
-                ds_dynamic_array_get(&expr->block, i, &subexpr);
+                ds_dynamic_array_get(&expr->block.exprs, i, &subexpr);
                 expr_print(&subexpr, indent + INDENT_SIZE);
             }
             break;

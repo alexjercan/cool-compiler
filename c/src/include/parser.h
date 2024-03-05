@@ -94,6 +94,11 @@ typedef struct loop_node {
     struct expr_node *body;
 } loop_node;
 
+typedef struct block_node {
+    node_info node;
+    ds_dynamic_array exprs; // expr_node
+} block_node;
+
 typedef struct let_node {
     ds_dynamic_array inits; // let_init_node
     struct expr_node *body;
@@ -118,7 +123,7 @@ typedef struct expr_node {
                 dispatch_node dispatch;
                 cond_node cond;
                 loop_node loop;
-                ds_dynamic_array block;
+                block_node block;
                 let_node let;
                 case_node case_;
                 new_node new;

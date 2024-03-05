@@ -208,13 +208,19 @@ static void build_node_block(struct parser *parser, expr_node *expr) {
     struct token token;
 
     expr->type = EXPR_BLOCK;
-    ds_dynamic_array_init(&expr->block, sizeof(expr_node));
+    ds_dynamic_array_init(&expr->block.exprs, sizeof(expr_node));
 
     parser_current(parser, &token);
     if (token.type != LBRACE) {
         parser_show_expected(parser, LBRACE, token.type);
         return parser_panic_mode(parser);
     }
+
+    expr->block.node.value = "{";
+
+    expr->block.node.line = token.line;
+    expr->block.node.col = token.col;
+
     parser_advance(parser);
 
     parser_current(parser, &token);
@@ -228,7 +234,7 @@ static void build_node_block(struct parser *parser, expr_node *expr) {
 
         build_expr(parser, &line);
 
-        ds_dynamic_array_append(&expr->block, &line);
+        ds_dynamic_array_append(&expr->block.exprs, &line);
 
         parser_current(parser, &token);
         if (token.type != SEMICOLON) {
@@ -1199,7 +1205,7 @@ node_info *get_default_token(expr_node *node) {
         return &node->cond.node;
     case EXPR_LOOP:
         return &node->loop.node;
-    case EXPR_BLOCK: return NULL;
+    case EXPR_BLOCK: return &node->block.node;
     case EXPR_LET: return NULL;
     case EXPR_CASE: return &node->case_.node;
     case EXPR_NEW:

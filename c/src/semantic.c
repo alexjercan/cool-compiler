@@ -1348,6 +1348,22 @@ semantic_check_if_expression(semantic_context *context, cond_node *expr,
 }
 
 static const char *
+semantic_check_block_expression(semantic_context *context, block_node *block,
+                             method_environment *method_env,
+                             object_environment_item *object_env) {
+    const char *block_type = NULL;
+    for (unsigned int i = 0; i < block->exprs.count; i++) {
+        expr_node expr;
+        ds_dynamic_array_get(&block->exprs, i, &expr);
+
+        block_type = semantic_check_expression(context, &expr, method_env,
+                                               object_env);
+    }
+
+    return block_type;
+}
+
+static const char *
 semantic_check_expression(semantic_context *context, expr_node *expr,
                           method_environment *method_env,
                           object_environment_item *object_env) {
@@ -1367,7 +1383,8 @@ semantic_check_expression(semantic_context *context, expr_node *expr,
         return semantic_check_loop_expression(context, &expr->loop, method_env,
                                               object_env);
     case EXPR_BLOCK:
-        break;
+        return semantic_check_block_expression(context, &expr->block, method_env,
+                                               object_env);
     case EXPR_LET:
         return semantic_check_let_expression(context, &expr->let, method_env,
                                              object_env);
