@@ -100,6 +100,7 @@ typedef struct block_node {
 } block_node;
 
 typedef struct let_node {
+    node_info node;
     ds_dynamic_array inits; // let_init_node
     struct expr_node *body;
 } let_node;

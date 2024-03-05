@@ -254,7 +254,7 @@ static void build_node_let_init(struct parser *parser, let_init_node *init) {
 
     init->name.value = NULL;
     init->type.value = NULL;
-    init->init = malloc(sizeof(expr_node));
+    init->init = NULL;
 
     parser_current(parser, &token);
     if (token.type == IDENT) {
@@ -287,6 +287,8 @@ static void build_node_let_init(struct parser *parser, let_init_node *init) {
 
     parser_current(parser, &token);
     if (token.type == ASSIGN) {
+        init->init = malloc(sizeof(expr_node));
+
         parser_advance(parser);
 
         build_expr(parser, init->init);
@@ -305,6 +307,12 @@ static void build_node_let(struct parser *parser, expr_node *expr) {
         parser_show_expected(parser, LET, token.type);
         return parser_panic_mode(parser);
     }
+
+    expr->let.node.value = "let";
+
+    expr->let.node.line = token.line;
+    expr->let.node.col = token.col;
+
     parser_advance(parser);
 
     parser_current(parser, &token);
@@ -1199,14 +1207,14 @@ node_info *get_default_token(expr_node *node) {
     switch (node->type) {
     case EXPR_ASSIGN:
         return &node->assign.name;
-    case EXPR_DISPATCH_FULL: return NULL;
-    case EXPR_DISPATCH: return NULL;
+    case EXPR_DISPATCH_FULL: return &node->dispatch_full.dispatch->method;
+    case EXPR_DISPATCH: return &node->dispatch.method;
     case EXPR_COND:
         return &node->cond.node;
     case EXPR_LOOP:
         return &node->loop.node;
     case EXPR_BLOCK: return &node->block.node;
-    case EXPR_LET: return NULL;
+    case EXPR_LET: return &node->let.node;
     case EXPR_CASE: return &node->case_.node;
     case EXPR_NEW:
         return &node->new.node;

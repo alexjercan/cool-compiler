@@ -840,10 +840,9 @@ static void get_object_environment(object_environment *env,
     }
 }
 
-static const char *
-semantic_check_expression(semantic_context *context, expr_node *expr,
-                          method_environment *method_env,
-                          object_environment_item *object_env);
+static const char *semantic_check_expression(
+    semantic_context *context, expr_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env);
 
 static int is_let_init_name_illegal(semantic_context *context,
                                     let_init_node init) {
@@ -870,10 +869,33 @@ static int is_let_init_type_undefined(semantic_context *context,
                         "Let variable %s has undefined type %s",               \
                         init.name.value, init.type.value)
 
-static const char *
-semantic_check_let_expression(semantic_context *context, let_node *expr,
-                              method_environment *method_env,
-                              object_environment_item *object_env) {
+static int is_let_init_type_incompatible(semantic_context *context,
+                                         const char *let_type,
+                                         const char *init_type) {
+    class_context *init_ctx = NULL;
+    find_class_ctx(context, init_type, &init_ctx);
+
+    while (init_ctx != NULL) {
+        if (strcmp(init_ctx->name, let_type) == 0) {
+            return 0;
+        }
+
+        init_ctx = init_ctx->parent;
+    }
+
+    return 1;
+}
+
+#define context_show_error_let_init_type_incompatible(context, token, init,    \
+                                                      init_type)               \
+    context_show_errorf(context, token->line, token->col,                      \
+                        "Type %s of initialization expression of identifier "  \
+                        "%s is incompatible with declared type %s",            \
+                        init_type, init.name.value, init.type.value)
+
+static const char *semantic_check_let_expression(
+    semantic_context *context, let_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
 
     unsigned int depth = 0;
     for (unsigned int i = 0; i < expr->inits.count; i++) {
@@ -890,9 +912,18 @@ semantic_check_let_expression(semantic_context *context, let_node *expr,
             continue;
         }
 
-        // TODO: unused variable
-        const char *init_type = semantic_check_expression(
-            context, init.init, method_env, object_env);
+        if (init.init != NULL) {
+            const char *init_type = semantic_check_expression(
+                context, init.init, class_ctx, method_env, object_env);
+
+            if (init_type != NULL) {
+                if (is_let_init_type_incompatible(context, init.type.value,
+                                                  init_type)) {
+                    context_show_error_let_init_type_incompatible(
+                        context, get_default_token(init.init), init, init_type);
+                }
+            }
+        }
 
         object_context object = {.name = init.name.value,
                                  .type = init.type.value};
@@ -901,8 +932,8 @@ semantic_check_let_expression(semantic_context *context, let_node *expr,
         depth++;
     }
 
-    const char *body_type =
-        semantic_check_expression(context, expr->body, method_env, object_env);
+    const char *body_type = semantic_check_expression(
+        context, expr->body, class_ctx, method_env, object_env);
 
     for (unsigned int i = 0; i < depth; i++) {
         ds_dynamic_array_pop(&object_env->objects, NULL);
@@ -951,10 +982,9 @@ static int is_case_variable_type_undefined(semantic_context *context,
                         "Case variable %s has undefined type %s",              \
                         branch.name.value, branch.type.value)
 
-static const char *
-semantic_check_case_expression(semantic_context *context, case_node *expr,
-                               method_environment *method_env,
-                               object_environment_item *object_env) {
+static const char *semantic_check_case_expression(
+    semantic_context *context, case_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
     const char *case_type = NULL;
     for (unsigned int i = 0; i < expr->cases.count; i++) {
         branch_node branch;
@@ -980,7 +1010,7 @@ semantic_check_case_expression(semantic_context *context, case_node *expr,
         ds_dynamic_array_append(&object_env->objects, &object);
 
         const char *branch_type = semantic_check_expression(
-            context, branch.body, method_env, object_env);
+            context, branch.body, class_ctx, method_env, object_env);
 
         if (case_type == NULL) {
             case_type = branch_type;
@@ -1012,10 +1042,9 @@ static int is_ident_undefined(object_environment_item *object_env,
     context_show_errorf(context, ident->line, ident->col,                      \
                         "Undefined identifier %s", ident->value)
 
-static const char *
-semantic_check_ident_expression(semantic_context *context, node_info *expr,
-                                method_environment *method_env,
-                                object_environment_item *object_env) {
+static const char *semantic_check_ident_expression(
+    semantic_context *context, node_info *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
     if (is_ident_undefined(object_env, expr)) {
         context_show_error_ident_undefined(context, expr);
     }
@@ -1043,12 +1072,12 @@ static int is_operand_not_int(const char *type) {
                         type)
 
 static const char *semantic_check_arith_expression(
-    semantic_context *context, expr_binary_node *expr,
+    semantic_context *context, expr_binary_node *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
-    const char *left_type =
-        semantic_check_expression(context, expr->lhs, method_env, object_env);
-    const char *right_type =
-        semantic_check_expression(context, expr->rhs, method_env, object_env);
+    const char *left_type = semantic_check_expression(
+        context, expr->lhs, class_ctx, method_env, object_env);
+    const char *right_type = semantic_check_expression(
+        context, expr->rhs, class_ctx, method_env, object_env);
 
     if (left_type == NULL || right_type == NULL) {
         return INT_TYPE;
@@ -1069,12 +1098,11 @@ static const char *semantic_check_arith_expression(
     return INT_TYPE;
 }
 
-static char *
-semantic_check_neg_expression(semantic_context *context, expr_unary_node *expr,
-                              method_environment *method_env,
-                              object_environment_item *object_env) {
-    const char *expr_type =
-        semantic_check_expression(context, expr->expr, method_env, object_env);
+static char *semantic_check_neg_expression(
+    semantic_context *context, expr_unary_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    const char *expr_type = semantic_check_expression(
+        context, expr->expr, class_ctx, method_env, object_env);
 
     if (expr_type == NULL) {
         return INT_TYPE;
@@ -1089,14 +1117,13 @@ semantic_check_neg_expression(semantic_context *context, expr_unary_node *expr,
     return INT_TYPE;
 }
 
-static const char *
-semantic_check_cmp_expression(semantic_context *context, expr_binary_node *expr,
-                              method_environment *method_env,
-                              object_environment_item *object_env) {
-    const char *left_type =
-        semantic_check_expression(context, expr->lhs, method_env, object_env);
-    const char *right_type =
-        semantic_check_expression(context, expr->rhs, method_env, object_env);
+static const char *semantic_check_cmp_expression(
+    semantic_context *context, expr_binary_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    const char *left_type = semantic_check_expression(
+        context, expr->lhs, class_ctx, method_env, object_env);
+    const char *right_type = semantic_check_expression(
+        context, expr->rhs, class_ctx, method_env, object_env);
 
     if (left_type == NULL || right_type == NULL) {
         return BOOL_TYPE;
@@ -1133,14 +1160,13 @@ static int is_operand_types_not_comparable(const char *left_type,
     context_show_errorf(context, op.line, op.col, "Cannot compare %s with %s", \
                         left, right)
 
-static const char *
-semantic_check_eq_expression(semantic_context *context, expr_binary_node *expr,
-                             method_environment *method_env,
-                             object_environment_item *object_env) {
-    const char *left_type =
-        semantic_check_expression(context, expr->lhs, method_env, object_env);
-    const char *right_type =
-        semantic_check_expression(context, expr->rhs, method_env, object_env);
+static const char *semantic_check_eq_expression(
+    semantic_context *context, expr_binary_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    const char *left_type = semantic_check_expression(
+        context, expr->lhs, class_ctx, method_env, object_env);
+    const char *right_type = semantic_check_expression(
+        context, expr->rhs, class_ctx, method_env, object_env);
 
     if (left_type == NULL || right_type == NULL) {
         return BOOL_TYPE;
@@ -1163,12 +1189,11 @@ static int is_operand_not_bool(const char *type) {
                         "Operand of %s has type %s instead of Bool", op.value, \
                         type)
 
-static char *
-semantic_check_not_expression(semantic_context *context, expr_unary_node *expr,
-                              method_environment *method_env,
-                              object_environment_item *object_env) {
-    const char *expr_type =
-        semantic_check_expression(context, expr->expr, method_env, object_env);
+static char *semantic_check_not_expression(
+    semantic_context *context, expr_unary_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    const char *expr_type = semantic_check_expression(
+        context, expr->expr, class_ctx, method_env, object_env);
 
     if (expr_type == NULL) {
         return BOOL_TYPE;
@@ -1231,10 +1256,9 @@ static int is_assign_incopatible_types(semantic_context *context,
                         "declared type %s of identifier %s",                   \
                         right, left, expr->name.value)
 
-static const char *
-semantic_check_assign_expression(semantic_context *context, assign_node *expr,
-                                 method_environment *method_env,
-                                 object_environment_item *object_env) {
+static const char *semantic_check_assign_expression(
+    semantic_context *context, assign_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
 
     if (is_assign_name_illegal(context, expr)) {
         context_show_error_assign_name_illegal(context, expr);
@@ -1255,8 +1279,8 @@ semantic_check_assign_expression(semantic_context *context, assign_node *expr,
         return NULL;
     }
 
-    const char *expr_type =
-        semantic_check_expression(context, expr->value, method_env, object_env);
+    const char *expr_type = semantic_check_expression(
+        context, expr->value, class_ctx, method_env, object_env);
 
     if (expr_type == NULL) {
         return object_type;
@@ -1282,10 +1306,9 @@ static int is_new_type_undefined(semantic_context *context, node_info *expr) {
                         "new is used with undefined type %s",                  \
                         expr->type.value)
 
-static const char *
-semantic_check_new_expression(semantic_context *context, new_node *expr,
-                              method_environment *method_env,
-                              object_environment_item *object_env) {
+static const char *semantic_check_new_expression(
+    semantic_context *context, new_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
     if (is_new_type_undefined(context, &expr->type)) {
         context_show_error_new_type_undefined(context, expr);
         return NULL;
@@ -1302,20 +1325,19 @@ static int is_while_condition_not_bool(const char *type) {
     context_show_errorf(context, expr->line, expr->col,                        \
                         "While condition has type %s instead of Bool", type)
 
-static const char *
-semantic_check_loop_expression(semantic_context *context, loop_node *expr,
-                               method_environment *method_env,
-                               object_environment_item *object_env) {
-    const char *cond_type = semantic_check_expression(context, expr->predicate,
-                                                      method_env, object_env);
+static const char *semantic_check_loop_expression(
+    semantic_context *context, loop_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    const char *cond_type = semantic_check_expression(
+        context, expr->predicate, class_ctx, method_env, object_env);
     if (cond_type != NULL && is_while_condition_not_bool(cond_type)) {
         context_show_error_while_condition_not_bool(
             context, get_default_token(expr->predicate), cond_type);
     }
 
     // https://dijkstra.eecs.umich.edu/eecs483/crm/Loops.html
-    const char *_ =
-        semantic_check_expression(context, expr->body, method_env, object_env);
+    const char *_ = semantic_check_expression(context, expr->body, class_ctx,
+                                              method_env, object_env);
 
     return OBJECT_TYPE;
 }
@@ -1328,106 +1350,194 @@ static int is_if_condition_not_bool(const char *type) {
     context_show_errorf(context, expr->line, expr->col,                        \
                         "If condition has type %s instead of Bool", type)
 
-static const char *
-semantic_check_if_expression(semantic_context *context, cond_node *expr,
-                             method_environment *method_env,
-                             object_environment_item *object_env) {
-    const char *cond_type = semantic_check_expression(context, expr->predicate,
-                                                      method_env, object_env);
+static const char *semantic_check_if_expression(
+    semantic_context *context, cond_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    const char *cond_type = semantic_check_expression(
+        context, expr->predicate, class_ctx, method_env, object_env);
     if (cond_type != NULL && is_if_condition_not_bool(cond_type)) {
         context_show_error_if_condition_not_bool(
             context, get_default_token(expr->predicate), cond_type);
     }
 
-    const char *then =
-        semantic_check_expression(context, expr->then, method_env, object_env);
-    const char *else_ =
-        semantic_check_expression(context, expr->else_, method_env, object_env);
+    const char *then = semantic_check_expression(context, expr->then, class_ctx,
+                                                 method_env, object_env);
+    const char *else_ = semantic_check_expression(
+        context, expr->else_, class_ctx, method_env, object_env);
 
     return least_common_ancestor(context, then, else_);
 }
 
-static const char *
-semantic_check_block_expression(semantic_context *context, block_node *block,
-                             method_environment *method_env,
-                             object_environment_item *object_env) {
+static const char *semantic_check_block_expression(
+    semantic_context *context, block_node *block, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
     const char *block_type = NULL;
     for (unsigned int i = 0; i < block->exprs.count; i++) {
         expr_node expr;
         ds_dynamic_array_get(&block->exprs, i, &expr);
 
-        block_type = semantic_check_expression(context, &expr, method_env,
-                                               object_env);
+        block_type = semantic_check_expression(context, &expr, class_ctx,
+                                               method_env, object_env);
     }
 
     return block_type;
 }
 
-static const char *
-semantic_check_expression(semantic_context *context, expr_node *expr,
-                          method_environment *method_env,
-                          object_environment_item *object_env) {
+static const char *semantic_check_isvoid_expression(
+    semantic_context *context, expr_unary_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    semantic_check_expression(context, expr->expr, class_ctx, method_env,
+                              object_env);
+
+    return BOOL_TYPE;
+}
+
+#define context_show_error_dispatch_method_undefined(context, expr, method,    \
+                                                     class_ctx)                \
+    context_show_errorf(context, expr.line, expr.col,                          \
+                        "Undefined method %s in class %s", method,             \
+                        class_ctx->name)
+
+static int is_dispatch_method_wrong_number_of_args(method_context *method_ctx,
+                                                   dispatch_node *expr) {
+    return method_ctx->formals.count != expr->args.count;
+}
+
+#define context_show_error_dispatch_method_wrong_number_of_args(               \
+    context, expr, method, class_ctx)                                          \
+    context_show_errorf(context, expr.line, expr.col,                          \
+                        "Method %s of class %s is applied to wrong number of " \
+                        "arguments",                                           \
+                        method, class_ctx->name)
+
+static const char *semantic_check_dispatch_expression(
+    semantic_context *context, dispatch_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
+    method_context *method_ctx = NULL;
+    find_method_ctx(class_ctx, expr->method.value, &method_ctx);
+
+    if (method_ctx == NULL) {
+        context_show_error_dispatch_method_undefined(
+            context, expr->method, expr->method.value, class_ctx);
+        return NULL;
+    }
+
+    if (is_dispatch_method_wrong_number_of_args(method_ctx, expr)) {
+        context_show_error_dispatch_method_wrong_number_of_args(
+            context, expr->method, expr->method.value, class_ctx);
+    }
+
+    // TODO: Fix this and the full dispatch
+
+    return method_ctx->type;
+}
+
+static const char *semantic_check_dispatch_full_expression(
+    semantic_context *context, dispatch_full_node *expr,
+    class_context *class_ctx, method_environment *method_env,
+    object_environment_item *object_env) {
+    const char *expr_type = semantic_check_expression(
+        context, expr->expr, class_ctx, method_env, object_env);
+
+    if (expr_type == NULL) {
+        return NULL;
+    }
+
+    const char *static_type = expr->type.value;
+    if (static_type == NULL) {
+        static_type = expr_type;
+    }
+
+    class_context *static_ctx = NULL;
+    find_class_ctx(context, static_type, &static_ctx);
+
+    method_context *method_ctx = NULL;
+    find_method_ctx(static_ctx, expr->dispatch->method.value, &method_ctx);
+
+    if (method_ctx == NULL) {
+        context_show_error_dispatch_method_undefined(
+            context, expr->dispatch->method, expr->dispatch->method.value,
+            static_ctx);
+        return NULL;
+    }
+
+    if (is_dispatch_method_wrong_number_of_args(method_ctx, expr->dispatch)) {
+        context_show_error_dispatch_method_wrong_number_of_args(
+            context, expr->dispatch->method, expr->dispatch->method.value,
+            static_ctx);
+    }
+
+    return method_ctx->type;
+}
+
+static const char *semantic_check_expression(
+    semantic_context *context, expr_node *expr, class_context *class_ctx,
+    method_environment *method_env, object_environment_item *object_env) {
     switch (expr->type) {
-    case EXPR_NONE: break;
+    case EXPR_NONE:
+        return NULL;
     case EXPR_ASSIGN:
-        return semantic_check_assign_expression(context, &expr->assign,
-                                                method_env, object_env);
+        return semantic_check_assign_expression(
+            context, &expr->assign, class_ctx, method_env, object_env);
     case EXPR_DISPATCH_FULL:
-        break;
+        return semantic_check_dispatch_full_expression(
+            context, &expr->dispatch_full, class_ctx, method_env, object_env);
     case EXPR_DISPATCH:
-        break;
+        return semantic_check_dispatch_expression(
+            context, &expr->dispatch, class_ctx, method_env, object_env);
     case EXPR_COND:
-        return semantic_check_if_expression(context, &expr->cond, method_env,
-                                            object_env);
+        return semantic_check_if_expression(context, &expr->cond, class_ctx,
+                                            method_env, object_env);
     case EXPR_LOOP:
-        return semantic_check_loop_expression(context, &expr->loop, method_env,
-                                              object_env);
+        return semantic_check_loop_expression(context, &expr->loop, class_ctx,
+                                              method_env, object_env);
     case EXPR_BLOCK:
-        return semantic_check_block_expression(context, &expr->block, method_env,
-                                               object_env);
+        return semantic_check_block_expression(context, &expr->block, class_ctx,
+                                               method_env, object_env);
     case EXPR_LET:
-        return semantic_check_let_expression(context, &expr->let, method_env,
-                                             object_env);
+        return semantic_check_let_expression(context, &expr->let, class_ctx,
+                                             method_env, object_env);
     case EXPR_CASE:
-        return semantic_check_case_expression(context, &expr->case_, method_env,
-                                              object_env);
+        return semantic_check_case_expression(context, &expr->case_, class_ctx,
+                                              method_env, object_env);
     case EXPR_NEW:
-        return semantic_check_new_expression(context, &expr->new, method_env,
-                                             object_env);
+        return semantic_check_new_expression(context, &expr->new, class_ctx,
+                                             method_env, object_env);
     case EXPR_ISVOID:
-        break;
+        return semantic_check_isvoid_expression(
+            context, &expr->isvoid, class_ctx, method_env, object_env);
     case EXPR_ADD:
-        return semantic_check_arith_expression(context, &expr->add, method_env,
-                                               object_env);
+        return semantic_check_arith_expression(context, &expr->add, class_ctx,
+                                               method_env, object_env);
     case EXPR_SUB:
-        return semantic_check_arith_expression(context, &expr->sub, method_env,
-                                               object_env);
+        return semantic_check_arith_expression(context, &expr->sub, class_ctx,
+                                               method_env, object_env);
     case EXPR_MUL:
-        return semantic_check_arith_expression(context, &expr->mul, method_env,
-                                               object_env);
+        return semantic_check_arith_expression(context, &expr->mul, class_ctx,
+                                               method_env, object_env);
     case EXPR_DIV:
-        return semantic_check_arith_expression(context, &expr->div, method_env,
-                                               object_env);
+        return semantic_check_arith_expression(context, &expr->div, class_ctx,
+                                               method_env, object_env);
     case EXPR_NEG:
-        return semantic_check_neg_expression(context, &expr->neg, method_env,
-                                             object_env);
+        return semantic_check_neg_expression(context, &expr->neg, class_ctx,
+                                             method_env, object_env);
     case EXPR_LT:
-        return semantic_check_cmp_expression(context, &expr->lt, method_env,
-                                             object_env);
+        return semantic_check_cmp_expression(context, &expr->lt, class_ctx,
+                                             method_env, object_env);
     case EXPR_LE:
-        return semantic_check_cmp_expression(context, &expr->lt, method_env,
-                                             object_env);
+        return semantic_check_cmp_expression(context, &expr->lt, class_ctx,
+                                             method_env, object_env);
     case EXPR_EQ:
-        return semantic_check_eq_expression(context, &expr->eq, method_env,
-                                            object_env);
+        return semantic_check_eq_expression(context, &expr->eq, class_ctx,
+                                            method_env, object_env);
     case EXPR_NOT:
-        return semantic_check_not_expression(context, &expr->not_, method_env,
-                                             object_env);
+        return semantic_check_not_expression(context, &expr->not_, class_ctx,
+                                             method_env, object_env);
     case EXPR_PAREN:
-        return semantic_check_expression(context, expr->paren, method_env,
-                                         object_env);
+        return semantic_check_expression(context, expr->paren, class_ctx,
+                                         method_env, object_env);
     case EXPR_IDENT:
-        return semantic_check_ident_expression(context, &expr->ident,
+        return semantic_check_ident_expression(context, &expr->ident, class_ctx,
                                                method_env, object_env);
     case EXPR_INT:
         return INT_TYPE;
@@ -1438,10 +1548,31 @@ semantic_check_expression(semantic_context *context, expr_node *expr,
     default:
         return NULL;
     }
-
-    // object_env_show(*object_env);
-    return NULL;
 }
+
+static int is_method_return_type_incompatible(semantic_context *context,
+                                              const char *return_type,
+                                              const char *method_type) {
+    class_context *class_ctx = NULL;
+    find_class_ctx(context, return_type, &class_ctx);
+
+    while (class_ctx != NULL) {
+        if (strcmp(class_ctx->name, method_type) == 0) {
+            return 0;
+        }
+
+        class_ctx = class_ctx->parent;
+    }
+
+    return 1;
+}
+
+#define context_show_error_method_body_incompatible_return_type(               \
+    context, token, method, return_type, method_type)                          \
+    context_show_errorf(context, token->line, token->col,                      \
+                        "Type %s of the body of method %s is incompatible "    \
+                        "with declared return type %s",                        \
+                        return_type, method.name.value, method_type)
 
 static void semantic_check_method_body(semantic_context *context,
                                        program_node *program,
@@ -1483,9 +1614,17 @@ static void semantic_check_method_body(semantic_context *context,
             }
 
             expr_node body = method.body;
-            // TODO: unused variable
             const char *body_type = semantic_check_expression(
-                context, &body, method_env, &object_env);
+                context, &body, class_ctx, method_env, &object_env);
+
+            if (body_type != NULL) {
+                if (is_method_return_type_incompatible(context, body_type,
+                                                       method_ctx->type)) {
+                    context_show_error_method_body_incompatible_return_type(
+                        context, get_default_token(&body), method, body_type,
+                        method_ctx->type);
+                }
+            }
 
             for (unsigned int k = 0; k < depth; k++) {
                 ds_dynamic_array_pop(&object_env.objects, NULL);
@@ -1493,6 +1632,31 @@ static void semantic_check_method_body(semantic_context *context,
         }
     }
 }
+
+static int is_attribute_value_type_incompatible(semantic_context *context,
+                                                const char *value_type,
+                                                const char *attribute_type) {
+    class_context *class_ctx = NULL;
+    find_class_ctx(context, value_type, &class_ctx);
+
+    while (class_ctx != NULL) {
+        if (strcmp(class_ctx->name, attribute_type) == 0) {
+            return 0;
+        }
+
+        class_ctx = class_ctx->parent;
+    }
+
+    return 1;
+}
+
+#define context_show_error_attribute_init_incompatible(context, token, attr,   \
+                                                       attr_type, value_type)  \
+    context_show_errorf(                                                       \
+        context, token->line, token->col,                                      \
+        "Type %s of initialization expression of attribute %s "                \
+        "is incompatible with declared type %s",                               \
+        value_type, attr.name.value, attr_type)
 
 static void semantic_check_attribute_init(semantic_context *context,
                                           program_node *program,
@@ -1524,9 +1688,17 @@ static void semantic_check_attribute_init(semantic_context *context,
             }
 
             expr_node body = attribute.value;
-            // TODO: unused variable
             const char *value_type = semantic_check_expression(
-                context, &body, method_env, &object_env);
+                context, &body, class_ctx, method_env, &object_env);
+
+            if (value_type != NULL) {
+                if (is_attribute_value_type_incompatible(context, value_type,
+                                                         object_ctx->type)) {
+                    context_show_error_attribute_init_incompatible(
+                        context, get_default_token(&body), attribute,
+                        object_ctx->type, value_type);
+                }
+            }
         }
     }
 }
@@ -1541,9 +1713,11 @@ int semantic_check(program_node *program, semantic_context *context) {
     object_environment object_env;
     build_object_environment(context, program, &object_env);
 
+    // TODO: Fix child classes to have parent methods
     method_environment method_env;
     build_method_environment(context, program, &method_env);
 
+    // TODO: Fix SELF_TYPE
     semantic_check_method_body(context, program, &method_env, &object_env);
     semantic_check_attribute_init(context, program, &method_env, &object_env);
 
