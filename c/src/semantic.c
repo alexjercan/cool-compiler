@@ -1537,6 +1537,32 @@ static const char *semantic_check_dispatch_expression(
     return method_item->type;
 }
 
+static int is_illegal_static_type(semantic_context *context, const char *type) {
+    return strcmp(type, SELF_TYPE) == 0;
+}
+
+#define context_show_error_static_dispatch_illegal_type(context, token)        \
+    context_show_errorf(context, token.line, token.col,                        \
+                        "Type of static dispatch cannot be SELF_TYPE")
+
+#define context_show_error_static_dispatch_type_undefined(context, token,      \
+                                                          type)                \
+    context_show_errorf(context, token.line, token.col,                        \
+                        "Type %s of static dispatch is undefined", type)
+
+static int is_not_valid_static_dispatch(semantic_context *context,
+                                        const char *expr_type,
+                                        const char *static_type) {
+    return !is_type_ancestor(context, expr_type, static_type);
+}
+
+#define context_show_error_static_dispatch_type_not_valid(                     \
+    context, token, static_type, expr_type)                                    \
+    context_show_errorf(context, token.line, token.col,                        \
+                        "Type %s of static dispatch is not a superclass of "   \
+                        "type %s",                                             \
+                        static_type, expr_type)
+
 static const char *semantic_check_dispatch_full_expression(
     semantic_context *context, dispatch_full_node *expr,
     class_context *class_ctx, method_environment *method_env,
@@ -1553,11 +1579,28 @@ static const char *semantic_check_dispatch_full_expression(
         static_type = expr_type;
     }
 
+    if (is_illegal_static_type(context, static_type)) {
+        context_show_error_static_dispatch_illegal_type(context, expr->type);
+        return NULL;
+    }
+
     class_context *static_ctx = NULL;
     find_class_ctx(context, static_type, &static_ctx);
 
+    if (static_ctx == NULL) {
+        context_show_error_static_dispatch_type_undefined(context, expr->type,
+                                                          static_type);
+        return NULL;
+    }
+
+    if (is_not_valid_static_dispatch(context, expr_type, static_type)) {
+        context_show_error_static_dispatch_type_not_valid(
+            context, expr->type, static_type, expr_type);
+        return NULL;
+    }
+
     method_environment_item *method_item = NULL;
-    find_method_env(method_env, class_ctx->name, expr->dispatch->method.value,
+    find_method_env(method_env, static_ctx->name, expr->dispatch->method.value,
                     &method_item);
 
     if (method_item == NULL) {
@@ -1571,6 +1614,30 @@ static const char *semantic_check_dispatch_full_expression(
         context_show_error_dispatch_method_wrong_number_of_args(
             context, expr->dispatch->method, method_item->method_name,
             method_item->class_name);
+    }
+
+    for (unsigned int i = 0; i < expr->dispatch->args.count; i++) {
+        expr_node arg;
+        ds_dynamic_array_get(&expr->dispatch->args, i, &arg);
+
+        const char *arg_type = semantic_check_expression(
+            context, &arg, class_ctx, method_env, object_env);
+
+        if (arg_type == NULL) {
+            continue;
+        }
+
+        const char *formal_type = NULL;
+        ds_dynamic_array_get(&method_item->formals, i, &formal_type);
+
+        const char *formal_name = NULL;
+        ds_dynamic_array_get(&method_item->names, i, &formal_name);
+
+        if (is_arg_type_incompatible(context, arg_type, formal_type)) {
+            context_show_error_dispatch_arg_type_incompatible(
+                context, get_default_token(&arg), method_item->method_name,
+                method_item->class_name, arg_type, formal_name, formal_type);
+        }
     }
 
     return method_item->type;

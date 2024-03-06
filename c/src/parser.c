@@ -1207,7 +1207,7 @@ node_info *get_default_token(expr_node *node) {
     switch (node->type) {
     case EXPR_ASSIGN:
         return &node->assign.name;
-    case EXPR_DISPATCH_FULL: return &node->dispatch_full.dispatch->method;
+    case EXPR_DISPATCH_FULL: return get_default_token(node->dispatch_full.expr);
     case EXPR_DISPATCH: return &node->dispatch.method;
     case EXPR_COND:
         return &node->cond.node;
