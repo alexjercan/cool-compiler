@@ -28,6 +28,30 @@ typedef struct object_context {
         const char *type;
 } object_context;
 
+typedef struct method_environment_item {
+        const char *class_name;
+        const char *method_name;
+        ds_dynamic_array names;   // const char *
+        ds_dynamic_array formals; // const char *
+        const char *type;
+} method_environment_item;
+
+typedef struct method_environment {
+        ds_dynamic_array items; // method_environment_item
+} method_environment;
+
+typedef struct object_environment_item {
+        const char *class_name;
+        ds_dynamic_array objects; // object_context
+} object_environment_item;
+
+typedef struct object_environment {
+        ds_dynamic_array items; // object_environment_item
+} object_environment;
+
 int semantic_check(program_node *program, semantic_context *context);
+
+void method_env_show(method_environment method_env);
+void object_env_show(object_environment object_env);
 
 #endif // SEMANTIC_H
