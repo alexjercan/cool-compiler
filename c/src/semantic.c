@@ -67,12 +67,6 @@ static void find_object_ctx(class_context *class_ctx, const char *object_name,
     }
 }
 
-static int is_class_redefined(semantic_context *context, class_node class) {
-    class_context *class_ctx = NULL;
-    find_class_ctx(context, class.name.value, &class_ctx);
-    return class_ctx != NULL;
-}
-
 static const char *least_common_ancestor(semantic_context *context,
                                          const char *type1, const char *type2) {
     class_context *class_ctx1 = NULL;
@@ -100,6 +94,50 @@ static const char *least_common_ancestor(semantic_context *context,
     }
 
     return NULL;
+}
+
+// Check if lhs_type <= rhs_type
+static int is_type_ancestor(semantic_context *context, const char *lhs_type,
+                            const char *rhs_type) {
+    class_context *lhs_ctx = NULL;
+    find_class_ctx(context, lhs_type, &lhs_ctx);
+
+    class_context *rhs_ctx = NULL;
+    find_class_ctx(context, rhs_type, &rhs_ctx);
+
+    if (lhs_ctx == NULL || rhs_ctx == NULL) {
+        return 0;
+    }
+
+    class_context *current_ctx = lhs_ctx;
+    do {
+        if (strcmp(current_ctx->name, rhs_type) == 0) {
+            return 1;
+        }
+
+        current_ctx = current_ctx->parent;
+    } while (current_ctx != NULL && lhs_ctx != current_ctx);
+
+    return 0;
+}
+
+static int is_type_ancestor_self(semantic_context *context,
+                                 const char *class_type, const char *lhs_type,
+                                 const char *rhs_type) {
+    const char *type = NULL;
+    if (strcmp(rhs_type, SELF_TYPE) == 0) {
+        type = class_type;
+    } else {
+        type = rhs_type;
+    }
+
+    return is_type_ancestor(context, lhs_type, type);
+}
+
+static int is_class_redefined(semantic_context *context, class_node class) {
+    class_context *class_ctx = NULL;
+    find_class_ctx(context, class.name.value, &class_ctx);
+    return class_ctx != NULL;
 }
 
 #define context_show_error_class_redefined(context, class)                     \
@@ -442,9 +480,6 @@ static void semantic_check_attributes(semantic_context *context,
                 continue;
             }
         }
-
-        object_context object = {.name = "self", .type = SELF_TYPE};
-        ds_dynamic_array_append(&class_ctx->objects, &object);
     }
 }
 
@@ -715,12 +750,30 @@ static void semantic_check_methods(semantic_context *context,
 typedef struct method_environment_item {
         const char *class_name;
         const char *method_name;
+        ds_dynamic_array names;   // const char *
         ds_dynamic_array formals; // const char *
+        const char *type;
 } method_environment_item;
 
 typedef struct method_environment {
         ds_dynamic_array items; // method_environment_item
 } method_environment;
+
+static void find_method_env(method_environment *env, const char *class_name,
+                            const char *method_name,
+                            method_environment_item **item) {
+    unsigned int n = env->items.count;
+    for (unsigned int i = 0; i < env->items.count; i++) {
+        method_environment_item *env_item;
+        ds_dynamic_array_get_ref(&env->items, n - i - 1, (void **)&env_item);
+
+        if (strcmp(env_item->class_name, class_name) == 0 &&
+            strcmp(env_item->method_name, method_name) == 0) {
+            *item = env_item;
+            return;
+        }
+    }
+}
 
 static void method_env_show(method_environment method_env) {
     for (unsigned int i = 0; i < method_env.items.count; i++) {
@@ -737,7 +790,7 @@ static void method_env_show(method_environment method_env) {
                 printf(", ");
             }
         }
-        printf(")\n");
+        printf(") -> %s\n", item.type);
     }
 }
 
@@ -752,27 +805,52 @@ static void build_method_environment(semantic_context *context,
 
         const char *class_name = class_ctx->name;
 
-        for (unsigned int k = 0; k < class_ctx->methods.count; k++) {
-            method_context *method_ctx;
-            ds_dynamic_array_get_ref(&class_ctx->methods, k,
-                                     (void **)&method_ctx);
+        class_context *current_ctx = class_ctx;
+        do {
+            for (unsigned int k = 0; k < current_ctx->methods.count; k++) {
+                method_context *method_ctx;
+                ds_dynamic_array_get_ref(&current_ctx->methods, k,
+                                         (void **)&method_ctx);
 
-            const char *method_name = method_ctx->name;
+                const char *method_name = method_ctx->name;
 
-            method_environment_item item = {.class_name = class_name,
-                                            .method_name = method_name};
-            ds_dynamic_array_init(&item.formals, sizeof(const char *));
+                int found_item = 0;
+                for (unsigned int m = 0; m < env->items.count; m++) {
+                    method_environment_item *env_item;
+                    ds_dynamic_array_get_ref(&env->items, m,
+                                             (void **)&env_item);
 
-            for (unsigned int m = 0; m < method_ctx->formals.count; m++) {
-                object_context formal_ctx;
-                ds_dynamic_array_get(&method_ctx->formals, m, &formal_ctx);
+                    if (strcmp(env_item->class_name, class_name) == 0 &&
+                        strcmp(env_item->method_name, method_name) == 0) {
+                        found_item = 1;
+                        break;
+                    }
+                }
 
-                ds_dynamic_array_append(&item.formals, &formal_ctx.type);
+                if (found_item) {
+                    continue;
+                }
+
+                method_environment_item item = {.class_name = class_name,
+                                                .method_name = method_name};
+                ds_dynamic_array_init(&item.names, sizeof(const char *));
+                ds_dynamic_array_init(&item.formals, sizeof(const char *));
+
+                for (unsigned int m = 0; m < method_ctx->formals.count; m++) {
+                    object_context formal_ctx;
+                    ds_dynamic_array_get(&method_ctx->formals, m, &formal_ctx);
+
+                    ds_dynamic_array_append(&item.names, &formal_ctx.name);
+                    ds_dynamic_array_append(&item.formals, &formal_ctx.type);
+                }
+
+                item.type = method_ctx->type;
+
+                ds_dynamic_array_append(&env->items, &item);
             }
 
-            ds_dynamic_array_append(&item.formals, &method_ctx->type);
-            ds_dynamic_array_append(&env->items, &item);
-        }
+            current_ctx = current_ctx->parent;
+        } while (current_ctx != NULL && class_ctx != current_ctx);
     }
 }
 
@@ -820,6 +898,9 @@ static void build_object_environment(semantic_context *context,
 
             current_ctx = current_ctx->parent;
         } while (current_ctx != NULL && class_ctx != current_ctx);
+
+        object_context object = {.name = "self", .type = class_name};
+        ds_dynamic_array_append(&item.objects, &object);
 
         ds_dynamic_array_append(&env->items, &item);
     }
@@ -870,20 +951,10 @@ static int is_let_init_type_undefined(semantic_context *context,
                         init.name.value, init.type.value)
 
 static int is_let_init_type_incompatible(semantic_context *context,
-                                         const char *let_type,
+                                         const char *class_type,
+                                         const char *expr_type,
                                          const char *init_type) {
-    class_context *init_ctx = NULL;
-    find_class_ctx(context, init_type, &init_ctx);
-
-    while (init_ctx != NULL) {
-        if (strcmp(init_ctx->name, let_type) == 0) {
-            return 0;
-        }
-
-        init_ctx = init_ctx->parent;
-    }
-
-    return 1;
+    return !is_type_ancestor_self(context, class_type, expr_type, init_type);
 }
 
 #define context_show_error_let_init_type_incompatible(context, token, init,    \
@@ -912,21 +983,29 @@ static const char *semantic_check_let_expression(
             continue;
         }
 
+        const char *init_type = init.type.value;
+
         if (init.init != NULL) {
-            const char *init_type = semantic_check_expression(
+            const char *expr_type = semantic_check_expression(
                 context, init.init, class_ctx, method_env, object_env);
 
-            if (init_type != NULL) {
-                if (is_let_init_type_incompatible(context, init.type.value,
-                                                  init_type)) {
+            if (expr_type != NULL) {
+                if (is_let_init_type_incompatible(context, class_ctx->name,
+                                                  expr_type, init_type)) {
                     context_show_error_let_init_type_incompatible(
-                        context, get_default_token(init.init), init, init_type);
+                        context, get_default_token(init.init), init, expr_type);
                 }
             }
         }
 
-        object_context object = {.name = init.name.value,
-                                 .type = init.type.value};
+        const char *object_type = NULL;
+        if (strcmp(init.type.value, SELF_TYPE) == 0) {
+            object_type = class_ctx->name;
+        } else {
+            object_type = init_type;
+        }
+
+        object_context object = {.name = init.name.value, .type = object_type};
         ds_dynamic_array_append(&object_env->objects, &object);
 
         depth++;
@@ -1222,31 +1301,9 @@ static int is_assign_name_illegal(semantic_context *context,
                         "Cannot assign to self")
 
 static int is_assign_incopatible_types(semantic_context *context,
-                                       const char *left_type,
-                                       const char *right_type) {
-    if (strcmp(left_type, right_type) == 0) {
-        return 0;
-    }
-
-    for (unsigned int i = 0; i < context->classes.count; i++) {
-        class_context *class_ctx = NULL;
-        ds_dynamic_array_get_ref(&context->classes, i, (void **)&class_ctx);
-
-        if (strcmp(class_ctx->name, right_type) == 0) {
-            class_context *parent_ctx = class_ctx->parent;
-            while (parent_ctx != NULL) {
-                if (strcmp(parent_ctx->name, left_type) == 0) {
-                    return 0;
-                }
-
-                parent_ctx = parent_ctx->parent;
-            }
-
-            break;
-        }
-    }
-
-    return 1;
+                                       const char *expr_type,
+                                       const char *object_type) {
+    return !is_type_ancestor(context, expr_type, object_type);
 }
 
 #define context_show_error_assign_incompatible_types(context, expr, init,      \
@@ -1286,7 +1343,7 @@ static const char *semantic_check_assign_expression(
         return object_type;
     }
 
-    if (is_assign_incopatible_types(context, object_type, expr_type)) {
+    if (is_assign_incopatible_types(context, expr_type, object_type)) {
         context_show_error_assign_incompatible_types(
             context, expr, get_default_token(expr->value), object_type,
             expr_type);
@@ -1314,7 +1371,13 @@ static const char *semantic_check_new_expression(
         return NULL;
     }
 
-    return expr->type.value;
+    const char *type = expr->type.value;
+
+    if (strcmp(type, SELF_TYPE) == 0) {
+        type = class_ctx->name;
+    }
+
+    return type;
 }
 
 static int is_while_condition_not_bool(const char *type) {
@@ -1398,38 +1461,80 @@ static const char *semantic_check_isvoid_expression(
                         "Undefined method %s in class %s", method,             \
                         class_ctx->name)
 
-static int is_dispatch_method_wrong_number_of_args(method_context *method_ctx,
-                                                   dispatch_node *expr) {
-    return method_ctx->formals.count != expr->args.count;
+static int
+is_dispatch_method_wrong_number_of_args(method_environment_item *method_item,
+                                        dispatch_node *expr) {
+    return method_item->formals.count != expr->args.count;
 }
 
 #define context_show_error_dispatch_method_wrong_number_of_args(               \
-    context, expr, method, class_ctx)                                          \
-    context_show_errorf(context, expr.line, expr.col,                          \
+    context, token, method, class)                                             \
+    context_show_errorf(context, token.line, token.col,                        \
                         "Method %s of class %s is applied to wrong number of " \
                         "arguments",                                           \
-                        method, class_ctx->name)
+                        method, class)
+
+static int is_arg_type_incompatible(semantic_context *context,
+                                    const char *formal_type,
+                                    const char *arg_type) {
+    return !is_type_ancestor(context, formal_type, arg_type);
+}
+
+// "18-type-dispatch.cl", line 19:23, Semantic error: In call to method f of
+// class A, actual type B of formal parameter c is incompatible with declared
+// type C
+#define context_show_error_dispatch_arg_type_incompatible(                     \
+    context, token, method, class, arg_type, formal, formal_type)              \
+    context_show_errorf(context, token->line, token->col,                      \
+                        "In call to method %s of class %s, actual type %s of " \
+                        "formal parameter %s is incompatible with declared "   \
+                        "type %s",                                             \
+                        method, class, arg_type, formal, formal_type)
 
 static const char *semantic_check_dispatch_expression(
     semantic_context *context, dispatch_node *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
-    method_context *method_ctx = NULL;
-    find_method_ctx(class_ctx, expr->method.value, &method_ctx);
+    method_environment_item *method_item = NULL;
+    find_method_env(method_env, class_ctx->name, expr->method.value,
+                    &method_item);
 
-    if (method_ctx == NULL) {
+    if (method_item == NULL) {
         context_show_error_dispatch_method_undefined(
             context, expr->method, expr->method.value, class_ctx);
         return NULL;
     }
 
-    if (is_dispatch_method_wrong_number_of_args(method_ctx, expr)) {
+    if (is_dispatch_method_wrong_number_of_args(method_item, expr)) {
         context_show_error_dispatch_method_wrong_number_of_args(
-            context, expr->method, expr->method.value, class_ctx);
+            context, expr->method, method_item->method_name,
+            method_item->class_name);
     }
 
-    // TODO: Fix this and the full dispatch
+    for (unsigned int i = 0; i < expr->args.count; i++) {
+        expr_node arg;
+        ds_dynamic_array_get(&expr->args, i, &arg);
 
-    return method_ctx->type;
+        const char *arg_type = semantic_check_expression(
+            context, &arg, class_ctx, method_env, object_env);
+
+        if (arg_type == NULL) {
+            continue;
+        }
+
+        const char *formal_type = NULL;
+        ds_dynamic_array_get(&method_item->formals, i, &formal_type);
+
+        const char *formal_name = NULL;
+        ds_dynamic_array_get(&method_item->names, i, &formal_name);
+
+        if (is_arg_type_incompatible(context, arg_type, formal_type)) {
+            context_show_error_dispatch_arg_type_incompatible(
+                context, get_default_token(&arg), method_item->method_name,
+                method_item->class_name, arg_type, formal_name, formal_type);
+        }
+    }
+
+    return method_item->type;
 }
 
 static const char *semantic_check_dispatch_full_expression(
@@ -1451,31 +1556,30 @@ static const char *semantic_check_dispatch_full_expression(
     class_context *static_ctx = NULL;
     find_class_ctx(context, static_type, &static_ctx);
 
-    method_context *method_ctx = NULL;
-    find_method_ctx(static_ctx, expr->dispatch->method.value, &method_ctx);
+    method_environment_item *method_item = NULL;
+    find_method_env(method_env, class_ctx->name, expr->dispatch->method.value,
+                    &method_item);
 
-    if (method_ctx == NULL) {
+    if (method_item == NULL) {
         context_show_error_dispatch_method_undefined(
             context, expr->dispatch->method, expr->dispatch->method.value,
             static_ctx);
         return NULL;
     }
 
-    if (is_dispatch_method_wrong_number_of_args(method_ctx, expr->dispatch)) {
+    if (is_dispatch_method_wrong_number_of_args(method_item, expr->dispatch)) {
         context_show_error_dispatch_method_wrong_number_of_args(
-            context, expr->dispatch->method, expr->dispatch->method.value,
-            static_ctx);
+            context, expr->dispatch->method, method_item->method_name,
+            method_item->class_name);
     }
 
-    return method_ctx->type;
+    return method_item->type;
 }
 
 static const char *semantic_check_expression(
     semantic_context *context, expr_node *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
     switch (expr->type) {
-    case EXPR_NONE:
-        return NULL;
     case EXPR_ASSIGN:
         return semantic_check_assign_expression(
             context, &expr->assign, class_ctx, method_env, object_env);
@@ -1551,20 +1655,11 @@ static const char *semantic_check_expression(
 }
 
 static int is_method_return_type_incompatible(semantic_context *context,
+                                              const char *class_type,
                                               const char *return_type,
                                               const char *method_type) {
-    class_context *class_ctx = NULL;
-    find_class_ctx(context, return_type, &class_ctx);
-
-    while (class_ctx != NULL) {
-        if (strcmp(class_ctx->name, method_type) == 0) {
-            return 0;
-        }
-
-        class_ctx = class_ctx->parent;
-    }
-
-    return 1;
+    return !is_type_ancestor_self(context, class_type, return_type,
+                                  method_type);
 }
 
 #define context_show_error_method_body_incompatible_return_type(               \
@@ -1618,7 +1713,8 @@ static void semantic_check_method_body(semantic_context *context,
                 context, &body, class_ctx, method_env, &object_env);
 
             if (body_type != NULL) {
-                if (is_method_return_type_incompatible(context, body_type,
+                if (is_method_return_type_incompatible(context, class_ctx->name,
+                                                       body_type,
                                                        method_ctx->type)) {
                     context_show_error_method_body_incompatible_return_type(
                         context, get_default_token(&body), method, body_type,
@@ -1636,18 +1732,7 @@ static void semantic_check_method_body(semantic_context *context,
 static int is_attribute_value_type_incompatible(semantic_context *context,
                                                 const char *value_type,
                                                 const char *attribute_type) {
-    class_context *class_ctx = NULL;
-    find_class_ctx(context, value_type, &class_ctx);
-
-    while (class_ctx != NULL) {
-        if (strcmp(class_ctx->name, attribute_type) == 0) {
-            return 0;
-        }
-
-        class_ctx = class_ctx->parent;
-    }
-
-    return 1;
+    return !is_type_ancestor(context, value_type, attribute_type);
 }
 
 #define context_show_error_attribute_init_incompatible(context, token, attr,   \
@@ -1713,22 +1798,22 @@ int semantic_check(program_node *program, semantic_context *context) {
     object_environment object_env;
     build_object_environment(context, program, &object_env);
 
-    // TODO: Fix child classes to have parent methods
     method_environment method_env;
     build_method_environment(context, program, &method_env);
 
-    // TODO: Fix SELF_TYPE
+    // method_env_show(method_env);
+
     semantic_check_method_body(context, program, &method_env, &object_env);
     semantic_check_attribute_init(context, program, &method_env, &object_env);
 
-    /*for (unsigned int i = 0; i < object_env.items.count; i++) {
+    /*
+    for (unsigned int i = 0; i < object_env.items.count; i++) {
         object_environment_item item;
         ds_dynamic_array_get(&object_env.items, i, &item);
 
         object_env_show(item);
     }
 
-    method_env_show(method_env);
     */
 
     (void)method_env_show;
