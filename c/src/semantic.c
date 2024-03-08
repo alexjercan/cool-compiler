@@ -104,7 +104,14 @@ static int is_type_ancestor(semantic_context *context, const char *class_type,
 
 // Find the least common ancestor of two types
 static const char *least_common_ancestor(semantic_context *context,
+                                         const char *class_type,
                                          const char *type1, const char *type2) {
+    if (strcmp(type1, SELF_TYPE) == 0) {
+        const char *tmp = type1;
+        type1 = type2;
+        type2 = tmp;
+    }
+
     class_context *class_ctx1 = NULL;
     find_class_ctx(context, type1, &class_ctx1);
 
@@ -117,14 +124,16 @@ static const char *least_common_ancestor(semantic_context *context,
 
     class_context *current_ctx = class_ctx1;
     while (current_ctx != NULL) {
-        if (is_type_ancestor(context, current_ctx->name, type1, type2)) {
+        if (is_type_ancestor(context, class_type, type2, current_ctx->name)) {
             return current_ctx->name;
         }
 
         current_ctx = current_ctx->parent;
     }
 
-    return NULL;
+    printf("LCA(%s, %s) = %s\n", type1, type2, OBJECT_TYPE);
+
+    return OBJECT_TYPE;
 }
 
 static int is_class_redefined(semantic_context *context, class_node class) {
@@ -1079,7 +1088,7 @@ static const char *semantic_check_case_expression(
         if (case_type == NULL) {
             case_type = branch_type;
         } else {
-            case_type = least_common_ancestor(context, case_type, branch_type);
+            case_type = least_common_ancestor(context, class_ctx->name, case_type, branch_type);
         }
 
         ds_dynamic_array_pop(&object_env->objects, NULL);
@@ -1409,7 +1418,7 @@ static const char *semantic_check_if_expression(
     const char *else_ = semantic_check_expression(
         context, expr->else_, class_ctx, method_env, object_env);
 
-    return least_common_ancestor(context, then, else_);
+    return least_common_ancestor(context, class_ctx->name, then, else_);
 }
 
 static const char *semantic_check_block_expression(
