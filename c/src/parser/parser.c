@@ -1188,8 +1188,8 @@ static void build_program(struct parser *parser, program_node *program) {
     } while (token.type != END);
 }
 
-int parser_run(const char *filename, ds_dynamic_array *tokens,
-               program_node *program) {
+enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
+                              program_node *program) {
     ds_dynamic_array_init(&program->classes, sizeof(class_node));
 
     struct parser parser = {.filename = filename,
@@ -1200,55 +1200,4 @@ int parser_run(const char *filename, ds_dynamic_array *tokens,
     build_program(&parser, program);
 
     return parser.result;
-}
-
-// Get the default token for a given node
-node_info *get_default_token(expr_node *node) {
-    switch (node->kind) {
-    case EXPR_ASSIGN:
-        return &node->assign.name;
-    case EXPR_DISPATCH_FULL: return get_default_token(node->dispatch_full.expr);
-    case EXPR_DISPATCH: return &node->dispatch.method;
-    case EXPR_COND:
-        return &node->cond.node;
-    case EXPR_LOOP:
-        return &node->loop.node;
-    case EXPR_BLOCK: return &node->block.node;
-    case EXPR_LET: return &node->let.node;
-    case EXPR_CASE: return &node->case_.node;
-    case EXPR_NEW:
-        return &node->new.node;
-    case EXPR_ISVOID:
-        return &node->isvoid.op;
-    case EXPR_ADD:
-        return get_default_token(node->add.lhs);
-    case EXPR_SUB:
-        return get_default_token(node->sub.lhs);
-    case EXPR_MUL:
-        return get_default_token(node->mul.lhs);
-    case EXPR_DIV:
-        return get_default_token(node->div.lhs);
-    case EXPR_NEG:
-        return get_default_token(node->neg.expr);
-    case EXPR_LT:
-        return get_default_token(node->lt.lhs);
-    case EXPR_LE:
-        return get_default_token(node->le.lhs);
-    case EXPR_EQ:
-        return get_default_token(node->eq.lhs);
-    case EXPR_NOT:
-        return get_default_token(node->not_.expr);
-    case EXPR_PAREN:
-        return get_default_token(node->paren);
-    case EXPR_IDENT:
-        return &node->ident;
-    case EXPR_INT:
-        return &node->integer;
-    case EXPR_STRING:
-        return &node->string;
-    case EXPR_BOOL:
-        return &node->boolean;
-    default:
-        return NULL;
-    }
 }

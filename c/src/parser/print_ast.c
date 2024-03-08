@@ -1,4 +1,4 @@
-#include "print_ast.h"
+#include "parser.h"
 #include <stdio.h>
 
 static void expr_print(expr_node *expr, unsigned int indent);
@@ -237,4 +237,5 @@ static void program_print(program_node *program, unsigned int indent) {
     }
 }
 
-void print_ast(program_node *program) { program_print(program, 0); }
+// TODO: Print the AST with types
+void parser_print_ast(program_node *program) { program_print(program, 0); }

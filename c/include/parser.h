@@ -4,7 +4,7 @@
 #include "ds.h"
 
 enum parser_result {
-    PARSER_OK,
+    PARSER_OK = 0,
     PARSER_ERROR,
 };
 
@@ -66,54 +66,54 @@ typedef struct branch_node {
 } branch_node;
 
 typedef struct assign_node {
-    node_info name;
-    struct expr_node *value;
+        node_info name;
+        struct expr_node *value;
 } assign_node;
 
 typedef struct dispatch_node {
-    node_info method;
-    ds_dynamic_array args; // expr_node
+        node_info method;
+        ds_dynamic_array args; // expr_node
 } dispatch_node;
 
 typedef struct dispatch_full_node {
-    struct expr_node *expr;
-    node_info type;
-    dispatch_node *dispatch;
+        struct expr_node *expr;
+        node_info type;
+        dispatch_node *dispatch;
 } dispatch_full_node;
 
 typedef struct cond_node {
-    node_info node;
-    struct expr_node *predicate;
-    struct expr_node *then;
-    struct expr_node *else_;
+        node_info node;
+        struct expr_node *predicate;
+        struct expr_node *then;
+        struct expr_node *else_;
 } cond_node;
 
 typedef struct loop_node {
-    node_info node;
-    struct expr_node *predicate;
-    struct expr_node *body;
+        node_info node;
+        struct expr_node *predicate;
+        struct expr_node *body;
 } loop_node;
 
 typedef struct block_node {
-    node_info node;
-    ds_dynamic_array exprs; // expr_node
+        node_info node;
+        ds_dynamic_array exprs; // expr_node
 } block_node;
 
 typedef struct let_node {
-    node_info node;
-    ds_dynamic_array inits; // let_init_node
-    struct expr_node *body;
+        node_info node;
+        ds_dynamic_array inits; // let_init_node
+        struct expr_node *body;
 } let_node;
 
 typedef struct case_node {
-    node_info node;
-    struct expr_node *expr;
-    ds_dynamic_array cases; // branch_node
+        node_info node;
+        struct expr_node *expr;
+        ds_dynamic_array cases; // branch_node
 } case_node;
 
 typedef struct new_node {
-    node_info node;
-    node_info type;
+        node_info node;
+        node_info type;
 } new_node;
 
 typedef struct expr_node {
@@ -176,8 +176,13 @@ typedef struct program_node {
         ds_dynamic_array classes;
 } program_node;
 
-int parser_run(const char *filename, ds_dynamic_array *tokens,
-               program_node *program);
-node_info *get_default_token(expr_node *node);
+enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
+                              program_node *program);
+
+#ifndef INDENT_SIZE
+#define INDENT_SIZE 2
+#endif
+
+void parser_print_ast(program_node *program);
 
 #endif // PARSER_H

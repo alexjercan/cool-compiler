@@ -1,6 +1,6 @@
-#include "util.h"
 #include "lexer.h"
 #include "ds.h"
+#include "util.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -485,7 +485,10 @@ static struct token lexer_next_token(struct lexer *l) {
     }
 };
 
-void lexer_tokenize(char *buffer, int length, ds_dynamic_array *tokens) {
+enum lexer_result lexer_tokenize(char *buffer, int length,
+                                 ds_dynamic_array *tokens) {
+    enum lexer_result result = LEXER_OK;
+
     struct lexer lexer;
     lexer_init(&lexer, (char *)buffer, length);
 
@@ -497,6 +500,12 @@ void lexer_tokenize(char *buffer, int length, ds_dynamic_array *tokens) {
         util_pos_to_lc(buffer, tok.pos, &line, &col);
         tok.line = line;
         tok.col = col;
-        ds_dynamic_array_append(tokens, &tok);
+        if (ds_dynamic_array_append(tokens, &tok) != 0) {
+            DS_LOG_ERROR("Failed to append token to array");
+            return_defer(LEXER_ERROR);
+        }
     } while (tok.type != END);
+
+defer:
+    return result;
 }

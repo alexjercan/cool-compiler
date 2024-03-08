@@ -3,6 +3,11 @@
 
 #include "ds.h"
 
+enum lexer_result {
+    LEXER_OK = 0,
+    LEXER_ERROR,
+};
+
 enum token_type {
     ARROW,
     ASSIGN,
@@ -73,6 +78,8 @@ struct token {
         unsigned int col;
 };
 
-void lexer_tokenize(char *buffer, int length, ds_dynamic_array *tokens);
+enum lexer_result lexer_tokenize(char *buffer, int length,
+                                 ds_dynamic_array *tokens);
+void lexer_print_tokens(ds_dynamic_array *tokens);
 
 #endif // LEXER_H

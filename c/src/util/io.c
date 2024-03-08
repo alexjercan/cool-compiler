@@ -1,8 +1,8 @@
-#include "io.h"
+#include "util.h"
 #include <stdio.h>
 #include "ds.h"
 
-int read_file(const char *filename, char **buffer) {
+int util_read_file(const char *filename, char **buffer) {
     int result = 0;
     FILE *file = NULL;
     ds_string_builder sb = {.items = NULL, .count = 0, .capacity = 0};
