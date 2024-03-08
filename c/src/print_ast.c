@@ -20,7 +20,7 @@ static void branch_print(branch_node *branch, unsigned int indent) {
 }
 
 static void expr_print(expr_node *expr, unsigned int indent) {
-    switch (expr->type) {
+    switch (expr->kind) {
     case EXPR_INT: {
         printf("%*s%s\n", indent, "", expr->integer.value);
         break;

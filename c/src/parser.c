@@ -119,7 +119,7 @@ static void build_expr(struct parser *parser, expr_node *expr);
 static void build_node_if(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_COND;
+    expr->kind = EXPR_COND;
     expr->cond.predicate = malloc(sizeof(expr_node));
     expr->cond.then = malloc(sizeof(expr_node));
     expr->cond.else_ = malloc(sizeof(expr_node));
@@ -168,7 +168,7 @@ static void build_node_if(struct parser *parser, expr_node *expr) {
 static void build_node_while(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_LOOP;
+    expr->kind = EXPR_LOOP;
     expr->loop.predicate = malloc(sizeof(expr_node));
     expr->loop.body = malloc(sizeof(expr_node));
 
@@ -207,7 +207,7 @@ static void build_node_while(struct parser *parser, expr_node *expr) {
 static void build_node_block(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_BLOCK;
+    expr->kind = EXPR_BLOCK;
     ds_dynamic_array_init(&expr->block.exprs, sizeof(expr_node));
 
     parser_current(parser, &token);
@@ -298,7 +298,7 @@ static void build_node_let_init(struct parser *parser, let_init_node *init) {
 static void build_node_let(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_LET;
+    expr->kind = EXPR_LET;
     ds_dynamic_array_init(&expr->let.inits, sizeof(let_init_node));
     expr->let.body = malloc(sizeof(expr_node));
 
@@ -399,7 +399,7 @@ static void build_node_branch(struct parser *parser, branch_node *branch) {
 static void build_node_case(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_CASE;
+    expr->kind = EXPR_CASE;
     expr->case_.expr = malloc(sizeof(expr_node));
     ds_dynamic_array_init(&expr->case_.cases, sizeof(branch_node));
 
@@ -448,7 +448,7 @@ static void build_node_case(struct parser *parser, expr_node *expr) {
 static void build_node_new(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_NEW;
+    expr->kind = EXPR_NEW;
 
     parser_current(parser, &token);
     if (token.type != NEW) {
@@ -479,7 +479,7 @@ static void build_node_new(struct parser *parser, expr_node *expr) {
 static void build_node_paren(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_PAREN;
+    expr->kind = EXPR_PAREN;
     expr->paren = malloc(sizeof(expr_node));
 
     parser_current(parser, &token);
@@ -502,7 +502,7 @@ static void build_node_paren(struct parser *parser, expr_node *expr) {
 static void build_node_fcall(struct parser *parser, expr_node *expr) {
     struct token token;
 
-    expr->type = EXPR_DISPATCH;
+    expr->kind = EXPR_DISPATCH;
     ds_dynamic_array_init(&expr->dispatch.args, sizeof(expr_node));
 
     parser_current(parser, &token);
@@ -565,7 +565,7 @@ static void build_expr_simple(struct parser *parser, expr_node *expr) {
         if (next.type == LPAREN) {
             build_node_fcall(parser, expr);
         } else {
-            expr->type = EXPR_IDENT;
+            expr->kind = EXPR_IDENT;
             expr->ident.value = token.literal;
             expr->ident.line = token.line;
             expr->ident.col = token.col;
@@ -575,7 +575,7 @@ static void build_expr_simple(struct parser *parser, expr_node *expr) {
         break;
     }
     case INT_LITERAL:
-        expr->type = EXPR_INT;
+        expr->kind = EXPR_INT;
         expr->integer.value = token.literal;
         expr->integer.line = token.line;
         expr->integer.col = token.col;
@@ -583,7 +583,7 @@ static void build_expr_simple(struct parser *parser, expr_node *expr) {
         parser_advance(parser);
         break;
     case STRING_LITERAL:
-        expr->type = EXPR_STRING;
+        expr->kind = EXPR_STRING;
         expr->string.value = token.literal;
         expr->string.line = token.line;
         expr->string.col = token.col;
@@ -591,7 +591,7 @@ static void build_expr_simple(struct parser *parser, expr_node *expr) {
         parser_advance(parser);
         break;
     case BOOL_LITERAL:
-        expr->type = EXPR_BOOL;
+        expr->kind = EXPR_BOOL;
         expr->boolean.value = token.literal;
         expr->boolean.line = token.line;
         expr->boolean.col = token.col;
@@ -640,7 +640,7 @@ static void build_expr_at(struct parser *parser, expr_node *expr) {
     while (token.type == AT || token.type == DOT) {
         expr_node *current = malloc(sizeof(expr_node));
 
-        current->type = EXPR_DISPATCH_FULL;
+        current->kind = EXPR_DISPATCH_FULL;
         current->dispatch_full.expr = root;
         current->dispatch_full.type.value = NULL;
         current->dispatch_full.dispatch = malloc(sizeof(struct dispatch_node));
@@ -672,7 +672,7 @@ static void build_expr_at(struct parser *parser, expr_node *expr) {
 
         build_node_fcall(parser, &fcall);
 
-        if (fcall.type == EXPR_DISPATCH) {
+        if (fcall.kind == EXPR_DISPATCH) {
             *current->dispatch_full.dispatch = fcall.dispatch;
         }
 
@@ -690,7 +690,7 @@ static void build_expr_neg(struct parser *parser, expr_node *expr) {
 
     parser_current(parser, &token);
     if (token.type == TILDE) {
-        expr->type = EXPR_NEG;
+        expr->kind = EXPR_NEG;
         expr->neg.expr = malloc(sizeof(expr_node));
 
         expr->neg.op.value = "~";
@@ -711,7 +711,7 @@ static void build_expr_isvoid(struct parser *parser, expr_node *expr) {
 
     parser_current(parser, &token);
     if (token.type == ISVOID) {
-        expr->type = EXPR_ISVOID;
+        expr->kind = EXPR_ISVOID;
         expr->isvoid.expr = malloc(sizeof(expr_node));
 
         expr->isvoid.op.value = "isvoid";
@@ -742,11 +742,11 @@ static void build_expr_mul(struct parser *parser, expr_node *expr) {
         expr_binary_node *current_binary;
 
         if (token.type == MULTIPLY) {
-            current->type = EXPR_MUL;
+            current->kind = EXPR_MUL;
             current_binary = &current->mul;
             current_binary->op.value = "*";
         } else {
-            current->type = EXPR_DIV;
+            current->kind = EXPR_DIV;
             current_binary = &current->div;
             current_binary->op.value = "/";
         }
@@ -785,11 +785,11 @@ static void build_expr_add(struct parser *parser, expr_node *expr) {
         expr_binary_node *current_binary;
 
         if (token.type == PLUS) {
-            current->type = EXPR_ADD;
+            current->kind = EXPR_ADD;
             current_binary = &current->add;
             current_binary->op.value = "+";
         } else {
-            current->type = EXPR_SUB;
+            current->kind = EXPR_SUB;
             current_binary = &current->sub;
             current_binary->op.value = "-";
         }
@@ -829,15 +829,15 @@ static void build_expr_cmp(struct parser *parser, expr_node *expr) {
         expr_binary_node *current_binary;
 
         if (token.type == LESS_THAN_EQ) {
-            current->type = EXPR_LE;
+            current->kind = EXPR_LE;
             current_binary = &current->le;
             current_binary->op.value = "<=";
         } else if (token.type == LESS_THAN) {
-            current->type = EXPR_LT;
+            current->kind = EXPR_LT;
             current_binary = &current->lt;
             current_binary->op.value = "<";
         } else {
-            current->type = EXPR_EQ;
+            current->kind = EXPR_EQ;
             current_binary = &current->eq;
             current_binary->op.value = "=";
         }
@@ -868,7 +868,7 @@ static void build_expr_not(struct parser *parser, expr_node *expr) {
     parser_current(parser, &token);
     parser_peek(parser, &next);
     if (token.type == NOT) {
-        expr->type = EXPR_NOT;
+        expr->kind = EXPR_NOT;
         expr->not_.expr = malloc(sizeof(expr_node));
 
         expr->not_.op.value = "not";
@@ -888,12 +888,12 @@ static void build_expr(struct parser *parser, expr_node *expr) {
     struct token token;
     struct token next;
 
-    expr->type = EXPR_NONE;
+    expr->kind = EXPR_NONE;
 
     parser_current(parser, &token);
     parser_peek(parser, &next);
     if (token.type == IDENT && next.type == ASSIGN) {
-        expr->type = EXPR_ASSIGN;
+        expr->kind = EXPR_ASSIGN;
         expr->assign.name.value = token.literal;
         expr->assign.name.line = token.line;
         expr->assign.name.col = token.col;
@@ -913,7 +913,7 @@ static void build_attribute(struct parser *parser, attribute_node *attribute) {
 
     attribute->name.value = NULL;
     attribute->type.value = NULL;
-    attribute->value.type = EXPR_NONE;
+    attribute->value.kind = EXPR_NONE;
 
     parser_current(parser, &token);
     if (token.type == IDENT) {
@@ -1204,7 +1204,7 @@ int parser_run(const char *filename, ds_dynamic_array *tokens,
 
 // Get the default token for a given node
 node_info *get_default_token(expr_node *node) {
-    switch (node->type) {
+    switch (node->kind) {
     case EXPR_ASSIGN:
         return &node->assign.name;
     case EXPR_DISPATCH_FULL: return get_default_token(node->dispatch_full.expr);

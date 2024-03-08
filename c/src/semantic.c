@@ -68,35 +68,6 @@ static void find_object_ctx(class_context *class_ctx, const char *object_name,
     }
 }
 
-static const char *least_common_ancestor(semantic_context *context,
-                                         const char *type1, const char *type2) {
-    class_context *class_ctx1 = NULL;
-    find_class_ctx(context, type1, &class_ctx1);
-
-    class_context *class_ctx2 = NULL;
-    find_class_ctx(context, type2, &class_ctx2);
-
-    if (class_ctx1 == NULL || class_ctx2 == NULL) {
-        return NULL;
-    }
-
-    class_context *current_ctx = class_ctx1;
-    while (current_ctx != NULL) {
-        class_context *iterator_ctx = class_ctx2;
-        while (iterator_ctx != NULL) {
-            if (strcmp(current_ctx->name, iterator_ctx->name) == 0) {
-                return current_ctx->name;
-            }
-
-            iterator_ctx = iterator_ctx->parent;
-        }
-
-        current_ctx = current_ctx->parent;
-    }
-
-    return NULL;
-}
-
 // Check if lhs_type <= rhs_type
 static int is_type_ancestor(semantic_context *context, const char *class_type,
                             const char *lhs_type, const char *rhs_type) {
@@ -129,6 +100,31 @@ static int is_type_ancestor(semantic_context *context, const char *class_type,
     } while (current_ctx != NULL && lhs_ctx != current_ctx);
 
     return 0;
+}
+
+// Find the least common ancestor of two types
+static const char *least_common_ancestor(semantic_context *context,
+                                         const char *type1, const char *type2) {
+    class_context *class_ctx1 = NULL;
+    find_class_ctx(context, type1, &class_ctx1);
+
+    class_context *class_ctx2 = NULL;
+    find_class_ctx(context, type2, &class_ctx2);
+
+    if (class_ctx1 == NULL || class_ctx2 == NULL) {
+        return NULL;
+    }
+
+    class_context *current_ctx = class_ctx1;
+    while (current_ctx != NULL) {
+        if (is_type_ancestor(context, current_ctx->name, type1, type2)) {
+            return current_ctx->name;
+        }
+
+        current_ctx = current_ctx->parent;
+    }
+
+    return NULL;
 }
 
 static int is_class_redefined(semantic_context *context, class_node class) {
@@ -1641,7 +1637,7 @@ static const char *semantic_check_dispatch_full_expression(
 static const char *semantic_check_expression(
     semantic_context *context, expr_node *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
-    switch (expr->type) {
+    switch (expr->kind) {
     case EXPR_ASSIGN:
         return semantic_check_assign_expression(
             context, &expr->assign, class_ctx, method_env, object_env);

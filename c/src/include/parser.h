@@ -14,7 +14,7 @@ typedef struct node_info {
         unsigned int col;
 } node_info;
 
-enum expr_type {
+enum expr_kind {
     EXPR_NONE,
     EXPR_ASSIGN,
     EXPR_DISPATCH_FULL,
@@ -117,7 +117,8 @@ typedef struct new_node {
 } new_node;
 
 typedef struct expr_node {
-        enum expr_type type;
+        char *type; // TODO: initialize this during type checking
+        enum expr_kind kind;
         union {
                 assign_node assign;
                 dispatch_full_node dispatch_full;
