@@ -1,0 +1,10 @@
+A.f
+t0 <- x = y
+t0
+A.g
+t0 <- x < y
+t0
+A.h
+t0 <- int 1
+t1 <- x <= t0
+t1

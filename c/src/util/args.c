@@ -1,5 +1,5 @@
-#include "util.h"
 #include "argparse.h"
+#include "util.h"
 #include <stdio.h>
 
 struct argparse_parser *util_parse_arguments(int argc, char **argv) {
@@ -21,12 +21,13 @@ struct argparse_parser *util_parse_arguments(int argc, char **argv) {
                                       .type = ARGUMENT_TYPE_FLAG,
                                       .required = 0}));
 
-    argparse_add_argument(
-        parser, ((struct argparse_options){.short_name = 'S',
-                                           .long_name = ARG_SEMANTIC,
-                                           .description = "Semantic check the input file",
-                                           .type = ARGUMENT_TYPE_FLAG,
-                                           .required = 0}));
+    argparse_add_argument(parser,
+                          ((struct argparse_options){
+                              .short_name = 'S',
+                              .long_name = ARG_SEMANTIC,
+                              .description = "Semantic check the input file",
+                              .type = ARGUMENT_TYPE_FLAG,
+                              .required = 0}));
 
     argparse_add_argument(
         parser, ((struct argparse_options){.short_name = 'i',
@@ -40,6 +41,13 @@ struct argparse_parser *util_parse_arguments(int argc, char **argv) {
                                            .long_name = ARG_OUTPUT,
                                            .description = "Output file",
                                            .type = ARGUMENT_TYPE_VALUE,
+                                           .required = 0}));
+
+    argparse_add_argument(
+        parser, ((struct argparse_options){.short_name = 't',
+                                           .long_name = ARG_TACGEN,
+                                           .description = "Generate TAC",
+                                           .type = ARGUMENT_TYPE_FLAG,
                                            .required = 0}));
 
     if (argparse_parse(parser, argc, argv) != 0) {

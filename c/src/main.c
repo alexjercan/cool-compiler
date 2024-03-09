@@ -2,6 +2,7 @@
 #include <stdio.h>
 #define ARGPARSE_IMPLEMENTATION
 #include "argparse.h"
+#include "codegen.h"
 #include "ds.h"
 #include "lexer.h"
 #include "parser.h"
@@ -58,6 +59,11 @@ int main(int argc, char **argv) {
 
     if (argparse_get_flag(parser, ARG_SEMANTIC) == 1) {
         parser_print_ast(&program);
+        return_defer(0);
+    }
+
+    if (argparse_get_flag(parser, ARG_TACGEN) == 1) {
+        codegen_tac_print(&program);
         return_defer(0);
     }
 

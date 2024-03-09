@@ -15,6 +15,7 @@
 #define ARG_LEXER "lex"
 #define ARG_SYNTAX "syn"
 #define ARG_SEMANTIC "sem"
+#define ARG_TACGEN "tac"
 
 struct argparse_parser *util_parse_arguments(int argc, char **argv);
 void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,

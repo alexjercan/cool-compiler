@@ -51,6 +51,11 @@ semantic_analyzer() {
     analyzer semantic2 --sem
 }
 
+tac_generator() {
+    echo "Testing the TAC generator"
+    analyzer tac --tac
+}
+
 make clean && make
 
 ARG1=$1
@@ -60,11 +65,14 @@ elif [ "$ARG1" == "--syn" ]; then
     syntax_analyzer
 elif [ "$ARG1" == "--sem" ]; then
     semantic_analyzer
+elif [ "$ARG1" == "--tac" ]; then
+    tac_generator
 elif [ -z "$ARG1" ]; then
     lexical_analyzer
     syntax_analyzer
     semantic_analyzer
+    tac_generator
 else
-    echo "Usage: $0 [--lex | --syn | --sem]"
+    echo "Usage: $0 [--lex | --syn | --sem | --tac]"
     exit 1
 fi

@@ -1,0 +1,17 @@
+A.f
+t0 <- new B
+b <- t0
+t1 <- x + y
+s <- t1
+t2 <- b@B.f(x, y)
+t2
+A.g
+t0 <- new A
+t1 <- t0@A.f(x, y)
+t1
+A.h
+t0 <- self@SELF_TYPE.g(x, y)
+t0
+B.f
+t0 <- x = y
+t0
