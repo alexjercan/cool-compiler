@@ -1,0 +1,33 @@
+program
+  class
+    A
+    IO
+    attribute
+      s
+      String
+      implicit dispatch : String
+        type_name
+    attribute
+      s1
+      String
+      . : String
+        . : SELF_TYPE
+          implicit dispatch : SELF_TYPE
+            out_string
+            a : String
+          out_int
+          3 : Int
+        in_string
+    attribute
+      l1
+      Int
+      . : Int
+        s1 : String
+        length
+    attribute
+      s3
+      String
+      . : String
+        s1 : String
+        concat
+        s2 : String

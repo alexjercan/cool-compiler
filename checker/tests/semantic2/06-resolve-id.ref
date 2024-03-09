@@ -1,0 +1,41 @@
+program
+  class
+    A
+    attribute
+      z
+      Int
+      x : Int
+    attribute
+      x
+      Int
+      x : Int
+    attribute
+      f
+      Bool
+    method
+      f
+      formal
+        f
+        Int
+      Int
+      let : Int
+        local : Int
+          y
+          Int
+          z : Int
+        case : Int
+          y
+          case branch : Int
+            z
+            Int
+            <- : Int
+              x
+              + : Int
+                + : Int
+                  x : Int
+                  z : Int
+                f : Int
+    method
+      g
+      A
+      self : SELF_TYPE

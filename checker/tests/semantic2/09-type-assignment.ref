@@ -1,0 +1,32 @@
+program
+  class
+    A
+    attribute
+      x
+      Bool
+    attribute
+      y
+      Int
+    attribute
+      b
+      B
+    attribute
+      c
+      C
+    method
+      f
+      Object
+      <- : B
+        b
+        b : B
+    method
+      g
+      Object
+      <- : C
+        b
+        c : C
+  class
+    B
+  class
+    C
+    B

@@ -1,0 +1,53 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        x
+        Int
+      Object
+      <- : Int
+        x
+        case : Int
+          x
+          case branch : Int
+            x
+            Int
+            3 : Int
+    method
+      h
+      formal
+        b
+        B
+      formal
+        c
+        C
+      formal
+        d
+        D
+      Object
+      <- : B
+        b
+        case : B
+          b
+          case branch : B
+            x
+            Int
+            b : B
+          case branch : C
+            y
+            String
+            c : C
+          case branch : D
+            z
+            Bool
+            d : D
+  class
+    B
+  class
+    C
+    B
+  class
+    D
+    C

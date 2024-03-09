@@ -1,0 +1,22 @@
+program
+  class
+    A
+    attribute
+      x
+      Bool
+    method
+      f
+      formal
+        x
+        Int
+      Int
+      case : Int
+        x
+        case branch : Int
+          x
+          Int
+          x : Int
+        case branch : Int
+          o
+          Object
+          0 : Int

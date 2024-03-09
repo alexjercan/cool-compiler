@@ -1,0 +1,33 @@
+program
+  class
+    A
+    attribute
+      j
+      Bool
+      not : Bool
+        isvoid : Bool
+          new : B
+            B
+    method
+      f
+      formal
+        a
+        A
+      Object
+      <- : A
+        a
+        new : A
+          A
+    method
+      g
+      formal
+        a
+        A
+      Object
+      <- : B
+        a
+        new : B
+          B
+  class
+    B
+    A

@@ -1,0 +1,40 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        x
+        Int
+      formal
+        y
+        Int
+      Int
+      + : Int
+        x : Int
+        y : Int
+    method
+      h
+      formal
+        b
+        B
+      formal
+        c
+        C
+      B
+      b : B
+    method
+      i
+      formal
+        b
+        B
+      formal
+        c
+        C
+      B
+      c : C
+  class
+    B
+  class
+    C
+    B

@@ -1,0 +1,22 @@
+program
+  class
+    A
+    attribute
+      x
+      Bool
+    method
+      f
+      formal
+        x
+        Int
+      formal
+        y
+        Int
+      Int
+      0 : Int
+  class
+    B
+    A
+    attribute
+      y
+      Int

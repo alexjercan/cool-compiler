@@ -1,0 +1,87 @@
+program
+  class
+    A
+    attribute
+      x
+      SELF_TYPE
+      self : SELF_TYPE
+    attribute
+      u
+      Int
+    method
+      f1
+      SELF_TYPE
+      self : SELF_TYPE
+    method
+      f2
+      A
+      self : SELF_TYPE
+  class
+    B
+    A
+    method
+      g
+      Int
+      0 : Int
+  class
+    C
+    B
+    method
+      i
+      Object
+      let : SELF_TYPE
+        local : B
+          a
+          A
+          new : B
+            B
+        local : B
+          b
+          B
+          new : B
+            B
+        block : SELF_TYPE
+          . : A
+            a : A
+            f1
+          . : B
+            b : B
+            f1
+          . : Int
+            b : B
+            g
+          . : Int
+            . : B
+              b : B
+              f1
+            g
+          . : A
+            b : B
+            f2
+          . : Int
+            b : B
+            g
+          <- : B
+            b
+            . : B
+              b : B
+              A
+              f1
+          . : Int
+            . : B
+              b : B
+              A
+              f1
+            g
+          <- : SELF_TYPE
+            x
+            . : SELF_TYPE
+              self : SELF_TYPE
+              f1
+          <- : SELF_TYPE
+            x
+            implicit dispatch : SELF_TYPE
+              f1
+  class
+    D
+    C

@@ -133,7 +133,7 @@ static void context_show_errorf(semantic_context *context, unsigned int line,
 static void find_class_ctx(semantic_context *context, const char *class_name,
                            class_context **class_ctx) {
     for (unsigned int i = 0; i < context->classes.count; i++) {
-        class_context *ctx;
+        class_context *ctx = NULL;
         ds_dynamic_array_get_ref(&context->classes, i, (void **)&ctx);
 
         if (strcmp(ctx->name, class_name) == 0) {
@@ -146,7 +146,7 @@ static void find_class_ctx(semantic_context *context, const char *class_name,
 static void find_method_ctx(class_context *class_ctx, const char *method_name,
                             method_context **method_ctx) {
     for (unsigned int i = 0; i < class_ctx->methods.count; i++) {
-        method_context *ctx;
+        method_context *ctx = NULL;
         ds_dynamic_array_get_ref(&class_ctx->methods, i, (void **)&ctx);
 
         if (strcmp(ctx->name, method_name) == 0) {
@@ -159,7 +159,7 @@ static void find_method_ctx(class_context *class_ctx, const char *method_name,
 static void find_object_ctx(class_context *class_ctx, const char *object_name,
                             object_context **object_ctx) {
     for (unsigned int i = 0; i < class_ctx->objects.count; i++) {
-        object_context *ctx;
+        object_context *ctx = NULL;
         ds_dynamic_array_get_ref(&class_ctx->objects, i, (void **)&ctx);
 
         if (strcmp(ctx->name, object_name) == 0) {
@@ -866,7 +866,7 @@ static void find_method_env(method_environment *env, const char *class_name,
                             method_environment_item **item) {
     unsigned int n = env->items.count;
     for (unsigned int i = 0; i < env->items.count; i++) {
-        method_environment_item *env_item;
+        method_environment_item *env_item = NULL;
         ds_dynamic_array_get_ref(&env->items, n - i - 1, (void **)&env_item);
 
         if (strcmp(env_item->class_name, class_name) == 0 &&
@@ -891,7 +891,7 @@ static void build_method_environment(semantic_context *context,
         class_context *current_ctx = class_ctx;
         do {
             for (unsigned int k = 0; k < current_ctx->methods.count; k++) {
-                method_context *method_ctx;
+                method_context *method_ctx = NULL;
                 ds_dynamic_array_get_ref(&current_ctx->methods, k,
                                          (void **)&method_ctx);
 
@@ -899,7 +899,7 @@ static void build_method_environment(semantic_context *context,
 
                 int found_item = 0;
                 for (unsigned int m = 0; m < env->items.count; m++) {
-                    method_environment_item *env_item;
+                    method_environment_item *env_item = NULL;
                     ds_dynamic_array_get_ref(&env->items, m,
                                              (void **)&env_item);
 
@@ -974,7 +974,7 @@ static void get_object_environment(object_environment *env,
                                    const char *class_name,
                                    object_environment_item *item) {
     for (unsigned int i = 0; i < env->items.count; i++) {
-        object_environment_item *env_item;
+        object_environment_item *env_item = NULL;
         ds_dynamic_array_get_ref(&env->items, i, (void **)&env_item);
 
         if (strcmp(env_item->class_name, class_name) == 0) {
@@ -990,8 +990,8 @@ static const char *semantic_check_expression(
     method_environment *method_env, object_environment_item *object_env);
 
 static int is_let_init_name_illegal(semantic_context *context,
-                                    let_init_node init) {
-    if (strcmp(init.name.value, "self") == 0) {
+                                    let_init_node *init) {
+    if (strcmp(init->name.value, "self") == 0) {
         return 1;
     }
 
@@ -999,20 +999,20 @@ static int is_let_init_name_illegal(semantic_context *context,
 }
 
 #define context_show_error_let_init_name_illegal(context, init)                \
-    context_show_errorf(context, init.name.line, init.name.col,                \
-                        "Let variable has illegal name %s", init.name.value)
+    context_show_errorf(context, init->name.line, init->name.col,              \
+                        "Let variable has illegal name %s", init->name.value)
 
 static int is_let_init_type_undefined(semantic_context *context,
-                                      let_init_node init) {
+                                      let_init_node *init) {
     class_context *class_ctx = NULL;
-    find_class_ctx(context, init.type.value, &class_ctx);
+    find_class_ctx(context, init->type.value, &class_ctx);
     return class_ctx == NULL;
 }
 
 #define context_show_error_let_init_type_undefined(context, init)              \
-    context_show_errorf(context, init.type.line, init.type.col,                \
+    context_show_errorf(context, init->type.line, init->type.col,              \
                         "Let variable %s has undefined type %s",               \
-                        init.name.value, init.type.value)
+                        init->name.value, init->type.value)
 
 static int is_let_init_type_incompatible(semantic_context *context,
                                          const char *class_type,
@@ -1026,7 +1026,7 @@ static int is_let_init_type_incompatible(semantic_context *context,
     context_show_errorf(context, token->line, token->col,                      \
                         "Type %s of initialization expression of identifier "  \
                         "%s is incompatible with declared type %s",            \
-                        init_type, init.name.value, init.type.value)
+                        init_type, init->name.value, init->type.value)
 
 static const char *semantic_check_let_expression(
     semantic_context *context, let_node *expr, class_context *class_ctx,
@@ -1034,8 +1034,8 @@ static const char *semantic_check_let_expression(
 
     unsigned int depth = 0;
     for (unsigned int i = 0; i < expr->inits.count; i++) {
-        let_init_node init;
-        ds_dynamic_array_get(&expr->inits, i, &init);
+        let_init_node *init = NULL;
+        ds_dynamic_array_get_ref(&expr->inits, i, (void **)&init);
 
         if (is_let_init_name_illegal(context, init)) {
             context_show_error_let_init_name_illegal(context, init);
@@ -1047,22 +1047,23 @@ static const char *semantic_check_let_expression(
             continue;
         }
 
-        const char *init_type = init.type.value;
+        const char *init_type = init->type.value;
 
-        if (init.init != NULL) {
+        if (init->init != NULL) {
             const char *expr_type = semantic_check_expression(
-                context, init.init, class_ctx, method_env, object_env);
+                context, init->init, class_ctx, method_env, object_env);
 
             if (expr_type != NULL) {
                 if (is_let_init_type_incompatible(context, class_ctx->name,
                                                   expr_type, init_type)) {
                     context_show_error_let_init_type_incompatible(
-                        context, token_get_node_info(init.init), init, expr_type);
+                        context, token_get_node_info(init->init), init,
+                        expr_type);
                 }
             }
         }
 
-        object_context object = {.name = init.name.value, .type = init_type};
+        object_context object = {.name = init->name.value, .type = init_type};
         ds_dynamic_array_append(&object_env->objects, &object);
 
         depth++;
@@ -1079,8 +1080,8 @@ static const char *semantic_check_let_expression(
 }
 
 static int is_case_variable_name_illegal(semantic_context *context,
-                                         branch_node branch) {
-    if (strcmp(branch.name.value, "self") == 0) {
+                                         branch_node *branch) {
+    if (strcmp(branch->name.value, "self") == 0) {
         return 1;
     }
 
@@ -1088,13 +1089,13 @@ static int is_case_variable_name_illegal(semantic_context *context,
 }
 
 #define context_show_error_case_variable_name_illegal(context, branch)         \
-    context_show_errorf(context, branch.name.line, branch.name.col,            \
+    context_show_errorf(context, branch->name.line, branch->name.col,          \
                         "Case variable has illegal name %s",                   \
-                        branch.name.value)
+                        branch->name.value)
 
 static int is_case_variable_type_illegal(semantic_context *context,
-                                         branch_node branch) {
-    if (strcmp(branch.type.value, SELF_TYPE) == 0) {
+                                         branch_node *branch) {
+    if (strcmp(branch->type.value, SELF_TYPE) == 0) {
         return 1;
     }
 
@@ -1102,29 +1103,29 @@ static int is_case_variable_type_illegal(semantic_context *context,
 }
 
 #define context_show_error_case_variable_type_illegal(context, branch)         \
-    context_show_errorf(context, branch.type.line, branch.type.col,            \
+    context_show_errorf(context, branch->type.line, branch->type.col,          \
                         "Case variable %s has illegal type %s",                \
-                        branch.name.value, branch.type.value)
+                        branch->name.value, branch->type.value)
 
 static int is_case_variable_type_undefined(semantic_context *context,
-                                           branch_node branch) {
+                                           branch_node *branch) {
     class_context *class_ctx = NULL;
-    find_class_ctx(context, branch.type.value, &class_ctx);
+    find_class_ctx(context, branch->type.value, &class_ctx);
     return class_ctx == NULL;
 }
 
 #define context_show_error_case_variable_type_undefined(context, branch)       \
-    context_show_errorf(context, branch.type.line, branch.type.col,            \
+    context_show_errorf(context, branch->type.line, branch->type.col,          \
                         "Case variable %s has undefined type %s",              \
-                        branch.name.value, branch.type.value)
+                        branch->name.value, branch->type.value)
 
 static const char *semantic_check_case_expression(
     semantic_context *context, case_node *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
     const char *case_type = NULL;
     for (unsigned int i = 0; i < expr->cases.count; i++) {
-        branch_node branch;
-        ds_dynamic_array_get(&expr->cases, i, &branch);
+        branch_node *branch = NULL;
+        ds_dynamic_array_get_ref(&expr->cases, i, (void **)&branch);
 
         if (is_case_variable_name_illegal(context, branch)) {
             context_show_error_case_variable_name_illegal(context, branch);
@@ -1141,12 +1142,12 @@ static const char *semantic_check_case_expression(
             continue;
         }
 
-        object_context object = {.name = branch.name.value,
-                                 .type = branch.type.value};
+        object_context object = {.name = branch->name.value,
+                                 .type = branch->type.value};
         ds_dynamic_array_append(&object_env->objects, &object);
 
         const char *branch_type = semantic_check_expression(
-            context, branch.body, class_ctx, method_env, object_env);
+            context, branch->body, class_ctx, method_env, object_env);
 
         if (case_type == NULL) {
             case_type = branch_type;
@@ -1490,10 +1491,10 @@ static const char *semantic_check_block_expression(
     method_environment *method_env, object_environment_item *object_env) {
     const char *block_type = NULL;
     for (unsigned int i = 0; i < block->exprs.count; i++) {
-        expr_node expr;
-        ds_dynamic_array_get(&block->exprs, i, &expr);
+        expr_node *expr = NULL;
+        ds_dynamic_array_get_ref(&block->exprs, i, (void **)&expr);
 
-        block_type = semantic_check_expression(context, &expr, class_ctx,
+        block_type = semantic_check_expression(context, expr, class_ctx,
                                                method_env, object_env);
     }
 
@@ -1562,11 +1563,11 @@ static const char *semantic_check_dispatch_expression(
     }
 
     for (unsigned int i = 0; i < expr->args.count; i++) {
-        expr_node arg;
-        ds_dynamic_array_get(&expr->args, i, &arg);
+        expr_node *arg = NULL;
+        ds_dynamic_array_get_ref(&expr->args, i, (void **)&arg);
 
         const char *arg_type = semantic_check_expression(
-            context, &arg, class_ctx, method_env, object_env);
+            context, arg, class_ctx, method_env, object_env);
 
         if (arg_type == NULL) {
             continue;
@@ -1581,7 +1582,7 @@ static const char *semantic_check_dispatch_expression(
         if (is_arg_type_incompatible(context, class_ctx->name, arg_type,
                                      formal_type)) {
             context_show_error_dispatch_arg_type_incompatible(
-                context, token_get_node_info(&arg), method_item->method_name,
+                context, token_get_node_info(arg), method_item->method_name,
                 method_item->class_name, arg_type, formal_name, formal_type);
         }
     }
@@ -1676,11 +1677,11 @@ static const char *semantic_check_dispatch_full_expression(
     }
 
     for (unsigned int i = 0; i < expr->dispatch->args.count; i++) {
-        expr_node arg;
-        ds_dynamic_array_get(&expr->dispatch->args, i, &arg);
+        expr_node *arg = NULL;
+        ds_dynamic_array_get_ref(&expr->dispatch->args, i, (void **)&arg);
 
         const char *arg_type = semantic_check_expression(
-            context, &arg, class_ctx, method_env, object_env);
+            context, arg, class_ctx, method_env, object_env);
 
         if (arg_type == NULL) {
             continue;
@@ -1695,7 +1696,7 @@ static const char *semantic_check_dispatch_full_expression(
         if (is_arg_type_incompatible(context, class_ctx->name, arg_type,
                                      formal_type)) {
             context_show_error_dispatch_arg_type_incompatible(
-                context, token_get_node_info(&arg), method_item->method_name,
+                context, token_get_node_info(arg), method_item->method_name,
                 method_item->class_name, arg_type, formal_name, formal_type);
         }
     }
@@ -1710,79 +1711,110 @@ static const char *semantic_check_dispatch_full_expression(
 static const char *semantic_check_expression(
     semantic_context *context, expr_node *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
+    const char *type = NULL;
+
     switch (expr->kind) {
     case EXPR_ASSIGN:
-        return semantic_check_assign_expression(
+        type = semantic_check_assign_expression(
             context, &expr->assign, class_ctx, method_env, object_env);
+        break;
     case EXPR_DISPATCH_FULL:
-        return semantic_check_dispatch_full_expression(
+        type = semantic_check_dispatch_full_expression(
             context, &expr->dispatch_full, class_ctx, method_env, object_env);
+        break;
     case EXPR_DISPATCH:
-        return semantic_check_dispatch_expression(
+        type = semantic_check_dispatch_expression(
             context, &expr->dispatch, class_ctx, method_env, object_env);
+        break;
     case EXPR_COND:
-        return semantic_check_if_expression(context, &expr->cond, class_ctx,
+        type = semantic_check_if_expression(context, &expr->cond, class_ctx,
                                             method_env, object_env);
+        break;
     case EXPR_LOOP:
-        return semantic_check_loop_expression(context, &expr->loop, class_ctx,
+        type = semantic_check_loop_expression(context, &expr->loop, class_ctx,
                                               method_env, object_env);
+        break;
     case EXPR_BLOCK:
-        return semantic_check_block_expression(context, &expr->block, class_ctx,
+        type = semantic_check_block_expression(context, &expr->block, class_ctx,
                                                method_env, object_env);
+        break;
     case EXPR_LET:
-        return semantic_check_let_expression(context, &expr->let, class_ctx,
+        type = semantic_check_let_expression(context, &expr->let, class_ctx,
                                              method_env, object_env);
+        break;
     case EXPR_CASE:
-        return semantic_check_case_expression(context, &expr->case_, class_ctx,
+        type = semantic_check_case_expression(context, &expr->case_, class_ctx,
                                               method_env, object_env);
+        break;
     case EXPR_NEW:
-        return semantic_check_new_expression(context, &expr->new, class_ctx,
+        type = semantic_check_new_expression(context, &expr->new, class_ctx,
                                              method_env, object_env);
+        break;
     case EXPR_ISVOID:
-        return semantic_check_isvoid_expression(
+        type = semantic_check_isvoid_expression(
             context, &expr->isvoid, class_ctx, method_env, object_env);
+        break;
     case EXPR_ADD:
-        return semantic_check_arith_expression(context, &expr->add, class_ctx,
+        type = semantic_check_arith_expression(context, &expr->add, class_ctx,
                                                method_env, object_env);
+        break;
     case EXPR_SUB:
-        return semantic_check_arith_expression(context, &expr->sub, class_ctx,
+        type = semantic_check_arith_expression(context, &expr->sub, class_ctx,
                                                method_env, object_env);
+        break;
     case EXPR_MUL:
-        return semantic_check_arith_expression(context, &expr->mul, class_ctx,
+        type = semantic_check_arith_expression(context, &expr->mul, class_ctx,
                                                method_env, object_env);
+        break;
     case EXPR_DIV:
-        return semantic_check_arith_expression(context, &expr->div, class_ctx,
+        type = semantic_check_arith_expression(context, &expr->div, class_ctx,
                                                method_env, object_env);
+        break;
     case EXPR_NEG:
-        return semantic_check_neg_expression(context, &expr->neg, class_ctx,
+        type = semantic_check_neg_expression(context, &expr->neg, class_ctx,
                                              method_env, object_env);
+        break;
     case EXPR_LT:
-        return semantic_check_cmp_expression(context, &expr->lt, class_ctx,
+        type = semantic_check_cmp_expression(context, &expr->lt, class_ctx,
                                              method_env, object_env);
+        break;
     case EXPR_LE:
-        return semantic_check_cmp_expression(context, &expr->lt, class_ctx,
+        type = semantic_check_cmp_expression(context, &expr->lt, class_ctx,
                                              method_env, object_env);
+        break;
     case EXPR_EQ:
-        return semantic_check_eq_expression(context, &expr->eq, class_ctx,
+        type = semantic_check_eq_expression(context, &expr->eq, class_ctx,
                                             method_env, object_env);
+        break;
     case EXPR_NOT:
-        return semantic_check_not_expression(context, &expr->not_, class_ctx,
+        type = semantic_check_not_expression(context, &expr->not_, class_ctx,
                                              method_env, object_env);
+        break;
     case EXPR_PAREN:
-        return semantic_check_expression(context, expr->paren, class_ctx,
+        type = semantic_check_expression(context, expr->paren, class_ctx,
                                          method_env, object_env);
+        break;
     case EXPR_IDENT:
-        return semantic_check_ident_expression(context, &expr->ident, class_ctx,
+        type = semantic_check_ident_expression(context, &expr->ident, class_ctx,
                                                method_env, object_env);
+        break;
     case EXPR_INT:
-        return INT_TYPE;
+        type = INT_TYPE;
+        break;
     case EXPR_STRING:
-        return STRING_TYPE;
+        type = STRING_TYPE;
+        break;
     case EXPR_BOOL:
-        return BOOL_TYPE;
+        type = BOOL_TYPE;
+        break;
     default:
-        return NULL;
+        type = NULL;
+        break;
     }
+
+    expr->type = type;
+
+    return type;
 }
 
 static int is_method_return_type_incompatible(semantic_context *context,
@@ -1797,32 +1829,32 @@ static int is_method_return_type_incompatible(semantic_context *context,
     context_show_errorf(context, token->line, token->col,                      \
                         "Type %s of the body of method %s is incompatible "    \
                         "with declared return type %s",                        \
-                        return_type, method.name.value, method_type)
+                        return_type, method->name.value, method_type)
 
 static void semantic_check_method_body(semantic_context *context,
                                        program_node *program,
                                        method_environment *method_env,
                                        object_environment *object_envs) {
     for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node class;
-        ds_dynamic_array_get(&program->classes, i, &class);
+        class_node *class = NULL;
+        ds_dynamic_array_get_ref(&program->classes, i, (void **)&class);
 
         class_context *class_ctx = NULL;
-        find_class_ctx(context, class.name.value, &class_ctx);
+        find_class_ctx(context, class->name.value, &class_ctx);
 
         if (class_ctx == NULL) {
             continue;
         }
 
         object_environment_item object_env = {0};
-        get_object_environment(object_envs, class.name.value, &object_env);
+        get_object_environment(object_envs, class->name.value, &object_env);
 
-        for (unsigned int j = 0; j < class.methods.count; j++) {
-            method_node method;
-            ds_dynamic_array_get(&class.methods, j, &method);
+        for (unsigned int j = 0; j < class->methods.count; j++) {
+            method_node *method = NULL;
+            ds_dynamic_array_get_ref(&class->methods, j, (void **)&method);
 
             method_context *method_ctx = NULL;
-            find_method_ctx(class_ctx, method.name.value, &method_ctx);
+            find_method_ctx(class_ctx, method->name.value, &method_ctx);
 
             if (method_ctx == NULL) {
                 continue;
@@ -1838,16 +1870,16 @@ static void semantic_check_method_body(semantic_context *context,
                 depth++;
             }
 
-            expr_node body = method.body;
+            expr_node *body = &method->body;
             const char *body_type = semantic_check_expression(
-                context, &body, class_ctx, method_env, &object_env);
+                context, body, class_ctx, method_env, &object_env);
 
             if (body_type != NULL) {
                 if (is_method_return_type_incompatible(context, class_ctx->name,
                                                        body_type,
                                                        method_ctx->type)) {
                     context_show_error_method_body_incompatible_return_type(
-                        context, token_get_node_info(&body), method, body_type,
+                        context, token_get_node_info(body), method, body_type,
                         method_ctx->type);
                 }
             }
@@ -1872,47 +1904,47 @@ static int is_attribute_value_type_incompatible(semantic_context *context,
         context, token->line, token->col,                                      \
         "Type %s of initialization expression of attribute %s "                \
         "is incompatible with declared type %s",                               \
-        value_type, attr.name.value, attr_type)
+        value_type, attr->name.value, attr_type)
 
 static void semantic_check_attribute_init(semantic_context *context,
                                           program_node *program,
                                           method_environment *method_env,
                                           object_environment *object_envs) {
     for (unsigned int i = 0; i < program->classes.count; i++) {
-        class_node class;
-        ds_dynamic_array_get(&program->classes, i, &class);
+        class_node *class = NULL;
+        ds_dynamic_array_get_ref(&program->classes, i, (void **)&class);
 
         class_context *class_ctx = NULL;
-        find_class_ctx(context, class.name.value, &class_ctx);
+        find_class_ctx(context, class->name.value, &class_ctx);
 
         if (class_ctx == NULL) {
             continue;
         }
 
         object_environment_item object_env = {0};
-        get_object_environment(object_envs, class.name.value, &object_env);
+        get_object_environment(object_envs, class->name.value, &object_env);
 
-        for (unsigned int j = 0; j < class.attributes.count; j++) {
-            attribute_node attribute;
-            ds_dynamic_array_get(&class.attributes, j, &attribute);
+        for (unsigned int j = 0; j < class->attributes.count; j++) {
+            attribute_node *attribute = NULL;
+            ds_dynamic_array_get_ref(&class->attributes, j, (void **)&attribute);
 
             object_context *object_ctx = NULL;
-            find_object_ctx(class_ctx, attribute.name.value, &object_ctx);
+            find_object_ctx(class_ctx, attribute->name.value, &object_ctx);
 
             if (object_ctx == NULL) {
                 continue;
             }
 
-            expr_node body = attribute.value;
+            expr_node *body = &attribute->value;
             const char *value_type = semantic_check_expression(
-                context, &body, class_ctx, method_env, &object_env);
+                context, body, class_ctx, method_env, &object_env);
 
             if (value_type != NULL) {
                 if (is_attribute_value_type_incompatible(
                         context, class_ctx->name, value_type,
                         object_ctx->type)) {
                     context_show_error_attribute_init_incompatible(
-                        context, token_get_node_info(&body), attribute,
+                        context, token_get_node_info(body), attribute,
                         object_ctx->type, value_type);
                 }
             }

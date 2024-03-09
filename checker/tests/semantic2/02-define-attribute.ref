@@ -1,0 +1,12 @@
+program
+  class
+    B
+    A
+    attribute
+      x
+      Int
+  class
+    A
+    attribute
+      y
+      B

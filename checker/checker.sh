@@ -11,6 +11,8 @@ analyzer() {
     tests_dir=$TESTS_DIR/$1
     exec_arg=$2
 
+    echo "Running tests for $1"
+
     passed=0
     for file_path in $(ls $tests_dir/*.cl); do
         ref_path=$tests_dir/$(basename $file_path .cl).ref
@@ -46,6 +48,7 @@ syntax_analyzer() {
 semantic_analyzer() {
     echo "Testing the semantic analyzer"
     analyzer semantic --sem
+    analyzer semantic2 --sem
 }
 
 make clean && make

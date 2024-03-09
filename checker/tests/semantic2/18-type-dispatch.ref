@@ -1,0 +1,67 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        b
+        B
+      formal
+        c
+        C
+      formal
+        x
+        Int
+      Int
+      block : Int
+        . : Int
+          c : C
+          f
+          x : Int
+          true : Bool
+        . : Int
+          c : C
+          B
+          f
+          x : Int
+          true : Bool
+        . : Int
+          self : SELF_TYPE
+          f
+          b : B
+          c : C
+          x : Int
+        . : Int
+          self : SELF_TYPE
+          f
+          c : C
+          c : C
+          x : Int
+        implicit dispatch : Int
+          f
+          b : B
+          c : C
+          x : Int
+        implicit dispatch : Int
+          f
+          c : C
+          c : C
+          x : Int
+  class
+    Z
+  class
+    B
+    Z
+    method
+      f
+      formal
+        x
+        Int
+      formal
+        y
+        Bool
+      Int
+      0 : Int
+  class
+    C
+    B

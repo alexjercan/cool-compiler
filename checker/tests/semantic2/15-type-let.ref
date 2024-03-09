@@ -1,0 +1,44 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        u
+        Int
+      Object
+      <- : Int
+        u
+        let : Int
+          local : Int
+            x
+            Int
+            + : Int
+              u : Int
+              1 : Int
+          local
+            y
+            Int
+          local
+            z
+            Int
+          local : B
+            b1
+            B
+            new : B
+              B
+          local : C
+            b2
+            B
+            new : C
+              C
+          + : Int
+            + : Int
+              x : Int
+              y : Int
+            z : Int
+  class
+    B
+  class
+    C
+    B

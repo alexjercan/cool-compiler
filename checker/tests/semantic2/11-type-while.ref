@@ -1,0 +1,21 @@
+program
+  class
+    A
+    attribute
+      a
+      A
+    method
+      f
+      formal
+        x
+        Int
+      Object
+      while : Object
+        < : Bool
+          0 : Int
+          x : Int
+        <- : Int
+          x
+          - : Int
+            x : Int
+            1 : Int

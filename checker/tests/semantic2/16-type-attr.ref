@@ -1,0 +1,25 @@
+program
+  class
+    A
+    attribute
+      x
+      Int
+      0 : Int
+    attribute
+      y
+      Int
+    attribute
+      b1
+      B
+      new : B
+        B
+    attribute
+      b2
+      B
+      new : C
+        C
+  class
+    B
+  class
+    C
+    B

@@ -1,0 +1,18 @@
+program
+  class
+    A
+    attribute
+      x
+      Bool
+    method
+      f
+      formal
+        x
+        Int
+      Int
+      let : Int
+        local : Int
+          x
+          Int
+          0 : Int
+        x : Int

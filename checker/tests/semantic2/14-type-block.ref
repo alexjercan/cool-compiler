@@ -1,0 +1,18 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        x
+        Int
+      Object
+      <- : Int
+        x
+        block : Int
+          Done! : String
+          <- : Int
+            x
+            + : Int
+              x : Int
+              1 : Int

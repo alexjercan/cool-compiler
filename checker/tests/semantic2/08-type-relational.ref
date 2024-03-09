@@ -1,0 +1,47 @@
+program
+  class
+    A
+    attribute
+      n
+      Int
+    attribute
+      b
+      Bool
+      <= : Bool
+        2 : Int
+        n : Int
+    attribute
+      e
+      Bool
+      not : Bool
+        not : Bool
+          <= : Bool
+            2 : Int
+            n : Int
+    attribute
+      f
+      Bool
+      not : Bool
+        = : Bool
+          2 : Int
+          n : Int
+    attribute
+      oA
+      A
+    attribute
+      oB
+      B
+    attribute
+      j
+      Bool
+      = : Bool
+        oA : A
+        oA : A
+    attribute
+      k
+      Bool
+      = : Bool
+        oA : A
+        oB : B
+  class
+    B

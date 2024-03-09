@@ -1,0 +1,24 @@
+program
+  class
+    A
+    attribute
+      x
+      Int
+    attribute
+      y
+      Int
+    attribute
+      n
+      Int
+      + : Int
+        1 : Int
+        / : Int
+          * : Int
+            y : Int
+            + : Int
+              x : Int
+              4 : Int
+          - : Int
+            ~ : Int
+              1 : Int
+            1 : Int

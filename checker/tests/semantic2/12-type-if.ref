@@ -1,0 +1,39 @@
+program
+  class
+    A
+    method
+      f
+      formal
+        x
+        Int
+      Object
+      <- : Int
+        x
+        if : Int
+          <= : Bool
+            x : Int
+            5 : Int
+          x : Int
+          + : Int
+            x : Int
+            1 : Int
+    method
+      h
+      formal
+        b
+        B
+      formal
+        c
+        C
+      Object
+      <- : B
+        b
+        if : B
+          true : Bool
+          b : B
+          c : C
+  class
+    B
+  class
+    C
+    B

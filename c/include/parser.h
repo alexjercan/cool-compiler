@@ -117,7 +117,7 @@ typedef struct new_node {
 } new_node;
 
 typedef struct expr_node {
-        char *type; // TODO: initialize this during type checking
+        const char *type;
         enum expr_kind kind;
         union {
                 assign_node assign;
