@@ -1,5 +1,13 @@
 #include "codegen.h"
 
+static void print_tac_label(tac_label label) { printf("%s:\n", label.label); }
+
+static void print_tac_jump(tac_jump jump) { printf("jump %s\n", jump.label); }
+
+static void print_tac_jump_if_true(tac_jump_if_true jump_if_true) {
+    printf("bt %s %s\n", jump_if_true.expr, jump_if_true.label);
+}
+
 static void print_tac_assign_value(tac_assign_value assign_value) {
     printf("%s <- %s\n", assign_value.ident, assign_value.expr);
 }
@@ -50,6 +58,12 @@ static void print_tac_assign_bool(tac_assign_bool assign_bool) {
 
 static void print_tac(tac_instr tac) {
     switch (tac.kind) {
+    case TAC_LABEL:
+        return print_tac_label(tac.label);
+    case TAC_JUMP:
+        return print_tac_jump(tac.jump);
+    case TAC_JUMP_IF_TRUE:
+        return print_tac_jump_if_true(tac.jump_if_true);
     case TAC_ASSIGN_VALUE:
         return print_tac_assign_value(tac.assign_value);
     case TAC_DISPATCH_CALL:

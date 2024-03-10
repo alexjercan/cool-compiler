@@ -3,7 +3,7 @@ class A {
         let b: B <- new B,
             s: Int <- x + y
         in
-            b.f(x, y)
+            b.f(s, y)
     };
 
     g(x : Int, y : Int) : Bool {

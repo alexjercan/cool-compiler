@@ -1,0 +1,39 @@
+A.f
+t1 <- x < y
+bt t1 L0
+t2 <- y = x
+t0 <- t2
+jump L1
+L0:
+t3 <- x = y
+t0 <- t3
+L1:
+t0
+A.g
+t1 <- int 100
+t2 <- y * t1
+t3 <- x + t2
+t4 <- x / y
+t5 <- t3 <= t4
+bt t5 L0
+t6 <- int 100
+t7 <- y + t6
+t8 <- t7 - x
+t0 <- t8
+jump L1
+L0:
+t0 <- x
+L1:
+t0
+A.h
+t1 <- isvoid x
+bt t1 L0
+t2 <- int 100
+t3 <- y + t2
+t4 <- t3 - x
+t0 <- t4
+jump L1
+L0:
+t0 <- x
+L1:
+t0

@@ -5,11 +5,17 @@
 typedef struct tac_context {
         int result;
         int temp_count;
+        int label_count;
 } tac_context;
 
 static void tac_new_var(tac_context *context, char **ident) {
     *ident = malloc(32);
     snprintf(*ident, 32, "t%d", context->temp_count++);
+}
+
+static void tac_new_label(tac_context *context, char **label) {
+    *label = malloc(32);
+    snprintf(*label, 32, "L%d", context->label_count++);
 }
 
 static void tac_expr(tac_context *context, expr_node *expr,
@@ -105,6 +111,94 @@ static void tac_dispatch(tac_context *context, dispatch_node *dispatch,
     };
     ds_dynamic_array_append(instrs, &instr);
 
+    result->kind = TAC_IDENT;
+    result->ident = ident;
+}
+
+static void tac_cond(tac_context *context, cond_node *cond,
+                     ds_dynamic_array *instrs, tac_instr *result) {
+
+    char *ident;
+    tac_new_var(context, &ident);
+
+    char *then_label;
+    tac_new_label(context, &then_label);
+
+    char *done_label;
+    tac_new_label(context, &done_label);
+
+    // ... PREDICATE ...
+    tac_instr predicate;
+    tac_expr(context, cond->predicate, instrs, &predicate);
+
+    // bt PREDICATE THEN_LABEL
+    tac_instr jump_then_instr = {
+        .kind = TAC_JUMP_IF_TRUE,
+        .jump_if_true =
+            {
+                .expr = predicate.ident,
+                .label = then_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &jump_then_instr);
+
+    // ... ELSE ...
+    tac_instr else_instr;
+    tac_expr(context, cond->else_, instrs, &else_instr);
+    tac_instr instr_else = {
+        .kind = TAC_ASSIGN_VALUE,
+        .assign_value =
+            {
+                .ident = ident,
+                .expr = else_instr.ident,
+            },
+    };
+    ds_dynamic_array_append(instrs, &instr_else);
+
+    // jump DONE_LABEL
+    tac_instr jump_done_instr = {
+        .kind = TAC_JUMP,
+        .jump =
+            {
+                .label = done_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &jump_done_instr);
+
+    // THEN_LABEL:
+    tac_instr label_then_instr = {
+        .kind = TAC_LABEL,
+        .label =
+            {
+                .label = then_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &label_then_instr);
+
+    // ... THEN ...
+    tac_instr then_instr;
+    tac_expr(context, cond->then, instrs, &then_instr);
+    tac_instr instr_then = {
+        .kind = TAC_ASSIGN_VALUE,
+        .assign_value =
+            {
+                .ident = ident,
+                .expr = then_instr.ident,
+            },
+    };
+    ds_dynamic_array_append(instrs, &instr_then);
+
+    // DONE_LABEL:
+    tac_instr label_done_instr = {
+        .kind = TAC_LABEL,
+        .label =
+            {
+                .label = done_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &label_done_instr);
+
+    // result = IDENT
     result->kind = TAC_IDENT;
     result->ident = ident;
 }
@@ -294,6 +388,7 @@ static void tac_expr(tac_context *context, expr_node *expr,
     case EXPR_DISPATCH:
         return tac_dispatch(context, &expr->dispatch, instrs, result);
     case EXPR_COND:
+        return tac_cond(context, &expr->cond, instrs, result);
     case EXPR_LOOP:
     case EXPR_BLOCK:
         return tac_block(context, &expr->block, instrs, result);
@@ -337,7 +432,7 @@ static void tac_expr(tac_context *context, expr_node *expr,
 }
 
 int codegen_expr_to_tac(expr_node *expr, ds_dynamic_array *tac) {
-    tac_context context = {.result = 0, .temp_count = 0};
+    tac_context context = {.result = 0, .temp_count = 0, .label_count = 0};
 
     ds_dynamic_array_init(tac, sizeof(tac_instr));
     tac_instr result;
