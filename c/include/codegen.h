@@ -8,6 +8,8 @@ enum tac_kind {
     TAC_LABEL,
     TAC_JUMP,
     TAC_JUMP_IF_TRUE,
+    TAC_ASSIGN_ISINSTANCE,
+    TAC_CAST,
     TAC_ASSIGN_VALUE,
     TAC_DISPATCH_CALL,
     TAC_ASSIGN_NEW,
@@ -88,12 +90,26 @@ typedef struct tac_jump_if_true {
         char *label;
 } tac_jump_if_true;
 
+typedef struct tac_isinstance {
+        char *ident;
+        char *expr;
+        char *type;
+} tac_isinstance;
+
+typedef struct tac_cast {
+        char *ident;
+        char *expr;
+        char *type;
+} tac_cast;
+
 typedef struct tac_instr {
         enum tac_kind kind;
         union {
                 tac_label label;
                 tac_jump jump;
                 tac_jump_if_true jump_if_true;
+                tac_isinstance isinstance;
+                tac_cast cast;
                 tac_assign_value assign_value;
                 tac_dispatch_call dispatch_call;
                 tac_assign_new assign_new;

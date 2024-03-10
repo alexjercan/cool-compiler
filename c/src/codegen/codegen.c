@@ -336,6 +336,123 @@ static void tac_let(tac_context *context, let_node *let,
     tac_expr(context, let->body, instrs, result);
 }
 
+static void tac_case(tac_context *context, case_node *case_,
+                     ds_dynamic_array *instrs, tac_instr *result) {
+    char *ident;
+    tac_new_var(context, &ident);
+
+    char *done_label;
+    tac_new_label(context, &done_label);
+
+    tac_instr expr;
+    tac_expr(context, case_->expr, instrs, &expr);
+
+    ds_dynamic_array case_labels;
+    ds_dynamic_array_init(&case_labels, sizeof(char *));
+
+    for (unsigned int i = 0; i < case_->cases.count; i++) {
+        char *ident;
+        tac_new_var(context, &ident);
+
+        char *case_label;
+        tac_new_label(context, &case_label);
+
+        ds_dynamic_array_append(&case_labels, &case_label);
+
+        branch_node branch;
+        ds_dynamic_array_get(&case_->cases, i, &branch);
+
+        tac_instr isinatance_instr = {
+            .kind = TAC_ASSIGN_ISINSTANCE,
+            .isinstance =
+                {
+                    .ident = ident,
+                    .expr = expr.ident.name,
+                    .type = branch.type.value,
+                },
+        };
+        ds_dynamic_array_append(instrs, &isinatance_instr);
+
+        // bt ISINSTANCE CASE_LABEL
+        tac_instr jump_case_instr = {
+            .kind = TAC_JUMP_IF_TRUE,
+            .jump_if_true =
+                {
+                    .expr = ident,
+                    .label = case_label,
+                },
+        };
+        ds_dynamic_array_append(instrs, &jump_case_instr);
+    }
+
+    for (unsigned int i = 0; i < case_->cases.count; i++) {
+        char *case_label;
+        ds_dynamic_array_get(&case_labels, i, &case_label);
+
+        // CASE_LABEL:
+        tac_instr label_case_instr = {
+            .kind = TAC_LABEL,
+            .label =
+                {
+                    .label = case_label,
+                },
+        };
+        ds_dynamic_array_append(instrs, &label_case_instr);
+
+        // ... BODY ...
+        branch_node branch;
+        ds_dynamic_array_get(&case_->cases, i, &branch);
+
+        tac_instr cast_instr = {
+            .kind = TAC_CAST,
+            .cast =
+                {
+                    .ident = branch.name.value,
+                    .expr = expr.ident.name,
+                    .type = branch.type.value,
+                },
+        };
+        ds_dynamic_array_append(instrs, &cast_instr);
+
+        tac_instr body;
+        tac_expr(context, branch.body, instrs, &body);
+
+        tac_instr body_instr = {
+            .kind = TAC_ASSIGN_VALUE,
+            .assign_value =
+                {
+                    .ident = ident,
+                    .expr = body.ident.name,
+                },
+        };
+        ds_dynamic_array_append(instrs, &body_instr);
+
+        // jump DONE_LABEL
+        tac_instr jump_done_instr = {
+            .kind = TAC_JUMP,
+            .jump =
+                {
+                    .label = done_label,
+                },
+        };
+        ds_dynamic_array_append(instrs, &jump_done_instr);
+    }
+
+    // DONE_LABEL:
+    tac_instr label_done_instr = {
+        .kind = TAC_LABEL,
+        .label =
+            {
+                .label = done_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &label_done_instr);
+
+    // result = IDENT
+    result->kind = TAC_IDENT;
+    result->ident.name = ident;
+}
+
 static void tac_new(tac_context *context, new_node *new,
                     ds_dynamic_array *instrs, tac_instr *result) {
     char *ident;
@@ -488,6 +605,7 @@ static void tac_expr(tac_context *context, expr_node *expr,
     case EXPR_LET:
         return tac_let(context, &expr->let, instrs, result);
     case EXPR_CASE:
+        return tac_case(context, &expr->case_, instrs, result);
     case EXPR_NEW:
         return tac_new(context, &expr->new, instrs, result);
     case EXPR_ISVOID:

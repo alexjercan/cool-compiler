@@ -8,6 +8,15 @@ static void print_tac_jump_if_true(tac_jump_if_true jump_if_true) {
     printf("bt %s %s\n", jump_if_true.expr, jump_if_true.label);
 }
 
+static void print_tac_assign_isinstance(tac_isinstance isinstance) {
+    printf("%s <- %s instanceof %s\n", isinstance.ident, isinstance.expr,
+           isinstance.type);
+}
+
+static void print_tac_cast(tac_cast cast) {
+    printf("%s <- %s as %s\n", cast.ident, cast.expr, cast.type);
+}
+
 static void print_tac_assign_value(tac_assign_value assign_value) {
     printf("%s <- %s\n", assign_value.ident, assign_value.expr);
 }
@@ -64,6 +73,10 @@ static void print_tac(tac_instr tac) {
         return print_tac_jump(tac.jump);
     case TAC_JUMP_IF_TRUE:
         return print_tac_jump_if_true(tac.jump_if_true);
+    case TAC_ASSIGN_ISINSTANCE:
+        return print_tac_assign_isinstance(tac.isinstance);
+    case TAC_CAST:
+        return print_tac_cast(tac.cast);
     case TAC_ASSIGN_VALUE:
         return print_tac_assign_value(tac.assign_value);
     case TAC_DISPATCH_CALL:

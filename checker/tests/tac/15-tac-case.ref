@@ -1,0 +1,17 @@
+A.f
+t1 <- value instanceof String
+bt t1 L1
+t2 <- value instanceof Object
+bt t2 L2
+L1:
+x <- value as String
+t0 <- x
+jump L0
+L2:
+x <- value as Object
+t3 <- self@SELF_TYPE.abort()
+t4 <- string 
+t0 <- t4
+jump L0
+L0:
+t0
