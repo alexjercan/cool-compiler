@@ -26,18 +26,18 @@ static void tac_assign(tac_context *context, assign_node *assign,
     tac_instr expr;
     tac_expr(context, assign->value, instrs, &expr);
 
-    tac_assign_value assign_ident = {
-        .ident = assign->name.value,
-        .expr = expr.ident,
-    };
     tac_instr instr = {
         .kind = TAC_ASSIGN_VALUE,
-        .assign_value = assign_ident,
+        .assign_value =
+            {
+                .ident = assign->name.value,
+                .expr = expr.ident.name,
+            },
     };
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = assign->name.value;
+    result->ident.name = assign->name.value;
 }
 
 static void tac_dispatch_args(tac_context *context, dispatch_node *dispatch,
@@ -74,21 +74,21 @@ static void tac_dispatch_full(tac_context *context,
 
     char *ident;
     tac_new_var(context, &ident);
-    tac_dispatch_call dispatch_call = {
-        .ident = ident,
-        .type = type,
-        .expr = expr.ident,
-        .method = dispatch_full->dispatch->method.value,
-        .args = args,
-    };
     tac_instr instr = {
         .kind = TAC_DISPATCH_CALL,
-        .dispatch_call = dispatch_call,
+        .dispatch_call =
+            {
+                .ident = ident,
+                .type = type,
+                .expr = expr.ident.name,
+                .method = dispatch_full->dispatch->method.value,
+                .args = args,
+            },
     };
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = ident;
+    result->ident.name = ident;
 }
 
 static void tac_dispatch(tac_context *context, dispatch_node *dispatch,
@@ -98,21 +98,21 @@ static void tac_dispatch(tac_context *context, dispatch_node *dispatch,
 
     char *ident;
     tac_new_var(context, &ident);
-    tac_dispatch_call dispatch_call = {
-        .ident = ident,
-        .type = "SELF_TYPE",
-        .expr = "self",
-        .method = dispatch->method.value,
-        .args = args,
-    };
     tac_instr instr = {
         .kind = TAC_DISPATCH_CALL,
-        .dispatch_call = dispatch_call,
+        .dispatch_call =
+            {
+                .ident = ident,
+                .type = "SELF_TYPE",
+                .expr = "self",
+                .method = dispatch->method.value,
+                .args = args,
+            },
     };
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = ident;
+    result->ident.name = ident;
 }
 
 static void tac_cond(tac_context *context, cond_node *cond,
@@ -136,7 +136,7 @@ static void tac_cond(tac_context *context, cond_node *cond,
         .kind = TAC_JUMP_IF_TRUE,
         .jump_if_true =
             {
-                .expr = predicate.ident,
+                .expr = predicate.ident.name,
                 .label = then_label,
             },
     };
@@ -150,7 +150,7 @@ static void tac_cond(tac_context *context, cond_node *cond,
         .assign_value =
             {
                 .ident = ident,
-                .expr = else_instr.ident,
+                .expr = else_instr.ident.name,
             },
     };
     ds_dynamic_array_append(instrs, &instr_else);
@@ -183,7 +183,7 @@ static void tac_cond(tac_context *context, cond_node *cond,
         .assign_value =
             {
                 .ident = ident,
-                .expr = then_instr.ident,
+                .expr = then_instr.ident.name,
             },
     };
     ds_dynamic_array_append(instrs, &instr_then);
@@ -200,7 +200,7 @@ static void tac_cond(tac_context *context, cond_node *cond,
 
     // result = IDENT
     result->kind = TAC_IDENT;
-    result->ident = ident;
+    result->ident.name = ident;
 }
 
 static void tac_block(tac_context *context, block_node *block,
@@ -237,13 +237,13 @@ static void tac_let(tac_context *context, let_node *let,
             ds_dynamic_array_append(instrs, &expr);
         }
 
-        tac_assign_value assign_ident = {
-            .ident = let_init.name.value,
-            .expr = expr.ident,
-        };
         tac_instr instr = {
             .kind = TAC_ASSIGN_VALUE,
-            .assign_value = assign_ident,
+            .assign_value =
+                {
+                    .ident = let_init.name.value,
+                    .expr = expr.ident.name,
+                },
         };
         ds_dynamic_array_append(instrs, &instr);
     }
@@ -255,18 +255,18 @@ static void tac_new(tac_context *context, new_node *new,
                     ds_dynamic_array *instrs, tac_instr *result) {
     char *ident;
     tac_new_var(context, &ident);
-    tac_assign_new assign = {
-        .ident = ident,
-        .type = new->type.value,
-    };
     tac_instr instr = {
         .kind = TAC_ASSIGN_NEW,
-        .assign_new = assign,
+        .assign_new =
+            {
+                .ident = ident,
+                .type = new->type.value,
+            },
     };
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = ident;
+    result->ident.name = ident;
 }
 
 static void tac_binary(tac_context *context, expr_binary_node *binary,
@@ -281,19 +281,19 @@ static void tac_binary(tac_context *context, expr_binary_node *binary,
 
     char *ident;
     tac_new_var(context, &ident);
-    tac_assign_binary assign = {
-        .ident = ident,
-        .lhs = lhs.ident,
-        .rhs = rhs.ident,
-    };
     tac_instr instr = {
         .kind = kind,
-        .assign_binary = assign,
+        .assign_binary =
+            {
+                .ident = ident,
+                .lhs = lhs.ident.name,
+                .rhs = rhs.ident.name,
+            },
     };
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = ident;
+    result->ident.name = ident;
 }
 
 static void tac_unary(tac_context *context, expr_unary_node *unary,
@@ -304,18 +304,18 @@ static void tac_unary(tac_context *context, expr_unary_node *unary,
 
     char *ident;
     tac_new_var(context, &ident);
-    tac_assign_unary assign = {
-        .ident = ident,
-        .expr = expr.ident,
-    };
     tac_instr instr = {
         .kind = kind,
-        .assign_unary = assign,
+        .assign_unary =
+            {
+                .ident = ident,
+                .expr = expr.ident.name,
+            },
     };
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = ident;
+    result->ident.name = ident;
 }
 
 static void tac_paren(tac_context *context, expr_node *paren,
@@ -323,57 +323,64 @@ static void tac_paren(tac_context *context, expr_node *paren,
     tac_expr(context, paren, instrs, result);
 }
 
-static void tac_ident(tac_context *context, node_info *ident,
-                      ds_dynamic_array *instrs, tac_instr *result) {
+static void tac_identifier(tac_context *context, node_info *ident,
+                           ds_dynamic_array *instrs, tac_instr *result) {
     result->kind = TAC_IDENT;
-    result->ident = ident->value;
+    result->ident.name = ident->value;
 }
 
 static void tac_int(tac_context *context, node_info *int_node,
                     ds_dynamic_array *instrs, tac_instr *result) {
     char *ident;
     tac_new_var(context, &ident);
-    tac_assign_int assign = {
-        .ident = ident,
-        .value = atoi(int_node->value),
-    };
     tac_instr instr = {
         .kind = TAC_ASSIGN_INT,
-        .assign_int = assign,
+        .assign_int =
+            {
+                .ident = ident,
+                .value = atoi(int_node->value),
+            },
     };
-
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = ident;
+    result->ident.name = ident;
 }
 
 static void tac_string(tac_context *context, node_info *string,
                        ds_dynamic_array *instrs, tac_instr *result) {
-    tac_instr assign;
-
-    assign.kind = TAC_ASSIGN_STRING;
-    tac_new_var(context, &assign.assign_string.ident);
-    assign.assign_string.value = string->value;
-
-    ds_dynamic_array_append(instrs, &assign);
+    char *ident;
+    tac_new_var(context, &ident);
+    tac_instr instr = {
+        .kind = TAC_ASSIGN_STRING,
+        .assign_string =
+            {
+                .ident = ident,
+                .value = string->value,
+            },
+    };
+    ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = assign.assign_string.ident;
+    result->ident.name = ident;
 }
 
 static void tac_bool(tac_context *context, node_info *boolean,
                      ds_dynamic_array *instrs, tac_instr *result) {
-    tac_instr assign;
-
-    assign.kind = TAC_ASSIGN_BOOL;
-    tac_new_var(context, &assign.assign_bool.ident);
-    assign.assign_bool.value = strcmp(boolean->value, "true") == 0 ? 1 : 0;
-
-    ds_dynamic_array_append(instrs, &assign);
+    char *ident;
+    tac_new_var(context, &ident);
+    tac_instr instr = {
+        .kind = TAC_ASSIGN_BOOL,
+        .assign_bool =
+            {
+                .ident = ident,
+                .value = strcmp(boolean->value, "true") == 0 ? 1 : 0,
+            },
+    };
+    ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident = assign.assign_bool.ident;
+    result->ident.name = ident;
 }
 
 static void tac_expr(tac_context *context, expr_node *expr,
@@ -421,7 +428,7 @@ static void tac_expr(tac_context *context, expr_node *expr,
     case EXPR_PAREN:
         return tac_paren(context, expr->paren, instrs, result);
     case EXPR_IDENT:
-        return tac_ident(context, &expr->ident, instrs, result);
+        return tac_identifier(context, &expr->ident, instrs, result);
     case EXPR_INT:
         return tac_int(context, &expr->integer, instrs, result);
     case EXPR_STRING:

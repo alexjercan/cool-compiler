@@ -27,6 +27,10 @@ enum tac_kind {
     TAC_ASSIGN_BOOL
 };
 
+typedef struct tac_ident {
+        char *name;
+} tac_ident;
+
 typedef struct tac_assign_int {
         char *ident;
         int value;
@@ -96,7 +100,7 @@ typedef struct tac_instr {
                 tac_assign_binary assign_binary;
                 tac_assign_unary assign_unary;
                 struct tac_instr *assign_paren;
-                char *ident;
+                tac_ident ident;
                 tac_assign_int assign_int;
                 tac_assign_string assign_string;
                 tac_assign_bool assign_bool;

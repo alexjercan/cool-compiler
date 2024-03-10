@@ -41,7 +41,7 @@ static void print_tac_assign_unary(tac_assign_unary assign_unary,
     printf("%s <- %s %s\n", assign_unary.ident, op, assign_unary.expr);
 }
 
-static void print_tac_ident(char *ident) { printf("%s\n", ident); }
+static void print_tac_ident(tac_ident ident) { printf("%s\n", ident.name); }
 
 static void print_tac_assign_int(tac_assign_int assign_int) {
     printf("%s <- int %d\n", assign_int.ident, assign_int.value);
