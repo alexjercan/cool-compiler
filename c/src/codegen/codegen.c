@@ -117,7 +117,6 @@ static void tac_dispatch(tac_context *context, dispatch_node *dispatch,
 
 static void tac_cond(tac_context *context, cond_node *cond,
                      ds_dynamic_array *instrs, tac_instr *result) {
-
     char *ident;
     tac_new_var(context, &ident);
 
@@ -187,6 +186,92 @@ static void tac_cond(tac_context *context, cond_node *cond,
             },
     };
     ds_dynamic_array_append(instrs, &instr_then);
+
+    // DONE_LABEL:
+    tac_instr label_done_instr = {
+        .kind = TAC_LABEL,
+        .label =
+            {
+                .label = done_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &label_done_instr);
+
+    // result = IDENT
+    result->kind = TAC_IDENT;
+    result->ident.name = ident;
+}
+
+static void tac_loop(tac_context *context, loop_node *loop,
+                     ds_dynamic_array *instrs, tac_instr *result) {
+    char *ident;
+    tac_new_var(context, &ident);
+
+    char *loop_label;
+    tac_new_label(context, &loop_label);
+
+    char *done_label;
+    tac_new_label(context, &done_label);
+
+    // LOOP_LABEL:
+    tac_instr label_loop_instr = {
+        .kind = TAC_LABEL,
+        .label =
+            {
+                .label = loop_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &label_loop_instr);
+
+    // ... PREDICATE ...
+    tac_instr predicate;
+    tac_expr(context, loop->predicate, instrs, &predicate);
+
+    char *not_predicate_ident;
+    tac_new_var(context, &not_predicate_ident);
+    tac_instr not_predicate = {
+        .kind = TAC_ASSIGN_NOT,
+        .assign_unary =
+            {
+                .ident = not_predicate_ident,
+                .expr = predicate.ident.name,
+            },
+    };
+    ds_dynamic_array_append(instrs, &not_predicate);
+
+    // bt not PREDICATE DONE_LABEL
+    tac_instr jump_done_instr = {
+        .kind = TAC_JUMP_IF_TRUE,
+        .jump_if_true =
+            {
+                .expr = not_predicate_ident,
+                .label = done_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &jump_done_instr);
+
+    // ... BODY ...
+    tac_instr body;
+    tac_expr(context, loop->body, instrs, &body);
+    tac_instr body_instr = {
+        .kind = TAC_ASSIGN_VALUE,
+        .assign_value =
+            {
+                .ident = ident,
+                .expr = body.ident.name,
+            },
+    };
+    ds_dynamic_array_append(instrs, &body_instr);
+
+    // jump LOOP_LABEL
+    tac_instr jump_loop_instr = {
+        .kind = TAC_JUMP,
+        .jump =
+            {
+                .label = loop_label,
+            },
+    };
+    ds_dynamic_array_append(instrs, &jump_loop_instr);
 
     // DONE_LABEL:
     tac_instr label_done_instr = {
@@ -397,6 +482,7 @@ static void tac_expr(tac_context *context, expr_node *expr,
     case EXPR_COND:
         return tac_cond(context, &expr->cond, instrs, result);
     case EXPR_LOOP:
+        return tac_loop(context, &expr->loop, instrs, result);
     case EXPR_BLOCK:
         return tac_block(context, &expr->block, instrs, result);
     case EXPR_LET:
