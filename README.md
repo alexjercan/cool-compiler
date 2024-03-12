@@ -11,13 +11,13 @@ uses Docker for running all the implementations.
 To run the compiler for a specific project use
 
 ```console
-./coolc <project> <file.cl> -- [--lex | --syn | --sem]
+./coolc <project> <file.cl> -- [--lex | --syn | --sem | --tac]
 ```
 
 To run the checker for a specific implementation use
 
 ```console
-./checker.sh <project> [--lex | --syn | --sem]
+./checker.sh <project> [--lex | --syn | --sem | --tac]
 ```
 
 ## Resources
