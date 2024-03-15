@@ -9,9 +9,14 @@ enum semantic_result {
     SEMANTIC_ERROR,
 };
 
+typedef struct class_mapping_attribute {
+        const char *name;
+        const attribute_node *attribute;
+} class_mapping_attribute;
+
 typedef struct class_mapping_item {
         const char *class_name;
-        ds_dynamic_array attributes; // const attribute_node *
+        ds_dynamic_array attributes; // class_mapping_attribute
 } class_mapping_item;
 
 typedef struct class_mapping {

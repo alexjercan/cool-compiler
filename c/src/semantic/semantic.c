@@ -340,6 +340,12 @@ static void semantic_check_classes(semantic_context *context,
     class_context *string = NULL;
     find_class_ctx(context, STRING_TYPE, &string);
 
+    object_context attribute_l = {.name = "l", .type = INT_TYPE};
+    ds_dynamic_array_append(&string->objects, &attribute_l);
+
+    object_context attribute_str = {.name = "str", .type = STRING_TYPE};
+    ds_dynamic_array_append(&string->objects, &attribute_str);
+
     method_context length = {.name = "length", .type = INT_TYPE};
     ds_dynamic_array_init(&length.formals, sizeof(object_context));
     ds_dynamic_array_append(&string->methods, &length);
@@ -363,10 +369,22 @@ static void semantic_check_classes(semantic_context *context,
     ds_dynamic_array_init(&int_instance.methods, sizeof(method_context));
     ds_dynamic_array_append(&context->classes, &int_instance);
 
+    class_context *int_ = NULL;
+    find_class_ctx(context, INT_TYPE, &int_);
+
+    object_context attribute_val = {.name = "val", .type = INT_TYPE};
+    ds_dynamic_array_append(&int_->objects, &attribute_val);
+
     class_context bool_instance = {.name = BOOL_TYPE, .parent = object};
     ds_dynamic_array_init(&bool_instance.objects, sizeof(object_context));
     ds_dynamic_array_init(&bool_instance.methods, sizeof(method_context));
     ds_dynamic_array_append(&context->classes, &bool_instance);
+
+    class_context *bool_ = NULL;
+    find_class_ctx(context, BOOL_TYPE, &bool_);
+
+    object_context attribute_val2 = {.name = "val", .type = BOOL_TYPE};
+    ds_dynamic_array_append(&bool_->objects, &attribute_val2);
 
     class_context io_instance = {.name = IO_TYPE, .parent = object};
     ds_dynamic_array_init(&io_instance.objects, sizeof(object_context));
@@ -1984,6 +2002,21 @@ static void find_class_node(program_node *program, const char *name,
     *class = NULL;
 }
 
+static void find_attribute_node(class_node *class, const char *name,
+                                attribute_node **attribute) {
+    for (unsigned int i = 0; i < class->attributes.count; i++) {
+        attribute_node *node = NULL;
+        ds_dynamic_array_get_ref(&class->attributes, i, (void **)&node);
+
+        if (strcmp(node->name.value, name) == 0) {
+            *attribute = node;
+            return;
+        }
+    }
+
+    *attribute = NULL;
+}
+
 static void find_method_node(class_node *class, const char *name,
                              method_node **method) {
     for (unsigned int i = 0; i < class->methods.count; i++) {
@@ -2066,23 +2099,36 @@ static void build_semantic_class_mapping(semantic_context *context,
         const char *class_name = class_ctx->name;
 
         class_mapping_item item = {.class_name = class_name};
-        ds_dynamic_array_init(&item.attributes, sizeof(const attribute_node *));
+        ds_dynamic_array_init(&item.attributes,
+                              sizeof(class_mapping_attribute));
 
         parent_mapping_item *parent_item = NULL;
         find_parent_mapping(parents, class_name, &parent_item);
 
         while (parent_item != NULL) {
-            class_node *class = NULL;
-            find_class_node(program, parent_item->name, &class);
+            class_context *current_ctx = NULL;
+            find_class_ctx(context, parent_item->name, &current_ctx);
 
-            if (class != NULL && class->attributes.count > 0) {
-                for (int j = class->attributes.count - 1; j >= 0; j--) {
-                    attribute_node *attribute = NULL;
-                    ds_dynamic_array_get_ref(&class->attributes, j,
-                                             (void **)&attribute);
+            for (unsigned int k = 0; k < current_ctx->objects.count; k++) {
+                object_context *object = NULL;
+                ds_dynamic_array_get_ref(&current_ctx->objects, k,
+                                         (void **)&object);
 
-                    ds_dynamic_array_append(&item.attributes, &attribute);
+                const char *attribute_name = object->name;
+
+                class_mapping_attribute attr = {.name = attribute_name};
+
+                class_node *class = NULL;
+                find_class_node(program, parent_item->name, &class);
+
+                attribute_node *attribute = NULL;
+                if (class != NULL) {
+                    find_attribute_node(class, attribute_name, &attribute);
                 }
+
+                attr.attribute = attribute;
+
+                ds_dynamic_array_append(&item.attributes, &attr);
             }
 
             parent_item = parent_item->parent;
@@ -2101,10 +2147,10 @@ static void show_semantic_class_mapping(class_mapping *classes) {
 
         printf("%s\n", item->class_name);
         for (unsigned int j = 0; j < item->attributes.count; j++) {
-            attribute_node *attribute = NULL;
-            ds_dynamic_array_get(&item->attributes, j, (void **)&attribute);
+            class_mapping_attribute *attribute = NULL;
+            ds_dynamic_array_get_ref(&item->attributes, j, (void **)&attribute);
 
-            printf("  %s\n", attribute->name.value);
+            printf("  %s\n", attribute->name);
         }
     }
 }
