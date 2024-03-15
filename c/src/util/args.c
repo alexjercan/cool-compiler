@@ -44,6 +44,13 @@ struct argparse_parser *util_parse_arguments(int argc, char **argv) {
                                            .required = 0}));
 
     argparse_add_argument(
+        parser, ((struct argparse_options){.short_name = 'm',
+                                           .long_name = ARG_MAPPING,
+                                           .description = "Generate mapping",
+                                           .type = ARGUMENT_TYPE_FLAG,
+                                           .required = 0}));
+
+    argparse_add_argument(
         parser, ((struct argparse_options){.short_name = 't',
                                            .long_name = ARG_TACGEN,
                                            .description = "Generate TAC",

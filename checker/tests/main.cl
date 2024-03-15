@@ -42,6 +42,15 @@ class List inherits IO {
     };
 };
 
+class A {
+    a: String;
+    b: String;
+};
+
+class B inherits A {
+    c: String;
+};
+
 class Main inherits IO {
     main(): IO {
         let

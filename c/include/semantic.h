@@ -1,6 +1,7 @@
 #ifndef SEMANTIC_H
 #define SEMANTIC_H
 
+#include "ds.h"
 #include "parser.h"
 
 enum semantic_result {
@@ -8,7 +9,42 @@ enum semantic_result {
     SEMANTIC_ERROR,
 };
 
-enum semantic_result semantic_check(const char *filename,
-                                    program_node *program);
+typedef struct class_mapping_item {
+        const char *class_name;
+        ds_dynamic_array attributes; // const attribute_node *
+} class_mapping_item;
+
+typedef struct class_mapping {
+        ds_dynamic_array items; // class_mapping_item
+} class_mapping;
+
+typedef struct implementation_mapping_item {
+        const char *class_name;
+        const char *method_name;
+        const method_node *method;
+} implementation_mapping_item;
+
+typedef struct implementation_mapping {
+        ds_dynamic_array items; // implementation_mapping_item
+} implementation_mapping;
+
+typedef struct parent_mapping_item {
+        const char *name;
+        struct parent_mapping_item *parent;
+} parent_mapping_item;
+
+typedef struct parent_mapping {
+        ds_dynamic_array classes; // parent_mapping_item
+} parent_mapping;
+
+typedef struct semantic_mapping {
+        class_mapping classes;
+        implementation_mapping implementations;
+        parent_mapping parents;
+} semantic_mapping;
+
+enum semantic_result semantic_check(const char *filename, program_node *program,
+                                    semantic_mapping *mapping);
+void semantic_print_mapping(semantic_mapping *mapping);
 
 #endif // SEMANTIC_H

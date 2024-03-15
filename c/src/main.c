@@ -14,6 +14,7 @@ int main(int argc, char **argv) {
     program_node program;
     ds_dynamic_array tokens;
     struct argparse_parser *parser = NULL;
+    struct semantic_mapping mapping = {0};
 
     ds_dynamic_array_init(&tokens, sizeof(struct token));
 
@@ -52,13 +53,18 @@ int main(int argc, char **argv) {
         return_defer(0);
     }
 
-    if (semantic_check(basename, &program) != SEMANTIC_OK) {
+    if (semantic_check(basename, &program, &mapping) != SEMANTIC_OK) {
         printf("Compilation halted\n");
         return_defer(1);
     }
 
     if (argparse_get_flag(parser, ARG_SEMANTIC) == 1) {
         parser_print_ast(&program);
+        return_defer(0);
+    }
+
+    if (argparse_get_flag(parser, ARG_MAPPING) == 1) {
+        semantic_print_mapping(&mapping);
         return_defer(0);
     }
 
