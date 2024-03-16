@@ -123,57 +123,57 @@ const char *error_type_to_string(enum error_type type) {
 
 static struct token literal_to_token(char *literal) {
     if (strcmp(literal, "class") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = CLASS, .literal = NULL};
     } else if (strcmp(literal, "inherits") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = INHERITS, .literal = NULL};
     } else if (strcmp(literal, "true") == 0 || strcmp(literal, "false") == 0) {
         return (struct token){.type = BOOL_LITERAL, .literal = literal};
     } else if (strcmp(literal, "not") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = NOT, .literal = NULL};
     } else if (strcmp(literal, "isvoid") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = ISVOID, .literal = NULL};
     } else if (strcmp(literal, "new") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = NEW, .literal = NULL};
     } else if (strcmp(literal, "if") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = IF, .literal = NULL};
     } else if (strcmp(literal, "then") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = THEN, .literal = NULL};
     } else if (strcmp(literal, "else") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = ELSE, .literal = NULL};
     } else if (strcmp(literal, "fi") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = FI, .literal = NULL};
     } else if (strcmp(literal, "while") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = WHILE, .literal = NULL};
     } else if (strcmp(literal, "loop") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = LOOP, .literal = NULL};
     } else if (strcmp(literal, "pool") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = POOL, .literal = NULL};
     } else if (strcmp(literal, "let") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = LET, .literal = NULL};
     } else if (strcmp(literal, "in") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = IN, .literal = NULL};
     } else if (strcmp(literal, "case") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = CASE, .literal = NULL};
     } else if (strcmp(literal, "of") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = OF, .literal = NULL};
     } else if (strcmp(literal, "esac") == 0) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = ESAC, .literal = NULL};
     } else {
         return (struct token){.type = IDENT, .literal = literal};
@@ -267,7 +267,9 @@ static struct token token_string_literal(struct lexer *l) {
     unsigned int position = l->pos;
 
     lexer_read_char(l);
-    ds_string_builder builder = {.items = NULL, .count = 0, .capacity = 0};
+
+    ds_string_builder builder;
+    ds_string_builder_init(&builder);
     while (l->ch != '"') {
         char ch = l->ch;
         if (ch == EOF) {
@@ -317,7 +319,7 @@ static struct token token_string_literal(struct lexer *l) {
     ds_string_builder_build(&builder, &literal);
 
     if (strlen(literal) > 1024) {
-        DS_FREE(literal);
+        DS_FREE(NULL, literal);
         return (struct token){.type = ILLEGAL,
                               .literal = NULL,
                               .pos = position,

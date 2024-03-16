@@ -109,11 +109,11 @@ defer:
         struct token tok;
         ds_dynamic_array_get(&tokens, i, &tok);
         if (tok.literal)
-            DS_FREE(tok.literal);
+            DS_FREE(NULL, tok.literal);
     }
     ds_dynamic_array_free(&tokens);
     if (buffer != NULL)
-        DS_FREE(buffer);
+        DS_FREE(NULL, buffer);
     argparse_free(parser);
     return result;
 }

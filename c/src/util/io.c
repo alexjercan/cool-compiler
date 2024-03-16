@@ -5,7 +5,8 @@
 int util_read_file(const char *filename, char **buffer) {
     int result = 0;
     FILE *file = NULL;
-    ds_string_builder sb = {.items = NULL, .count = 0, .capacity = 0};
+    ds_string_builder sb;
+    ds_string_builder_init(&sb);
 
     if (filename != NULL) {
         file = fopen(filename, "r");
@@ -51,7 +52,7 @@ int util_read_file(const char *filename, char **buffer) {
         return_defer(-1);
     }
 
-    result = sb.count;
+    result = sb.items.count;
 
 defer:
     if (filename != NULL && file != NULL)
