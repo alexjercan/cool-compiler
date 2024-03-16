@@ -57,6 +57,13 @@ struct argparse_parser *util_parse_arguments(int argc, char **argv) {
                                            .type = ARGUMENT_TYPE_FLAG,
                                            .required = 0}));
 
+    argparse_add_argument(
+        parser, ((struct argparse_options){.short_name = 'a',
+                                           .long_name = ARG_ASSEMBLER,
+                                           .description = "Run the assembler",
+                                           .type = ARGUMENT_TYPE_FLAG,
+                                           .required = 0}));
+
     if (argparse_parse(parser, argc, argv) != 0) {
         return NULL;
     }

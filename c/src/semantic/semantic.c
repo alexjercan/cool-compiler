@@ -2172,55 +2172,30 @@ build_implementations_mapping(semantic_context *context, program_node *program,
 
         const char *class_name = class_ctx->name;
 
-        parent_mapping_item *parent_item = NULL;
-        find_parent_mapping(parents, class_name, &parent_item);
+        class_context *current_ctx = NULL;
+        find_class_ctx(context, class_name, &current_ctx);
 
-        while (parent_item != NULL) {
-            class_context *current_ctx = NULL;
-            find_class_ctx(context, parent_item->name, &current_ctx);
+        for (unsigned int k = 0; k < current_ctx->methods.count; k++) {
+            method_context *method_ctx = NULL;
+            ds_dynamic_array_get_ref(&current_ctx->methods, k,
+                                     (void **)&method_ctx);
 
-            for (unsigned int k = 0; k < current_ctx->methods.count; k++) {
-                method_context *method_ctx = NULL;
-                ds_dynamic_array_get_ref(&current_ctx->methods, k,
-                                         (void **)&method_ctx);
+            const char *method_name = method_ctx->name;
 
-                const char *method_name = method_ctx->name;
+            implementation_mapping_item item = {.class_name = class_name,
+                                                .method_name = method_name};
 
-                int found_item = 0;
-                for (unsigned int m = 0; m < implementations->items.count;
-                     m++) {
-                    implementation_mapping_item *item = NULL;
-                    ds_dynamic_array_get_ref(&implementations->items, m,
-                                             (void **)&item);
+            class_node *class = NULL;
+            find_class_node(program, class_name, &class);
 
-                    if (strcmp(item->class_name, class_name) == 0 &&
-                        strcmp(item->method_name, method_name) == 0) {
-                        found_item = 1;
-                        break;
-                    }
-                }
-
-                if (found_item) {
-                    continue;
-                }
-
-                implementation_mapping_item item = {.class_name = class_name,
-                                                    .method_name = method_name};
-
-                class_node *class = NULL;
-                find_class_node(program, parent_item->name, &class);
-
-                method_node *method = NULL;
-                if (class != NULL) {
-                    find_method_node(class, method_name, &method);
-                }
-
-                item.method = method;
-
-                ds_dynamic_array_append(&implementations->items, &item);
+            method_node *method = NULL;
+            if (class != NULL) {
+                find_method_node(class, method_name, &method);
             }
 
-            parent_item = parent_item->parent;
+            item.method = method;
+
+            ds_dynamic_array_append(&implementations->items, &item);
         }
     }
 }

@@ -2,11 +2,21 @@
 #include <stdio.h>
 #define ARGPARSE_IMPLEMENTATION
 #include "argparse.h"
+#include "assembler.h"
 #include "codegen.h"
 #include "ds.h"
 #include "lexer.h"
 #include "parser.h"
 #include "semantic.h"
+
+// TODO: Add support for the following:
+// - class_nameTable
+// - class_objTable
+//   - X_protObj
+//     - X_dispTable
+//       - X_methods
+//     - attributes ...
+//   - X_init
 
 int main(int argc, char **argv) {
     int result = 0;
@@ -26,6 +36,7 @@ int main(int argc, char **argv) {
 
     char *filename = argparse_get_value(parser, ARG_INPUT);
     const char *basename = util_filepath_to_basename(filename);
+    char *output = argparse_get_value(parser, ARG_OUTPUT);
 
     int length = util_read_file(filename, &buffer);
     if (length < 0) {
@@ -70,6 +81,15 @@ int main(int argc, char **argv) {
 
     if (argparse_get_flag(parser, ARG_TACGEN) == 1) {
         codegen_tac_print(&program);
+        return_defer(0);
+    }
+
+    if (assembler_run(output, &program, &mapping) != ASSEMBLER_OK) {
+        printf("Compilation halted\n");
+        return_defer(1);
+    }
+
+    if (argparse_get_flag(parser, ARG_ASSEMBLER) == 1) {
         return_defer(0);
     }
 
