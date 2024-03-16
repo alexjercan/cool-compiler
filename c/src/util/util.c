@@ -1,4 +1,5 @@
 #include "util.h"
+#include "stdio.h"
 
 void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
                       unsigned int *col) {
@@ -15,6 +16,10 @@ void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
 }
 
 const char *util_filepath_to_basename(const char *path) {
+    if (path == NULL) {
+        return NULL;
+    }
+
     const char *basename = path;
     for (unsigned int i = 0; path[i] != '\0'; i++) {
         if (path[i] == '/' || path[i] == '\\') {

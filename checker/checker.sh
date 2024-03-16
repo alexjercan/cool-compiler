@@ -56,6 +56,11 @@ tac_generator() {
     analyzer tac --tac
 }
 
+asm_generator() {
+    echo "Testing the assembly generator"
+    # TODO: analyzer asm --asm
+}
+
 make clean && make
 
 ARG1=$1
@@ -67,12 +72,15 @@ elif [ "$ARG1" == "--sem" ]; then
     semantic_analyzer
 elif [ "$ARG1" == "--tac" ]; then
     tac_generator
+elif [ "$ARG1" == "--asm" ]; then
+    asm_generator
 elif [ -z "$ARG1" ]; then
     lexical_analyzer
     syntax_analyzer
     semantic_analyzer
     tac_generator
+    asm_generator
 else
-    echo "Usage: $0 [--lex | --syn | --sem | --tac]"
+    echo "Usage: $0 [--lex | --syn | --sem | --tac | --asm]"
     exit 1
 fi

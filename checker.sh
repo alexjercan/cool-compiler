@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "Usage: $0 <project> [--lex | --syn | --sem | --tac]"
+    echo "Usage: $0 <project> [--lex | --syn | --sem | --tac | --asm]"
 }
 
 if [ "$1" == "--help" ]; then
