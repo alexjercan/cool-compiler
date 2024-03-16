@@ -1,0 +1,9 @@
+SPIM Version 8.0 of January 8, 2010
+Copyright 1990-2010, James R. Larus.
+All Rights Reserved.
+See the file README for a full copyright notice.
+Loaded: trap.handler.nogc
+The following symbols are undefined:
+main
+
+5abcdedeCOOL program successfully executed

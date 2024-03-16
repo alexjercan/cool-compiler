@@ -1,0 +1,20 @@
+SPIM Version 8.0 of January 8, 2010
+Copyright 1990-2010, James R. Larus.
+All Rights Reserved.
+See the file README for a full copyright notice.
+Loaded: trap.handler.nogc
+The following symbols are undefined:
+main
+
+3 OK
+a OK
+a1 OK
+a2 failed
+b OK
+b1 OK
+b2 failed
+x OK
+self OK
+comp failed
+copy failed
+COOL program successfully executed
