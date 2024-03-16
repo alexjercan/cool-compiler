@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 
     {
         // read prelude file
-        length = util_read_file("lib/stdlib.cl", &buffer);
+        length = util_read_file("lib/prelude.cl", &buffer);
         if (length < 0) {
             DS_LOG_ERROR("Failed to read file: lib/stdlib.cl");
             return_defer(1);
