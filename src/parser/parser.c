@@ -1087,7 +1087,7 @@ static void build_method(struct parser *parser, method_node *method) {
     parser_current(parser, &token);
     if (token.type == EXTERN) {
         method->body.type = NULL;
-        method->body.kind = EXPR_NONE;
+        method->body.kind = EXPR_EXTERN;
     } else {
         if (token.type != LBRACE) {
             parser_show_expected(parser, LBRACE, token.type);

@@ -40,6 +40,7 @@ enum expr_kind {
     EXPR_INT,
     EXPR_STRING,
     EXPR_BOOL,
+    EXPR_EXTERN,
 };
 
 typedef struct expr_unary_node {

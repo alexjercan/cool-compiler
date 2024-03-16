@@ -588,8 +588,6 @@ static void tac_bool(tac_context *context, node_info *boolean,
 static void tac_expr(tac_context *context, expr_node *expr,
                      ds_dynamic_array *instrs, tac_instr *result) {
     switch (expr->kind) {
-    case EXPR_NONE:
-        break;
     case EXPR_ASSIGN:
         return tac_assign(context, &expr->assign, instrs, result);
     case EXPR_DISPATCH_FULL:
@@ -639,6 +637,8 @@ static void tac_expr(tac_context *context, expr_node *expr,
         return tac_string(context, &expr->string, instrs, result);
     case EXPR_BOOL:
         return tac_bool(context, &expr->boolean, instrs, result);
+    default:
+        break;
     }
 }
 
