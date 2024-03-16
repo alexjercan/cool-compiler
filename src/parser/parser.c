@@ -652,6 +652,7 @@ static void build_expr_at(struct parser *parser, expr_node *expr) {
     while (token.type == AT || token.type == DOT) {
         expr_node *current = malloc(sizeof(expr_node));
 
+        current->type = NULL;
         current->kind = EXPR_DISPATCH_FULL;
         current->dispatch_full.expr = root;
         current->dispatch_full.type.value = NULL;
@@ -755,6 +756,8 @@ static void build_expr_mul(struct parser *parser, expr_node *expr) {
         expr_node *current = malloc(sizeof(expr_node));
         expr_binary_node *current_binary;
 
+        current->type = NULL;
+
         if (token.type == MULTIPLY) {
             current->kind = EXPR_MUL;
             current_binary = &current->mul;
@@ -797,6 +800,8 @@ static void build_expr_add(struct parser *parser, expr_node *expr) {
     while (token.type == PLUS || token.type == MINUS) {
         expr_node *current = malloc(sizeof(expr_node));
         expr_binary_node *current_binary;
+
+        current->type = NULL;
 
         if (token.type == PLUS) {
             current->kind = EXPR_ADD;
