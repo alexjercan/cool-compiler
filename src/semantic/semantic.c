@@ -221,6 +221,10 @@ static int is_type_ancestor(semantic_context *context, const char *class_type,
 static const char *least_common_ancestor(semantic_context *context,
                                          const char *class_type,
                                          const char *type1, const char *type2) {
+    if (strcmp(type1, type2) == 0) {
+        return type1;
+    }
+
     if (strcmp(type1, SELF_TYPE) == 0) {
         const char *tmp = type1;
         type1 = type2;
@@ -233,7 +237,7 @@ static const char *least_common_ancestor(semantic_context *context,
     class_context *class_ctx2 = NULL;
     find_class_ctx(context, type2, &class_ctx2);
 
-    if (class_ctx1 == NULL || class_ctx2 == NULL) {
+    if (class_ctx1 == NULL || (class_ctx2 == NULL && strcmp(type2, SELF_TYPE) != 0)) {
         return NULL;
     }
 
@@ -245,8 +249,6 @@ static const char *least_common_ancestor(semantic_context *context,
 
         current_ctx = current_ctx->parent;
     }
-
-    printf("LCA(%s, %s) = %s\n", type1, type2, OBJECT_TYPE);
 
     return OBJECT_TYPE;
 }
@@ -321,6 +323,7 @@ static int is_class_inheritance_cycle(semantic_context *context,
     context_show_errorf(context, class.name.line, class.name.col,              \
                         "Inheritance cycle for class %s", class.name.value)
 
+/*
 static void define_external_classes(semantic_context *context) {
     class_context object_instance = {.name = OBJECT_TYPE, .parent = NULL};
     ds_dynamic_array_init(&object_instance.objects, sizeof(object_context));
@@ -429,12 +432,10 @@ static void define_external_classes(semantic_context *context) {
     ds_dynamic_array_init(&self_type_instance.methods, sizeof(method_context));
     ds_dynamic_array_append(&context->classes, &self_type_instance);
 }
+*/
 
 static void semantic_check_classes(semantic_context *context,
                                    program_node *program) {
-    class_context *object = NULL;
-    find_class_ctx(context, OBJECT_TYPE, &object);
-
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
@@ -455,6 +456,9 @@ static void semantic_check_classes(semantic_context *context,
         ds_dynamic_array_append(&context->classes, &class_ctx);
     }
 
+    class_context *object = NULL;
+    find_class_ctx(context, OBJECT_TYPE, &object);
+
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
@@ -462,7 +466,7 @@ static void semantic_check_classes(semantic_context *context,
         class_context *class_ctx = NULL;
         find_class_ctx(context, class.name.value, &class_ctx);
 
-        if (class_ctx == NULL) {
+        if (class_ctx == NULL || class_ctx == object) {
             continue;
         }
 
@@ -533,6 +537,10 @@ static int is_attribute_redefined(semantic_context *context,
 
 static int is_attribute_type_undefiend(semantic_context *context,
                                        attribute_node attribute) {
+    if (strcmp(attribute.type.value, SELF_TYPE) == 0) {
+        return 0;
+    }
+
     class_context *class_ctx = NULL;
     find_class_ctx(context, attribute.type.value, &class_ctx);
     return class_ctx == NULL;
@@ -713,6 +721,10 @@ static int is_formal_type_undefiend(semantic_context *context,
 
 static int is_return_type_undefiend(semantic_context *context,
                                     method_node method) {
+    if (strcmp(method.type.value, SELF_TYPE) == 0) {
+        return 0;
+    }
+
     class_context *class_ctx = NULL;
     find_class_ctx(context, method.type.value, &class_ctx);
     return class_ctx == NULL;
@@ -1039,6 +1051,10 @@ static int is_let_init_name_illegal(semantic_context *context,
 
 static int is_let_init_type_undefined(semantic_context *context,
                                       let_init_node *init) {
+    if (strcmp(init->type.value, SELF_TYPE) == 0) {
+        return 0;
+    }
+
     class_context *class_ctx = NULL;
     find_class_ctx(context, init->type.value, &class_ctx);
     return class_ctx == NULL;
@@ -1449,6 +1465,10 @@ static const char *semantic_check_assign_expression(
 }
 
 static int is_new_type_undefined(semantic_context *context, node_info *expr) {
+    if (strcmp(expr->value, SELF_TYPE) == 0) {
+        return 0;
+    }
+
     class_context *class_ctx = NULL;
     find_class_ctx(context, expr->value, &class_ctx);
     return class_ctx == NULL;
@@ -2288,7 +2308,7 @@ enum semantic_result semantic_check(const char *filename, program_node *program,
     context.result = SEMANTIC_OK;
     ds_dynamic_array_init(&context.classes, sizeof(class_context));
 
-    define_external_classes(&context);
+    // define_external_classes(&context);
 
     semantic_check_classes(&context, program);
     semantic_check_attributes(&context, program);

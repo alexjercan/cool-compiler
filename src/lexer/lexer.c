@@ -37,6 +37,8 @@ const char *token_type_to_string(enum token_type type) {
         return "EQUAL";
     case ESAC:
         return "ESAC";
+    case EXTERN:
+        return "EXTERN";
     case FI:
         return "FI";
     case IDENT:
@@ -175,6 +177,9 @@ static struct token literal_to_token(char *literal) {
     } else if (strcmp(literal, "esac") == 0) {
         DS_FREE(NULL, literal);
         return (struct token){.type = ESAC, .literal = NULL};
+    } else if (strcmp(literal, "extern") == 0) {
+        DS_FREE(NULL, literal);
+        return (struct token){.type = EXTERN, .literal = NULL};
     } else {
         return (struct token){.type = IDENT, .literal = literal};
     }

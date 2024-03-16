@@ -179,6 +179,8 @@ typedef struct program_node {
 enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
                               program_node *program);
 
+void parser_merge(ds_dynamic_array programs, program_node *program);
+
 #ifndef INDENT_SIZE
 #define INDENT_SIZE 2
 #endif

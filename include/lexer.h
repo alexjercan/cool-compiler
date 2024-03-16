@@ -24,6 +24,7 @@ enum token_type {
     END,
     EQUAL,
     ESAC,
+    EXTERN,
     FI,
     IDENT,
     IF,

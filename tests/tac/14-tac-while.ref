@@ -1,3 +1,13 @@
+Object.abort
+Object.type_name
+Object.copy
+IO.out_string
+IO.out_int
+IO.in_string
+IO.in_int
+String.length
+String.concat
+String.substr
 A.f
 L0:
 t1 <- x < y

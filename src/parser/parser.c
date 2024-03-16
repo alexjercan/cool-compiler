@@ -1085,18 +1085,23 @@ static void build_method(struct parser *parser, method_node *method) {
     parser_advance(parser);
 
     parser_current(parser, &token);
-    if (token.type != LBRACE) {
-        parser_show_expected(parser, LBRACE, token.type);
-        return parser_panic_mode(parser);
-    }
-    parser_advance(parser);
+    if (token.type == EXTERN) {
+        method->body.type = NULL;
+        method->body.kind = EXPR_NONE;
+    } else {
+        if (token.type != LBRACE) {
+            parser_show_expected(parser, LBRACE, token.type);
+            return parser_panic_mode(parser);
+        }
+        parser_advance(parser);
 
-    build_expr(parser, &method->body);
+        build_expr(parser, &method->body);
 
-    parser_current(parser, &token);
-    if (token.type != RBRACE) {
-        parser_show_expected(parser, RBRACE, token.type);
-        return parser_panic_mode(parser);
+        parser_current(parser, &token);
+        if (token.type != RBRACE) {
+            parser_show_expected(parser, RBRACE, token.type);
+            return parser_panic_mode(parser);
+        }
     }
     parser_advance(parser);
 }
@@ -1213,6 +1218,7 @@ static void build_program(struct parser *parser, program_node *program) {
 
 enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
                               program_node *program) {
+
     ds_dynamic_array_init(&program->classes, sizeof(class_node));
 
     struct parser parser = {.filename = filename,
@@ -1223,4 +1229,20 @@ enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
     build_program(&parser, program);
 
     return parser.result;
+}
+
+void parser_merge(ds_dynamic_array programs, program_node *program) {
+    ds_dynamic_array_init(&program->classes, sizeof(class_node));
+
+    for (unsigned int i = 0; i < programs.count; i++) {
+        program_node *p = NULL;
+        ds_dynamic_array_get_ref(&programs, i, (void **)&p);
+
+        for (unsigned int j = 0; j < p->classes.count; j++) {
+            class_node *c = NULL;
+            ds_dynamic_array_get_ref(&p->classes, j, (void **)&c);
+
+            ds_dynamic_array_append(&program->classes, c);
+        }
+    }
 }
