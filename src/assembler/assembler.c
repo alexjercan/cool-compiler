@@ -416,7 +416,7 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
     assembler_emit(&context, "    xor     rdi, rdi");
     assembler_emit(&context, "    syscall");
 
-    // TODO: handle special cases for main method and basic objects
+    // TODO: handle extern methods (they will be skipped and taked from asm file)
 
     assembler_emit_class_name_table(&context, program, mapping);
     assembler_emit_class_object_table(&context, program, mapping);

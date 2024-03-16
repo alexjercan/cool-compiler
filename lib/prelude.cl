@@ -63,8 +63,8 @@ class IO inherits Object {
 
 (* The String class provides methods for manipulating strings. *)
 class String inherits Object {
-    l: Int;
-    str: String;
+    l: Int <- 0;        -- The default length of a String object.
+    str: String <- "";  -- The default value of a String object.
 
     (*
         The length method returns the length of the string.
@@ -97,10 +97,10 @@ class String inherits Object {
 
 (* The Int class provides methods for manipulating integers. *)
 class Int inherits Object {
-    val: Int;
+    val: Int <- 0; -- The default value of an Int object.
 };
 
 (* The Bool class provides methods for manipulating booleans. *)
 class Bool inherits Object {
-    val: Bool;
+    val: Bool <- false; -- The default value of a Bool object.
 };

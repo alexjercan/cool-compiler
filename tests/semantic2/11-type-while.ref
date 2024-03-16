@@ -37,9 +37,11 @@ program
     attribute
       l
       Int
+      0 : Int
     attribute
       str
       String
+       : String
     method
       length
       Int
@@ -64,12 +66,14 @@ program
     attribute
       val
       Int
+      0 : Int
   class
     Bool
     Object
     attribute
       val
       Bool
+      false : Bool
   class
     A
     attribute
