@@ -9,14 +9,25 @@
 #include "parser.h"
 #include "semantic.h"
 
-// TODO: Add support for the following:
+// Add support for the following:
 // - class_nameTable (done)
-// - class_objTable
-//   - X_protObj
-//     - X_dispTable
-//       - X_methods
-//     - attributes ...
-//   - X_init
+// - class_objTable (done)
+//   - X_protObj (done)
+//     - X_dispTable (done)
+//       - X_methods (partially done, implement body)
+//     - attributes (partially done, implement init with constant/default values)
+//   - X_init (partially done, implement body)
+//
+// External things:
+// - implement external classes
+// - implement equality
+// - abort for dispatch on void
+// - abort for case on void
+// - abort for case on no match
+// - exception handling
+//
+// Future plans:
+// - extend external classes (e.g add graphics to IO)
 
 int main(int argc, char **argv) {
     int result = 0;
