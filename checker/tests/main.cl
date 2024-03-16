@@ -45,10 +45,22 @@ class List inherits IO {
 class A {
     a: String;
     b: String;
+
+    foo(): String {
+        a.concat(b)
+    };
+
+    bar(): String {
+        b.concat(a)
+    };
 };
 
 class B inherits A {
     c: String;
+
+    foo(): String {
+        a.concat(b).concat(c)
+    };
 };
 
 class Main inherits IO {

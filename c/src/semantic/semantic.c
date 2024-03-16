@@ -11,6 +11,19 @@
 #define OBJECT_TYPE "Object"
 #define IO_TYPE "IO"
 
+#define METHOD_ABORT "abort"
+#define METHOD_TYPE_NAME "type_name"
+#define METHOD_COPY "copy"
+
+#define METHOD_LENGTH "length"
+#define METHOD_CONCAT "concat"
+#define METHOD_SUBSTR "substr"
+
+#define METHOD_OUT_STRING "out_string"
+#define METHOD_OUT_INT "out_int"
+#define METHOD_IN_STRING "in_string"
+#define METHOD_IN_INT "in_int"
+
 typedef struct semantic_context {
         const char *filename;
         enum semantic_result result;
@@ -308,10 +321,7 @@ static int is_class_inheritance_cycle(semantic_context *context,
     context_show_errorf(context, class.name.line, class.name.col,              \
                         "Inheritance cycle for class %s", class.name.value)
 
-static void semantic_check_classes(semantic_context *context,
-                                   program_node *program) {
-    ds_dynamic_array_init(&context->classes, sizeof(class_context));
-
+static void define_external_classes(semantic_context *context) {
     class_context object_instance = {.name = OBJECT_TYPE, .parent = NULL};
     ds_dynamic_array_init(&object_instance.objects, sizeof(object_context));
     ds_dynamic_array_init(&object_instance.methods, sizeof(method_context));
@@ -320,15 +330,15 @@ static void semantic_check_classes(semantic_context *context,
     class_context *object = NULL;
     find_class_ctx(context, OBJECT_TYPE, &object);
 
-    method_context abort = {.name = "abort", .type = OBJECT_TYPE};
+    method_context abort = {.name = METHOD_ABORT, .type = OBJECT_TYPE};
     ds_dynamic_array_init(&abort.formals, sizeof(object_context));
     ds_dynamic_array_append(&object->methods, &abort);
 
-    method_context type_name = {.name = "type_name", .type = STRING_TYPE};
+    method_context type_name = {.name = METHOD_TYPE_NAME, .type = STRING_TYPE};
     ds_dynamic_array_init(&type_name.formals, sizeof(object_context));
     ds_dynamic_array_append(&object->methods, &type_name);
 
-    method_context copy = {.name = "copy", .type = SELF_TYPE};
+    method_context copy = {.name = METHOD_COPY, .type = SELF_TYPE};
     ds_dynamic_array_init(&copy.formals, sizeof(object_context));
     ds_dynamic_array_append(&object->methods, &copy);
 
@@ -346,17 +356,17 @@ static void semantic_check_classes(semantic_context *context,
     object_context attribute_str = {.name = "str", .type = STRING_TYPE};
     ds_dynamic_array_append(&string->objects, &attribute_str);
 
-    method_context length = {.name = "length", .type = INT_TYPE};
+    method_context length = {.name = METHOD_LENGTH, .type = INT_TYPE};
     ds_dynamic_array_init(&length.formals, sizeof(object_context));
     ds_dynamic_array_append(&string->methods, &length);
 
-    method_context concat = {.name = "concat", .type = STRING_TYPE};
+    method_context concat = {.name = METHOD_CONCAT, .type = STRING_TYPE};
     ds_dynamic_array_init(&concat.formals, sizeof(object_context));
     object_context concat_formal = {.name = "s", .type = STRING_TYPE};
     ds_dynamic_array_append(&concat.formals, &concat_formal);
     ds_dynamic_array_append(&string->methods, &concat);
 
-    method_context substr = {.name = "substr", .type = STRING_TYPE};
+    method_context substr = {.name = METHOD_SUBSTR, .type = STRING_TYPE};
     ds_dynamic_array_init(&substr.formals, sizeof(object_context));
     object_context substr_formal1 = {.name = "i", .type = INT_TYPE};
     object_context substr_formal2 = {.name = "l", .type = INT_TYPE};
@@ -394,23 +404,23 @@ static void semantic_check_classes(semantic_context *context,
     class_context *io = NULL;
     find_class_ctx(context, IO_TYPE, &io);
 
-    method_context out_string = {.name = "out_string", .type = SELF_TYPE};
+    method_context out_string = {.name = METHOD_OUT_STRING, .type = SELF_TYPE};
     ds_dynamic_array_init(&out_string.formals, sizeof(object_context));
     object_context out_string_formal = {.name = "x", .type = STRING_TYPE};
     ds_dynamic_array_append(&out_string.formals, &out_string_formal);
     ds_dynamic_array_append(&io->methods, &out_string);
 
-    method_context out_int = {.name = "out_int", .type = SELF_TYPE};
+    method_context out_int = {.name = METHOD_OUT_INT, .type = SELF_TYPE};
     ds_dynamic_array_init(&out_int.formals, sizeof(object_context));
     object_context out_int_formal = {.name = "x", .type = INT_TYPE};
     ds_dynamic_array_append(&out_int.formals, &out_int_formal);
     ds_dynamic_array_append(&io->methods, &out_int);
 
-    method_context in_string = {.name = "in_string", .type = STRING_TYPE};
+    method_context in_string = {.name = METHOD_IN_STRING, .type = STRING_TYPE};
     ds_dynamic_array_init(&in_string.formals, sizeof(object_context));
     ds_dynamic_array_append(&io->methods, &in_string);
 
-    method_context in_int = {.name = "in_int", .type = INT_TYPE};
+    method_context in_int = {.name = METHOD_IN_INT, .type = INT_TYPE};
     ds_dynamic_array_init(&in_int.formals, sizeof(object_context));
     ds_dynamic_array_append(&io->methods, &in_int);
 
@@ -418,6 +428,12 @@ static void semantic_check_classes(semantic_context *context,
     ds_dynamic_array_init(&self_type_instance.objects, sizeof(object_context));
     ds_dynamic_array_init(&self_type_instance.methods, sizeof(method_context));
     ds_dynamic_array_append(&context->classes, &self_type_instance);
+}
+
+static void semantic_check_classes(semantic_context *context,
+                                   program_node *program) {
+    class_context *object = NULL;
+    find_class_ctx(context, OBJECT_TYPE, &object);
 
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
@@ -2175,27 +2191,62 @@ build_implementations_mapping(semantic_context *context, program_node *program,
         class_context *current_ctx = NULL;
         find_class_ctx(context, class_name, &current_ctx);
 
-        for (unsigned int k = 0; k < current_ctx->methods.count; k++) {
-            method_context *method_ctx = NULL;
-            ds_dynamic_array_get_ref(&current_ctx->methods, k,
-                                     (void **)&method_ctx);
+        ds_dynamic_array methods;
+        ds_dynamic_array_init(&methods, sizeof(implementation_mapping_item));
 
-            const char *method_name = method_ctx->name;
+        while (current_ctx != NULL) {
+            const char *parent_name = current_ctx->name;
 
-            implementation_mapping_item item = {.class_name = class_name,
-                                                .method_name = method_name};
+            for (unsigned int k = 0; k < current_ctx->methods.count; k++) {
+                method_context *method_ctx = NULL;
+                ds_dynamic_array_get_ref(&current_ctx->methods,
+                                         current_ctx->methods.count - k - 1,
+                                         (void **)&method_ctx);
 
-            class_node *class = NULL;
-            find_class_node(program, class_name, &class);
+                const char *method_name = method_ctx->name;
 
-            method_node *method = NULL;
-            if (class != NULL) {
-                find_method_node(class, method_name, &method);
+                implementation_mapping_item item = {.class_name = class_name,
+                                                    .parent_name = parent_name,
+                                                    .method_name = method_name};
+
+                int found = 0;
+                for (unsigned int l = 0; l < methods.count; l++) {
+                    implementation_mapping_item *it = NULL;
+                    ds_dynamic_array_get_ref(&methods, l, (void **)&it);
+
+                    if (strcmp(it->class_name, item.class_name) == 0 &&
+                        strcmp(it->method_name, item.method_name) == 0) {
+                        found = 1;
+                        break;
+                    }
+                }
+
+                if (found) {
+                    continue;
+                }
+
+                class_node *class = NULL;
+                find_class_node(program, parent_name, &class);
+
+                method_node *method = NULL;
+                if (class != NULL) {
+                    find_method_node(class, method_name, &method);
+                }
+
+                item.method = method;
+
+                ds_dynamic_array_append(&methods, &item);
             }
 
-            item.method = method;
+            current_ctx = current_ctx->parent;
+        }
 
-            ds_dynamic_array_append(&implementations->items, &item);
+        for (unsigned int k = 0; k < methods.count; k++) {
+            implementation_mapping_item *item = NULL;
+            ds_dynamic_array_get_ref(&methods, methods.count - k - 1,
+                                     (void **)&item);
+
+            ds_dynamic_array_append(&implementations->items, item);
         }
     }
 }
@@ -2206,7 +2257,8 @@ show_semantic_implementations_mapping(implementation_mapping *implementations) {
         implementation_mapping_item *item = NULL;
         ds_dynamic_array_get_ref(&implementations->items, i, (void **)&item);
 
-        printf("%s.%s\n", item->class_name, item->method_name);
+        printf("%s@%s.%s\n", item->class_name, item->parent_name,
+               item->method_name);
     }
 }
 
@@ -2234,6 +2286,9 @@ enum semantic_result semantic_check(const char *filename, program_node *program,
     semantic_context context = {.filename = filename};
 
     context.result = SEMANTIC_OK;
+    ds_dynamic_array_init(&context.classes, sizeof(class_context));
+
+    define_external_classes(&context);
 
     semantic_check_classes(&context, program);
     semantic_check_attributes(&context, program);

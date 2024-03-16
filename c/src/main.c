@@ -10,7 +10,7 @@
 #include "semantic.h"
 
 // TODO: Add support for the following:
-// - class_nameTable
+// - class_nameTable (done)
 // - class_objTable
 //   - X_protObj
 //     - X_dispTable

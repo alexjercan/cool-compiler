@@ -25,6 +25,7 @@ typedef struct class_mapping {
 
 typedef struct implementation_mapping_item {
         const char *class_name;
+        const char *parent_name;
         const char *method_name;
         const method_node *method;
 } implementation_mapping_item;

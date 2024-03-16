@@ -18,8 +18,8 @@ typedef struct asm_const_value {
                         const char *len_label;
                         const char *value;
                 } str;
-                int64_t integer;
-                int8_t boolean;
+                unsigned int integer;
+                unsigned int boolean;
         };
 } asm_const_value;
 
@@ -99,11 +99,67 @@ static void assembler_emit_fmt(assembler_context *context, int align,
 #define assembler_emit(context, format, ...)                                   \
     assembler_emit_fmt(context, 0, NULL, format, ##__VA_ARGS__)
 
-static void assembler_new_const(assembler_context *context,
-                                asm_const_value value, asm_const **result) {
-    // TODO: Maybe this can be optimized by checking for duplicates
+static inline const char *comment_fmt(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    int size = vsnprintf(NULL, 0, format, args);
+    va_end(args);
+
+    char *comment = malloc(size + 1);
+
+    va_start(args, format);
+    vsnprintf(comment, size + 1, format, args);
+    va_end(args);
+
+    return comment;
+}
+
+static void assembler_find_const(assembler_context *context,
+                                 asm_const_value value, asm_const **result) {
+    for (size_t i = 0; i < context->consts.count; i++) {
+        asm_const *c = NULL;
+        ds_dynamic_array_get_ref(&context->consts, i, (void **)&c);
+
+        if (c->value.type != value.type) {
+            continue;
+        }
+
+        switch (value.type) {
+        case ASM_CONST_STR: {
+            if (strcmp(c->value.str.value, value.str.value) == 0) {
+                *result = c;
+                return;
+            }
+            break;
+        }
+        case ASM_CONST_INT: {
+            if (c->value.integer == value.integer) {
+                *result = c;
+                return;
+            }
+            break;
+        }
+        case ASM_CONST_BOOL: {
+            if (c->value.boolean == value.boolean) {
+                *result = c;
+                return;
+            }
+            break;
+        }
+        }
+    }
 
     *result = NULL;
+}
+
+static void assembler_new_const(assembler_context *context,
+                                asm_const_value value, asm_const **result) {
+    *result = NULL;
+
+    assembler_find_const(context, value, result);
+    if (*result != NULL) {
+        return;
+    }
 
     int count = context->consts.count;
     const char *prefix = NULL;
@@ -205,8 +261,141 @@ static void assembler_emit_class_name_table(assembler_context *context,
                               .str = {int_const->name, class_name}},
             &str_const);
 
-        assembler_emit_fmt(context, 4, "pointer to class name", "dq %s",
-                           str_const->name);
+        const char *comment =
+            comment_fmt("pointer to class name %s", class_name);
+        assembler_emit_fmt(context, 4, comment, "dq %s", str_const->name);
+    }
+}
+
+static void assembler_emit_class_object_table(assembler_context *context,
+                                              program_node *program,
+                                              semantic_mapping *mapping) {
+    assembler_emit(context, "segment readable");
+    assembler_emit(context, "class_objTab:");
+
+    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
+        class_node *class = NULL;
+        ds_dynamic_array_get_ref(&mapping->parents.classes, i, (void **)&class);
+
+        const char *class_name = class->name.value;
+
+        assembler_emit_fmt(context, 4, NULL, "dq %s_protObj", class_name);
+        assembler_emit_fmt(context, 4, NULL, "dq %s_init", class_name);
+    }
+}
+
+static void assembler_emit_object_prototype(assembler_context *context,
+                                            size_t i, program_node *program,
+                                            semantic_mapping *mapping) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    const char *class_name = class->class_name;
+
+    assembler_emit(context, "segment readable");
+    assembler_emit_fmt(context, 0, NULL, "%s_protObj:", class_name);
+    assembler_emit_fmt(context, 4, "class index in name table", "dw %d", i);
+    assembler_emit_fmt(context, 4, NULL, "dq %s_dispTab", class_name);
+    assembler_emit_fmt(context, 4, "attributes count", "dq %d",
+                       class->attributes.count);
+
+    for (size_t j = 0; j < class->attributes.count; j++) {
+        class_mapping_attribute *attr = NULL;
+        ds_dynamic_array_get_ref(&class->attributes, j, (void **)&attr);
+
+        // TODO: handle constant expressions and put zero for complex
+        // expressions
+
+        const char *comment = comment_fmt("attribute %s", attr->name);
+        assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+    }
+}
+
+static void assembler_emit_object_prototypes(assembler_context *context,
+                                             program_node *program,
+                                             semantic_mapping *mapping) {
+    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
+        assembler_emit_object_prototype(context, i, program, mapping);
+    }
+}
+
+static void assembler_emit_object_init(assembler_context *context, size_t i,
+                                       program_node *program,
+                                       semantic_mapping *mapping) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    const char *class_name = class->class_name;
+
+    assembler_emit(context, "segment readable executable");
+    assembler_emit_fmt(context, 0, NULL, "%s_init:", class_name);
+
+    // TODO: initialize attributes with expressions
+}
+
+static void assembler_emit_object_inits(assembler_context *context,
+                                        program_node *program,
+                                        semantic_mapping *mapping) {
+    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
+        assembler_emit_object_init(context, i, program, mapping);
+    }
+}
+
+static void assembler_emit_dispatch_table(assembler_context *context, size_t i,
+                                          program_node *program,
+                                          semantic_mapping *mapping) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    const char *class_name = class->class_name;
+
+    assembler_emit(context, "segment readable");
+    assembler_emit_fmt(context, 0, NULL, "%s_dispTab:", class_name);
+
+    for (size_t j = 0; j < mapping->implementations.items.count; j++) {
+        implementation_mapping_item *method = NULL;
+        ds_dynamic_array_get_ref(&mapping->implementations.items, j,
+                                 (void **)&method);
+
+        if (strcmp(method->class_name, class_name) != 0) {
+            continue;
+        }
+
+        assembler_emit_fmt(context, 4, NULL, "dq %s.%s", method->parent_name,
+                           method->method_name);
+    }
+}
+
+static void assembler_emit_dispatch_tables(assembler_context *context,
+                                           program_node *program,
+                                           semantic_mapping *mapping) {
+    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
+        assembler_emit_dispatch_table(context, i, program, mapping);
+    }
+}
+
+static void assembler_emit_method(assembler_context *context, size_t i,
+                                  program_node *program,
+                                  semantic_mapping *mapping) {
+    implementation_mapping_item *method = NULL;
+    ds_dynamic_array_get_ref(&mapping->implementations.items, i, (void **)&method);
+
+    if (strcmp(method->class_name, method->parent_name) != 0) {
+        return;
+    }
+
+    assembler_emit(context, "segment readable executable");
+    assembler_emit_fmt(context, 0, NULL, "%s.%s:", method->parent_name,
+                       method->method_name);
+
+    // TODO: actually implement the method body
+}
+
+static void assembler_emit_methods(assembler_context *context,
+                                   program_node *program,
+                                   semantic_mapping *mapping) {
+    for (size_t i = 0; i < mapping->implementations.items.count; i++) {
+        assembler_emit_method(context, i, program, mapping);
     }
 }
 
@@ -227,7 +416,14 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
     assembler_emit(&context, "    xor     rdi, rdi");
     assembler_emit(&context, "    syscall");
 
+    // TODO: handle special cases for main method and basic objects
+
     assembler_emit_class_name_table(&context, program, mapping);
+    assembler_emit_class_object_table(&context, program, mapping);
+    assembler_emit_object_prototypes(&context, program, mapping);
+    assembler_emit_object_inits(&context, program, mapping);
+    assembler_emit_dispatch_tables(&context, program, mapping);
+    assembler_emit_methods(&context, program, mapping);
     assembler_emit_consts(&context, program, mapping);
 
 defer:
