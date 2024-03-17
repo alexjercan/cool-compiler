@@ -13,6 +13,7 @@ enum asm_const_type {
 
 typedef struct asm_const_value {
         enum asm_const_type type;
+        int tag;
         union {
                 struct {
                         const char *len_label;
@@ -33,6 +34,9 @@ typedef struct assembler_context {
         program_node *program;
         semantic_mapping *mapping;
         int result;
+        int int_tag;
+        int str_tag;
+        int bool_tag;
         ds_dynamic_array consts; // asm_const
 } assembler_context;
 
@@ -167,14 +171,17 @@ static void assembler_new_const(assembler_context *context,
     switch (value.type) {
     case ASM_CONST_STR: {
         prefix = "str_const";
+        value.tag = context->str_tag;
         break;
     }
     case ASM_CONST_INT: {
         prefix = "int_const";
+        value.tag = context->int_tag;
         break;
     }
     case ASM_CONST_BOOL: {
         prefix = "bool_const";
+        value.tag = context->bool_tag;
         break;
     }
     }
@@ -195,11 +202,13 @@ static void assembler_new_const(assembler_context *context,
 
 static void assembler_emit_const(assembler_context *context, asm_const c) {
     int align = strlen(c.name) + 1;
-    assembler_emit_fmt(context, 0, "type tag", "%s dw %d", c.name,
-                       c.value.type);
+    assembler_emit_fmt(context, 0, "type tag", "%s dq %d", c.name,
+                       c.value.tag);
 
     switch (c.value.type) {
     case ASM_CONST_STR: {
+        assembler_emit_fmt(context, align, "object size", "dq %d", 5);
+        assembler_emit_fmt(context, align, "dispatch table", "dq String_dispTab");
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
                            c.value.str.len_label);
         assembler_emit_fmt(context, align, "string value", "db \"%s\", 0",
@@ -207,11 +216,15 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
         break;
     }
     case ASM_CONST_INT: {
+        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
+        assembler_emit_fmt(context, align, "dispatch table", "dq Int_dispTab");
         assembler_emit_fmt(context, align, "integer value", "dq %d",
                            c.value.integer);
         break;
     }
     case ASM_CONST_BOOL: {
+        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
+        assembler_emit_fmt(context, align, "dispatch table", "dq Bool_dispTab");
         assembler_emit_fmt(context, align, "boolean value", "db %d",
                            c.value.boolean);
         break;
@@ -223,9 +236,9 @@ static void assembler_emit_consts(assembler_context *context,
                                   program_node *program,
                                   semantic_mapping *mapping) {
     assembler_emit(context, "segment readable");
-    assembler_emit(context, "_int_tag dw %d", ASM_CONST_INT);
-    assembler_emit(context, "_string_tag dw %d", ASM_CONST_STR);
-    assembler_emit(context, "_bool_tag dw %d", ASM_CONST_BOOL);
+    assembler_emit(context, "_int_tag dq %d", context->int_tag);
+    assembler_emit(context, "_string_tag dq %d", context->str_tag);
+    assembler_emit(context, "_bool_tag dq %d", context->bool_tag);
 
     for (size_t i = 0; i < context->consts.count; i++) {
         asm_const *c = NULL;
@@ -360,10 +373,10 @@ static void assembler_emit_object_prototype(assembler_context *context,
 
     assembler_emit(context, "segment readable");
     assembler_emit_fmt(context, 0, NULL, "%s_protObj:", class_name);
-    assembler_emit_fmt(context, 4, "class index in name table", "dw %d", i);
+    assembler_emit_fmt(context, 4, "object tag", "dq %d", i);
+    assembler_emit_fmt(context, 4, "object size", "dq %d",
+                       class->attributes.count + 3);
     assembler_emit_fmt(context, 4, NULL, "dq %s_dispTab", class_name);
-    assembler_emit_fmt(context, 4, "attributes count", "dq %d",
-                       class->attributes.count);
 
     for (size_t j = 0; j < class->attributes.count; j++) {
         class_mapping_attribute *attr = NULL;
@@ -447,6 +460,10 @@ static void assembler_emit_method(assembler_context *context, size_t i,
         return;
     }
 
+    if (method->method->body.kind == EXPR_EXTERN) {
+        return;
+    }
+
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s.%s:", method->parent_name,
                        method->method_name);
@@ -471,16 +488,25 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
         return_defer(1);
     }
 
-    assembler_emit(&context, "format ELF64 executable 3");
-    assembler_emit(&context, "entry start");
-    assembler_emit(&context, "segment readable executable");
-    assembler_emit(&context, "start:\n");
-    assembler_emit(&context, "    mov     rax, 60");
-    assembler_emit(&context, "    xor     rdi, rdi");
-    assembler_emit(&context, "    syscall");
-
-    // TODO: handle extern methods (they will be skipped and taked from asm
+    // TODO: handle extern methods (they will be skipped and taken from asm
     // file)
+
+    int int_tag = 0, str_tag = 0, bool_tag = 0;
+    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
+        class_node *class = NULL;
+        ds_dynamic_array_get_ref(&mapping->parents.classes, i, (void **)&class);
+
+        if (strcmp(class->name.value , "Int") == 0) {
+            int_tag = i;
+        } else if (strcmp(class->name.value, "String") == 0) {
+            str_tag = i;
+        } else if (strcmp(class->name.value, "Bool") == 0) {
+            bool_tag = i;
+        }
+    }
+    context.int_tag = int_tag;
+    context.str_tag = str_tag;
+    context.bool_tag = bool_tag;
 
     assembler_emit_class_name_table(&context, program, mapping);
     assembler_emit_class_object_table(&context, program, mapping);
