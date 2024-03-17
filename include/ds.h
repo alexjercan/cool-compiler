@@ -56,6 +56,7 @@
 #ifndef DS_H
 #define DS_H
 
+#include <stdarg.h>
 #include <stdint.h>
 
 // TODO: rework the hash table to actually work
@@ -156,7 +157,8 @@ typedef struct ds_string_builder {
 DSHDEF void ds_string_builder_init_allocator(ds_string_builder *sb,
                                              struct ds_allocator *allocator);
 DSHDEF void ds_string_builder_init(ds_string_builder *sb);
-DSHDEF int ds_string_builder_append(ds_string_builder *sb, const char *str);
+DSHDEF int ds_string_builder_append(ds_string_builder *sb, const char *format,
+                                    ...);
 DSHDEF int ds_string_builder_appendn(ds_string_builder *sb, const char *str,
                                      unsigned int len);
 DSHDEF int ds_string_builder_appendc(ds_string_builder *sb, char chr);
@@ -346,10 +348,14 @@ static inline void *ds_realloc(void *a, void *ptr, unsigned int old_sz,
 #include <stdio.h>
 #endif
 
+// TODO: actually do something for fprintf
 #if defined(DS_NO_STDIO) && !defined(fprintf)
-#define fprintf(stream, format, ...)                                           \
-    do {                                                                       \
-    } while (0)
+#define fprintf(stream, format, ...) 0
+#endif
+
+// TODO: actually do something for vsnprintf
+#if defined(DS_NO_STDIO) && !defined(vsnprintf)
+#define vsnprintf(buffer, size, format, args) 0
 #endif
 
 #if defined(DS_NO_STDIO) && !defined(stderr)
@@ -651,9 +657,35 @@ DSHDEF int ds_string_builder_appendn(ds_string_builder *sb, const char *str,
 // Append a formatted string to the string builder
 //
 // Returns 0 if the string was appended successfully.
-DSHDEF int ds_string_builder_append(ds_string_builder *sb, const char *str) {
-    unsigned int str_len = strlen(str);
-    return ds_dynamic_array_append_many(&sb->items, (void **)str, str_len);
+DSHDEF int ds_string_builder_append(ds_string_builder *sb, const char *format,
+                                    ...) {
+    int result = 0;
+
+    va_list args;
+    va_start(args, format);
+    int needed = vsnprintf(NULL, 0, format, args);
+    va_end(args);
+
+    char *buffer = DS_MALLOC(sb->items.allocator, needed + 1);
+    if (buffer == NULL) {
+        DS_LOG_ERROR("Failed to allocate string");
+        return_defer(1);
+    }
+
+    va_start(args, format);
+    vsnprintf(buffer, needed + 1, format, args);
+    va_end(args);
+
+    if (ds_dynamic_array_append_many(&sb->items, (void **)buffer, needed) !=
+        0) {
+        return_defer(1);
+    }
+
+defer:
+    if (buffer != NULL) {
+        DS_FREE(sb->items.allocator, buffer);
+    }
+    return result;
 }
 
 // Append a character to the string builder

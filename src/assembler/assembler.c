@@ -93,7 +93,7 @@ static void assembler_emit_fmt(assembler_context *context, int align,
 
     if (comment != NULL) {
         if (padding < 0) {
-            padding = 0;
+            padding = 1;
         }
         fprintf(context->file, "%*s; %s", padding, "", comment);
     }
@@ -212,9 +212,22 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
                            "dq String_dispTab");
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
                            c.value.str.len_label);
-        // TODO: need to escape the string: If non alphanum use \xHH
-        assembler_emit_fmt(context, align, "string value", "db \"%s\", 0",
-                           c.value.str.value);
+        ds_string_builder sb;
+        ds_string_builder_init(&sb);
+
+        size_t length = strlen(c.value.str.value);
+        for (size_t i = 0; i < length; i++) {
+            ds_string_builder_append(&sb, "%d", c.value.str.value[i]);
+            if (i < length - 1) {
+                ds_string_builder_appendc(&sb, ',');
+            }
+        }
+
+        char *str = NULL;
+        ds_string_builder_build(&sb, &str);
+
+        assembler_emit_fmt(context, align, "string value", "db %s,0", str);
+
         break;
     }
     case ASM_CONST_INT: {
