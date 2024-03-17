@@ -284,6 +284,62 @@ static void assembler_emit_class_object_table(assembler_context *context,
     }
 }
 
+static void assembler_emit_attribute_init(assembler_context *context,
+                                          class_mapping_attribute *attr) {
+    const attribute_node *node = attr->attribute;
+
+    const char *comment = comment_fmt("attribute %s", attr->name);
+    switch (node->value.kind) {
+    case EXPR_INT: {
+        asm_const *int_const = NULL;
+        assembler_new_const(
+            context,
+            (asm_const_value){.type = ASM_CONST_INT,
+                              .integer = atoi(node->value.integer.value)},
+            &int_const);
+
+        assembler_emit_fmt(context, 4, comment, "dq %s", int_const->name);
+        break;
+    }
+    case EXPR_BOOL: {
+        asm_const *bool_const = NULL;
+        assembler_new_const(
+            context,
+            (asm_const_value){
+                .type = ASM_CONST_BOOL,
+                .boolean = strcmp(node->value.boolean.value, "true") ? 1 : 0},
+            &bool_const);
+
+        assembler_emit_fmt(context, 4, comment, "dq %s", bool_const->name);
+        break;
+    }
+    case EXPR_STRING: {
+        asm_const *int_const = NULL;
+        assembler_new_const(
+            context,
+            (asm_const_value){.type = ASM_CONST_INT,
+                              .integer = strlen(node->value.string.value)},
+            &int_const);
+
+        asm_const *str_const = NULL;
+        assembler_new_const(
+            context,
+            (asm_const_value){
+                .type = ASM_CONST_STR,
+                .str = {int_const->name, node->value.string.value}},
+            &str_const);
+
+        assembler_emit_fmt(context, 4, comment, "dq %s", str_const->name);
+        break;
+    }
+    case EXPR_EXTERN:
+        break;
+    default:
+        assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+        break;
+    }
+}
+
 static void assembler_emit_object_prototype(assembler_context *context,
                                             size_t i, program_node *program,
                                             semantic_mapping *mapping) {
@@ -303,11 +359,7 @@ static void assembler_emit_object_prototype(assembler_context *context,
         class_mapping_attribute *attr = NULL;
         ds_dynamic_array_get_ref(&class->attributes, j, (void **)&attr);
 
-        // TODO: handle constant expressions and put zero for complex
-        // expressions
-
-        const char *comment = comment_fmt("attribute %s", attr->name);
-        assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+        assembler_emit_attribute_init(context, attr);
     }
 }
 
@@ -378,7 +430,8 @@ static void assembler_emit_method(assembler_context *context, size_t i,
                                   program_node *program,
                                   semantic_mapping *mapping) {
     implementation_mapping_item *method = NULL;
-    ds_dynamic_array_get_ref(&mapping->implementations.items, i, (void **)&method);
+    ds_dynamic_array_get_ref(&mapping->implementations.items, i,
+                             (void **)&method);
 
     if (strcmp(method->class_name, method->parent_name) != 0) {
         return;
@@ -416,7 +469,8 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
     assembler_emit(&context, "    xor     rdi, rdi");
     assembler_emit(&context, "    syscall");
 
-    // TODO: handle extern methods (they will be skipped and taked from asm file)
+    // TODO: handle extern methods (they will be skipped and taked from asm
+    // file)
 
     assembler_emit_class_name_table(&context, program, mapping);
     assembler_emit_class_object_table(&context, program, mapping);

@@ -43,15 +43,15 @@ class List inherits IO {
 };
 
 class A {
-    a: String;
-    b: String;
+    a: Int <- 3;
+    b: String <- "hello";
 
     foo(): String {
-        a.concat(b)
+        b.concat(b)
     };
 
     bar(): String {
-        b.concat(a)
+        b.concat(b)
     };
 };
 
@@ -59,7 +59,7 @@ class B inherits A {
     c: String;
 
     foo(): String {
-        a.concat(b).concat(c)
+        b.concat(b).concat(c)
     };
 };
 
