@@ -487,7 +487,8 @@ static void assembler_emit_tac_assign_string(assembler_context *context,
 
 static void assembler_emit_tac(assembler_context *context, size_t i,
                                program_node *program, semantic_mapping *mapping,
-                               const tac_instr *instr) {
+                               tac_instr *instr) {
+    // TODO: implement
     switch (instr->kind) {
     case TAC_LABEL:
         // return assembler_emit_tac_label(instr->label);

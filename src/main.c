@@ -50,12 +50,15 @@ int main(int argc, char **argv) {
     const char *basename = util_filepath_to_basename(filename);
     char *output = argparse_get_value(parser, ARG_OUTPUT);
 
+    // TODO: take this file from ENV/PATH
+    const char *prelude_cl = "lib/prelude.cl";
+    const char *prelude_asm = "lib/prelude.asm";
+
+    // read prelude file
     {
-        // read prelude file
-        // TODO: take this file from ENV/PATH
-        length = util_read_file("lib/prelude.cl", &buffer);
+        length = util_read_file(prelude_cl, &buffer);
         if (length < 0) {
-            DS_LOG_ERROR("Failed to read file: lib/stdlib.cl");
+            DS_LOG_ERROR("Failed to read file: %s", prelude_cl);
             return_defer(1);
         }
 
@@ -75,6 +78,7 @@ int main(int argc, char **argv) {
         ds_dynamic_array_append(&programs, &program);
     }
 
+    // user defined files start at index
     size_t index = programs.count;
 
     // front-end
@@ -114,7 +118,7 @@ int main(int argc, char **argv) {
 
     // merge programs
     program_node program;
-    parser_merge(programs, &program);
+    parser_merge(programs, &program, 0);
 
     // gatekeeping
     {
@@ -125,10 +129,10 @@ int main(int argc, char **argv) {
         }
 
         if (argparse_get_flag(parser, ARG_SEMANTIC) == 1) {
-            program_node *program = NULL;
-            ds_dynamic_array_get_ref(&programs, index, (void **)&program);
+            program_node program;
+            parser_merge(programs, &program, index);
 
-            parser_print_ast(program);
+            parser_print_ast(&program);
             return_defer(0);
         }
 
@@ -146,10 +150,9 @@ int main(int argc, char **argv) {
         }
 
         // read asm prelude file
-        // TODO: take this file from ENV/PATH
-        length = util_read_file("lib/prelude.asm", &buffer);
+        length = util_read_file(prelude_asm, &buffer);
         if (length < 0) {
-            DS_LOG_ERROR("Failed to read file: lib/stdlib.cl");
+            DS_LOG_ERROR("Failed to read file: %s", prelude_asm);
             return_defer(1);
         }
 
@@ -170,15 +173,5 @@ int main(int argc, char **argv) {
     }
 
 defer:
-    for (unsigned int i = 0; i < tokens.count; i++) {
-        struct token tok;
-        ds_dynamic_array_get(&tokens, i, &tok);
-        if (tok.literal)
-            DS_FREE(NULL, tok.literal);
-    }
-    ds_dynamic_array_free(&tokens);
-    if (buffer != NULL)
-        DS_FREE(NULL, buffer);
-    argparse_free(parser);
     return result;
 }

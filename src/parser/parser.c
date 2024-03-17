@@ -1240,10 +1240,11 @@ enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
     return parser.result;
 }
 
-void parser_merge(ds_dynamic_array programs, program_node *program) {
+void parser_merge(ds_dynamic_array programs, program_node *program,
+                  unsigned int index) {
     ds_dynamic_array_init(&program->classes, sizeof(class_node));
 
-    for (unsigned int i = 0; i < programs.count; i++) {
+    for (unsigned int i = index; i < programs.count; i++) {
         program_node *p = NULL;
         ds_dynamic_array_get_ref(&programs, i, (void **)&p);
 
