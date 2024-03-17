@@ -167,6 +167,47 @@ IO.out_string:
 ;
 segment readable executable
 IO.out_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, [rbp + 16]            ; get x
+    add     rax, [int_slot]            ; get *x.val
+    mov     rax, [rax]                 ; get x.val
+
+    push    rbx                        ; save register
+
+    ; print the integer
+    xor     rcx, rcx                   ; count = 0
+    mov     rbx, 10                    ; base = 10
+.IO.out_int.stack:
+    xor     rdx, rdx                   ; clear rdx
+    div     rbx                        ; rax = rax / 10, rdx = rax % 10
+    add     rdx, '0'                   ; convert remainder to ASCII
+    push    rdx                        ; save remainder
+    inc     rcx                        ; increment count
+    test    rax, rax                   ; check if done
+    jnz     .IO.out_int.stack          ; loop if not done
+.IO.out_int.write:
+    lea     rsi, [rsp]                 ; buf = *stack
+    mov     rdx, 1                     ; count = 1
+    mov     rax, 1                     ; write
+    mov     rdi, 1                     ; fd = stdout
+    push    rcx                        ; save count
+    syscall
+    pop     rcx                        ; restore count
+
+    pop     rdx                        ; throw away remainder
+    dec     rcx                        ; decrement count
+    jnz     .IO.out_int.write          ; loop if not done
+
+    pop     rbx                        ; restore register
+
+    mov     rax, rbx                   ; restore self and return it
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
 
 ;
 ;
