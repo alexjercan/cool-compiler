@@ -75,6 +75,8 @@ int main(int argc, char **argv) {
         ds_dynamic_array_append(&programs, &program);
     }
 
+    size_t index = programs.count;
+
     // front-end
     {
         // read input file
@@ -123,7 +125,10 @@ int main(int argc, char **argv) {
         }
 
         if (argparse_get_flag(parser, ARG_SEMANTIC) == 1) {
-            parser_print_ast(&program);
+            program_node *program = NULL;
+            ds_dynamic_array_get_ref(&programs, index, (void **)&program);
+
+            parser_print_ast(program);
             return_defer(0);
         }
 
