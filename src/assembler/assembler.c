@@ -202,13 +202,13 @@ static void assembler_new_const(assembler_context *context,
 
 static void assembler_emit_const(assembler_context *context, asm_const c) {
     int align = strlen(c.name) + 1;
-    assembler_emit_fmt(context, 0, "type tag", "%s dq %d", c.name,
-                       c.value.tag);
+    assembler_emit_fmt(context, 0, "type tag", "%s dq %d", c.name, c.value.tag);
 
     switch (c.value.type) {
     case ASM_CONST_STR: {
         assembler_emit_fmt(context, align, "object size", "dq %d", 5);
-        assembler_emit_fmt(context, align, "dispatch table", "dq String_dispTab");
+        assembler_emit_fmt(context, align, "dispatch table",
+                           "dq String_dispTab");
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
                            c.value.str.len_label);
         assembler_emit_fmt(context, align, "string value", "db \"%s\", 0",
@@ -401,11 +401,20 @@ static void assembler_emit_object_init(assembler_context *context, size_t i,
     ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
 
     const char *class_name = class->class_name;
+    const char *comment = NULL;
 
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s_init:", class_name);
 
+    assembler_emit_fmt(context, 4, NULL, "push    rbp");
+    assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
+    assembler_emit_fmt(context, 4, "save self", "push    rax");
+
     // TODO: initialize attributes with expressions
+
+    assembler_emit_fmt(context, 4, "restore self", "pop     rax");
+    assembler_emit_fmt(context, 4, NULL, "pop     rbp");
+    assembler_emit_fmt(context, 4, NULL, "ret");
 }
 
 static void assembler_emit_object_inits(assembler_context *context,
@@ -468,7 +477,15 @@ static void assembler_emit_method(assembler_context *context, size_t i,
     assembler_emit_fmt(context, 0, NULL, "%s.%s:", method->parent_name,
                        method->method_name);
 
+    assembler_emit_fmt(context, 4, NULL, "push    rbp");
+    assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
+    assembler_emit_fmt(context, 4, "save self", "push    rax");
+
     // TODO: actually implement the method body
+
+    assembler_emit_fmt(context, 4, "restore self", "pop     rax");
+    assembler_emit_fmt(context, 4, NULL, "pop     rbp");
+    assembler_emit_fmt(context, 4, NULL, "ret");
 }
 
 static void assembler_emit_methods(assembler_context *context,
@@ -496,7 +513,7 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
         class_node *class = NULL;
         ds_dynamic_array_get_ref(&mapping->parents.classes, i, (void **)&class);
 
-        if (strcmp(class->name.value , "Int") == 0) {
+        if (strcmp(class->name.value, "Int") == 0) {
             int_tag = i;
         } else if (strcmp(class->name.value, "String") == 0) {
             str_tag = i;
