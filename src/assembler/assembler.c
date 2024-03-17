@@ -1,4 +1,5 @@
 #include "assembler.h"
+#include "codegen.h"
 #include "ds.h"
 #include "parser.h"
 #include "semantic.h"
@@ -394,25 +395,67 @@ static void assembler_emit_object_prototypes(assembler_context *context,
     }
 }
 
-static void assembler_emit_object_init(assembler_context *context, size_t i,
-                                       program_node *program,
-                                       semantic_mapping *mapping) {
+static void assembler_emit_expr(assembler_context *context, size_t i,
+                                program_node *program,
+                                semantic_mapping *mapping,
+                                const expr_node *expr) {
     class_mapping_item *class = NULL;
     ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
 
-    const char *class_name = class->class_name;
-    const char *comment = NULL;
+    ds_dynamic_array tac;
+    ds_dynamic_array_init(&tac, sizeof(tac_instr));
+
+    codegen_expr_to_tac(expr, &tac);
+
+    // TODO: generate asm from tac
+}
+
+static void assembler_emit_object_init_attribute(assembler_context *context,
+                                                 size_t i, size_t j,
+                                                 program_node *program,
+                                                 semantic_mapping *mapping) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    class_mapping_attribute *attr = NULL;
+    ds_dynamic_array_get_ref(&class->attributes, j, (void **)&attr);
+
+    assembler_emit_expr(context, i, program, mapping, &attr->attribute->value);
+}
+
+static void assembler_emit_object_init_attributes(assembler_context *context,
+                                                  size_t i,
+                                                  program_node *program,
+                                                  semantic_mapping *mapping) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    for (size_t j = 0; j < class->attributes.count; j++) {
+        assembler_emit_object_init_attribute(context, i, j, program, mapping);
+    }
+}
+
+static void assembler_emit_object_init(assembler_context *context, size_t i,
+                                       program_node *program,
+                                       semantic_mapping *mapping) {
+    parent_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->parents.classes, i, (void **)&class);
 
     assembler_emit(context, "segment readable executable");
-    assembler_emit_fmt(context, 0, NULL, "%s_init:", class_name);
-
+    assembler_emit_fmt(context, 0, NULL, "%s_init:", class->name);
     assembler_emit_fmt(context, 4, NULL, "push    rbp");
     assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
-    assembler_emit_fmt(context, 4, "save self", "push    rax");
+    assembler_emit_fmt(context, 4, NULL, "push    rbx");
+    assembler_emit_fmt(context, 4, "save self", "mov     rbx, rax");
+    if (class->parent != NULL) {
+        assembler_emit_fmt(context, 4, NULL, "call %s_init",
+                           class->parent->name);
+    }
 
-    // TODO: initialize attributes with expressions
+    assembler_emit_object_init_attributes(context, i, program, mapping);
 
-    assembler_emit_fmt(context, 4, "restore self", "pop     rax");
+    assembler_emit_fmt(context, 4, "restore self", "mov     rax, rbx");
+    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
     assembler_emit_fmt(context, 4, NULL, "pop     rbp");
     assembler_emit_fmt(context, 4, NULL, "ret");
 }
@@ -469,6 +512,16 @@ static void assembler_emit_method(assembler_context *context, size_t i,
         return;
     }
 
+    size_t j = 0;
+    for (j = 0; j < mapping->parents.classes.count; j++) {
+        parent_mapping_item *class = NULL;
+        ds_dynamic_array_get_ref(&mapping->parents.classes, j, (void **)&class);
+
+        if (strcmp(class->name, method->class_name) == 0) {
+            break;
+        }
+    }
+
     if (method->method->body.kind == EXPR_EXTERN) {
         return;
     }
@@ -476,14 +529,14 @@ static void assembler_emit_method(assembler_context *context, size_t i,
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s.%s:", method->parent_name,
                        method->method_name);
-
     assembler_emit_fmt(context, 4, NULL, "push    rbp");
     assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
-    assembler_emit_fmt(context, 4, "save self", "push    rax");
+    assembler_emit_fmt(context, 4, NULL, "push    rbx");
+    assembler_emit_fmt(context, 4, "save self", "mov     rbx, rax");
 
-    // TODO: actually implement the method body
+    assembler_emit_expr(context, j, program, mapping, &method->method->body);
 
-    assembler_emit_fmt(context, 4, "restore self", "pop     rax");
+    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
     assembler_emit_fmt(context, 4, NULL, "pop     rbp");
     assembler_emit_fmt(context, 4, NULL, "ret");
 }

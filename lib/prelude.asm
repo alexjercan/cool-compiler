@@ -50,16 +50,17 @@ segment readable executable
 Object.copy:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
     push    [heap_pos]                 ; push new object position
-    push    rax                        ; save self
+    mov     rbx, rax                   ; save self
 
-    mov     rbx, rax                   ; get self
-    add     rbx, [obj_size]            ; get *self.size
-    mov     rbx, [rbx]                 ; get self.size (in qwords)
-    shl     rbx, 3                     ; get self.size (in bytes)
+    mov     rax, rbx                   ; get self
+    add     rax, [obj_size]            ; get *self.size
+    mov     rax, [rax]                 ; get self.size (in qwords)
+    shl     rax, 3                     ; get self.size (in bytes)
 
-    add     rbx, [heap_pos]            ; heap_pos after copy
-    cmp     rbx, [heap_end]            ; check if there is enough space
+    add     rax, [heap_pos]            ; heap_pos after copy
+    cmp     rax, [heap_end]            ; check if there is enough space
     jle     _oc_ok
 
     ; allocate more space
@@ -70,22 +71,21 @@ Object.copy:
     mov     [heap_end], rax            ; save the new end of the heap
 
 _oc_ok:
-    pop     rax                        ; get self
-
-    mov     rbx, rax                   ; get self
-    add     rbx, [obj_size]            ; get *self.size
-    mov     rbx, [rbx]                 ; get self.size (in qwords)
+    mov     rax, rbx                   ; get self
+    add     rax, [obj_size]            ; get *self.size
+    mov     rax, [rax]                 ; get self.size (in qwords)
 _oc_loop:
     mov     rdi, [heap_pos]            ; get new object position
-    mov     rsi, [rax]                 ; get *self[i]
-    add     rax, 8                     ; next slot
-    dec     rbx                        ; decrement counter
+    mov     rsi, [rbx]                 ; get *self[i]
+    add     rbx, 8                     ; next slot
+    dec     rax                        ; decrement counter
     mov     [rdi], rsi                 ; copy slot
     add     [heap_pos], 8              ; increment new object position
-    cmp     rbx, 0                     ; check if done
+    cmp     rax, 0                     ; check if done
     jg      _oc_loop
 
     pop     rax                        ; return new object
+    pop     rbx                        ; restore register
     pop     rbp                        ; restore return address
     ret
 
@@ -130,26 +130,26 @@ segment readable executable
 IO.out_string:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    push    rax                        ; save self
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
 
     mov     rax, [rbp + 16]            ; get x
+    add     rax, [str_field]           ; get *x.s
+    mov     rsi, rax                   ; buf = *x.s
 
-    mov     rbx, rax                   ; get x
-    add     rbx, [str_field]           ; get *x.s
-    mov     rsi, rbx                   ; buf = *x.s
-
-    mov     rbx, rax                   ; get x
-    add     rbx, [str_size]            ; get *x.l
-    mov     rbx, [rbx]                 ; get x.l
-    add     rbx, [int_slot]            ; get *x.l.val
-    mov     rbx, [rbx]                 ; get x.l.val
-    mov     rdx, rbx                   ; count = x.l.val
+    mov     rax, [rbp + 16]            ; get x
+    add     rax, [str_size]            ; get *x.l
+    mov     rax, [rax]                 ; get x.l
+    add     rax, [int_slot]            ; get *x.l.val
+    mov     rax, [rax]                 ; get x.l.val
+    mov     rdx, rax                   ; count = x.l.val
 
     mov     rax, 1                     ; write
     mov     rdi, 1                     ; fd = stdout
     syscall
 
-    pop     rax                        ; return self
+    mov     rax, rbx                   ; restore self and return it
+    pop     rbx                        ; restore register
     pop     rbp                        ; restore return address
     ret
 

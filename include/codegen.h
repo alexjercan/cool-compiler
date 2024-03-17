@@ -123,7 +123,7 @@ typedef struct tac_instr {
         };
 } tac_instr;
 
-int codegen_expr_to_tac(expr_node *expr, ds_dynamic_array *tac);
+int codegen_expr_to_tac(const expr_node *expr, ds_dynamic_array *tac);
 
 void codegen_tac_print(program_node *program);
 

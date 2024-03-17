@@ -642,13 +642,13 @@ static void tac_expr(tac_context *context, expr_node *expr,
     }
 }
 
-int codegen_expr_to_tac(expr_node *expr, ds_dynamic_array *tac) {
+int codegen_expr_to_tac(const expr_node *expr, ds_dynamic_array *tac) {
     tac_context context = {.result = 0, .temp_count = 0, .label_count = 0};
 
     ds_dynamic_array_init(tac, sizeof(tac_instr));
     tac_instr result;
 
-    tac_expr(&context, expr, tac, &result);
+    tac_expr(&context, (expr_node *)expr, tac, &result);
 
     ds_dynamic_array_append(tac, &result);
 
