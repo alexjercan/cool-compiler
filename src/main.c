@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
 
     {
         // read prelude file
+        // TODO: take this file from ENV/PATH
         length = util_read_file("lib/prelude.cl", &buffer);
         if (length < 0) {
             DS_LOG_ERROR("Failed to read file: lib/stdlib.cl");
@@ -74,6 +75,7 @@ int main(int argc, char **argv) {
         ds_dynamic_array_append(&programs, &program);
     }
 
+    // front-end
     {
         // read input file
         length = util_read_file(filename, &buffer);
@@ -112,35 +114,54 @@ int main(int argc, char **argv) {
     program_node program;
     parser_merge(programs, &program);
 
-    // semantic check
-    if (semantic_check(basename, &program, &mapping) != SEMANTIC_OK) {
-        printf("Compilation halted\n");
-        return_defer(1);
+    // gatekeeping
+    {
+        // semantic check
+        if (semantic_check(basename, &program, &mapping) != SEMANTIC_OK) {
+            printf("Compilation halted\n");
+            return_defer(1);
+        }
+
+        if (argparse_get_flag(parser, ARG_SEMANTIC) == 1) {
+            parser_print_ast(&program);
+            return_defer(0);
+        }
+
+        if (argparse_get_flag(parser, ARG_MAPPING) == 1) {
+            semantic_print_mapping(&mapping);
+            return_defer(0);
+        }
     }
 
-    if (argparse_get_flag(parser, ARG_SEMANTIC) == 1) {
-        parser_print_ast(&program);
-        return_defer(0);
-    }
+    // codegen
+    {
+        if (argparse_get_flag(parser, ARG_TACGEN) == 1) {
+            codegen_tac_print(&program);
+            return_defer(0);
+        }
 
-    if (argparse_get_flag(parser, ARG_MAPPING) == 1) {
-        semantic_print_mapping(&mapping);
-        return_defer(0);
-    }
+        // read asm prelude file
+        // TODO: take this file from ENV/PATH
+        length = util_read_file("lib/prelude.asm", &buffer);
+        if (length < 0) {
+            DS_LOG_ERROR("Failed to read file: lib/stdlib.cl");
+            return_defer(1);
+        }
 
-    if (argparse_get_flag(parser, ARG_TACGEN) == 1) {
-        codegen_tac_print(&program);
-        return_defer(0);
-    }
+        if (util_write_file(output, buffer) != 0) {
+            DS_LOG_ERROR("Failed to write file: %s", output);
+            return_defer(1);
+        }
 
-    // assembler
-    if (assembler_run(output, &program, &mapping) != ASSEMBLER_OK) {
-        printf("Compilation halted\n");
-        return_defer(1);
-    }
+        // assembler
+        if (assembler_run(output, &program, &mapping) != ASSEMBLER_OK) {
+            printf("Compilation halted\n");
+            return_defer(1);
+        }
 
-    if (argparse_get_flag(parser, ARG_ASSEMBLER) == 1) {
-        return_defer(0);
+        if (argparse_get_flag(parser, ARG_ASSEMBLER) == 1) {
+            return_defer(0);
+        }
     }
 
 defer:
