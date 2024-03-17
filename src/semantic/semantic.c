@@ -4,25 +4,15 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+// Is it possible to handle these class names in a more generic way?
+// For example, illegal inherit when a class has external attributes
+// TODO: Come up with some rules for this
+#define OBJECT_TYPE "Object"
 #define INT_TYPE "Int"
 #define STRING_TYPE "String"
 #define BOOL_TYPE "Bool"
+
 #define SELF_TYPE "SELF_TYPE"
-#define OBJECT_TYPE "Object"
-#define IO_TYPE "IO"
-
-#define METHOD_ABORT "abort"
-#define METHOD_TYPE_NAME "type_name"
-#define METHOD_COPY "copy"
-
-#define METHOD_LENGTH "length"
-#define METHOD_CONCAT "concat"
-#define METHOD_SUBSTR "substr"
-
-#define METHOD_OUT_STRING "out_string"
-#define METHOD_OUT_INT "out_int"
-#define METHOD_IN_STRING "in_string"
-#define METHOD_IN_INT "in_int"
 
 typedef struct semantic_context {
         const char *filename;
@@ -322,117 +312,6 @@ static int is_class_inheritance_cycle(semantic_context *context,
 #define context_show_error_class_inheritance(context, class)                   \
     context_show_errorf(context, class.name.line, class.name.col,              \
                         "Inheritance cycle for class %s", class.name.value)
-
-/*
-static void define_external_classes(semantic_context *context) {
-    class_context object_instance = {.name = OBJECT_TYPE, .parent = NULL};
-    ds_dynamic_array_init(&object_instance.objects, sizeof(object_context));
-    ds_dynamic_array_init(&object_instance.methods, sizeof(method_context));
-    ds_dynamic_array_append(&context->classes, &object_instance);
-
-    class_context *object = NULL;
-    find_class_ctx(context, OBJECT_TYPE, &object);
-
-    method_context abort = {.name = METHOD_ABORT, .type = OBJECT_TYPE};
-    ds_dynamic_array_init(&abort.formals, sizeof(object_context));
-    ds_dynamic_array_append(&object->methods, &abort);
-
-    method_context type_name = {.name = METHOD_TYPE_NAME, .type = STRING_TYPE};
-    ds_dynamic_array_init(&type_name.formals, sizeof(object_context));
-    ds_dynamic_array_append(&object->methods, &type_name);
-
-    method_context copy = {.name = METHOD_COPY, .type = SELF_TYPE};
-    ds_dynamic_array_init(&copy.formals, sizeof(object_context));
-    ds_dynamic_array_append(&object->methods, &copy);
-
-    class_context string_instance = {.name = STRING_TYPE, .parent = object};
-    ds_dynamic_array_init(&string_instance.objects, sizeof(object_context));
-    ds_dynamic_array_init(&string_instance.methods, sizeof(method_context));
-    ds_dynamic_array_append(&context->classes, &string_instance);
-
-    class_context *string = NULL;
-    find_class_ctx(context, STRING_TYPE, &string);
-
-    object_context attribute_l = {.name = "l", .type = INT_TYPE};
-    ds_dynamic_array_append(&string->objects, &attribute_l);
-
-    object_context attribute_str = {.name = "str", .type = STRING_TYPE};
-    ds_dynamic_array_append(&string->objects, &attribute_str);
-
-    method_context length = {.name = METHOD_LENGTH, .type = INT_TYPE};
-    ds_dynamic_array_init(&length.formals, sizeof(object_context));
-    ds_dynamic_array_append(&string->methods, &length);
-
-    method_context concat = {.name = METHOD_CONCAT, .type = STRING_TYPE};
-    ds_dynamic_array_init(&concat.formals, sizeof(object_context));
-    object_context concat_formal = {.name = "s", .type = STRING_TYPE};
-    ds_dynamic_array_append(&concat.formals, &concat_formal);
-    ds_dynamic_array_append(&string->methods, &concat);
-
-    method_context substr = {.name = METHOD_SUBSTR, .type = STRING_TYPE};
-    ds_dynamic_array_init(&substr.formals, sizeof(object_context));
-    object_context substr_formal1 = {.name = "i", .type = INT_TYPE};
-    object_context substr_formal2 = {.name = "l", .type = INT_TYPE};
-    ds_dynamic_array_append(&substr.formals, &substr_formal1);
-    ds_dynamic_array_append(&substr.formals, &substr_formal2);
-    ds_dynamic_array_append(&string->methods, &substr);
-
-    class_context int_instance = {.name = INT_TYPE, .parent = object};
-    ds_dynamic_array_init(&int_instance.objects, sizeof(object_context));
-    ds_dynamic_array_init(&int_instance.methods, sizeof(method_context));
-    ds_dynamic_array_append(&context->classes, &int_instance);
-
-    class_context *int_ = NULL;
-    find_class_ctx(context, INT_TYPE, &int_);
-
-    object_context attribute_val = {.name = "val", .type = INT_TYPE};
-    ds_dynamic_array_append(&int_->objects, &attribute_val);
-
-    class_context bool_instance = {.name = BOOL_TYPE, .parent = object};
-    ds_dynamic_array_init(&bool_instance.objects, sizeof(object_context));
-    ds_dynamic_array_init(&bool_instance.methods, sizeof(method_context));
-    ds_dynamic_array_append(&context->classes, &bool_instance);
-
-    class_context *bool_ = NULL;
-    find_class_ctx(context, BOOL_TYPE, &bool_);
-
-    object_context attribute_val2 = {.name = "val", .type = BOOL_TYPE};
-    ds_dynamic_array_append(&bool_->objects, &attribute_val2);
-
-    class_context io_instance = {.name = IO_TYPE, .parent = object};
-    ds_dynamic_array_init(&io_instance.objects, sizeof(object_context));
-    ds_dynamic_array_init(&io_instance.methods, sizeof(method_context));
-    ds_dynamic_array_append(&context->classes, &io_instance);
-
-    class_context *io = NULL;
-    find_class_ctx(context, IO_TYPE, &io);
-
-    method_context out_string = {.name = METHOD_OUT_STRING, .type = SELF_TYPE};
-    ds_dynamic_array_init(&out_string.formals, sizeof(object_context));
-    object_context out_string_formal = {.name = "x", .type = STRING_TYPE};
-    ds_dynamic_array_append(&out_string.formals, &out_string_formal);
-    ds_dynamic_array_append(&io->methods, &out_string);
-
-    method_context out_int = {.name = METHOD_OUT_INT, .type = SELF_TYPE};
-    ds_dynamic_array_init(&out_int.formals, sizeof(object_context));
-    object_context out_int_formal = {.name = "x", .type = INT_TYPE};
-    ds_dynamic_array_append(&out_int.formals, &out_int_formal);
-    ds_dynamic_array_append(&io->methods, &out_int);
-
-    method_context in_string = {.name = METHOD_IN_STRING, .type = STRING_TYPE};
-    ds_dynamic_array_init(&in_string.formals, sizeof(object_context));
-    ds_dynamic_array_append(&io->methods, &in_string);
-
-    method_context in_int = {.name = METHOD_IN_INT, .type = INT_TYPE};
-    ds_dynamic_array_init(&in_int.formals, sizeof(object_context));
-    ds_dynamic_array_append(&io->methods, &in_int);
-
-    class_context self_type_instance = {.name = SELF_TYPE, .parent = object};
-    ds_dynamic_array_init(&self_type_instance.objects, sizeof(object_context));
-    ds_dynamic_array_init(&self_type_instance.methods, sizeof(method_context));
-    ds_dynamic_array_append(&context->classes, &self_type_instance);
-}
-*/
 
 static void semantic_check_classes(semantic_context *context,
                                    program_node *program) {
@@ -2307,8 +2186,6 @@ enum semantic_result semantic_check(const char *filename, program_node *program,
 
     context.result = SEMANTIC_OK;
     ds_dynamic_array_init(&context.classes, sizeof(class_context));
-
-    // define_external_classes(&context);
 
     semantic_check_classes(&context, program);
     semantic_check_attributes(&context, program);
