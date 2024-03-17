@@ -212,6 +212,7 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
                            "dq String_dispTab");
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
                            c.value.str.len_label);
+        // TODO: need to escape the string: If non alphanum use \xHH
         assembler_emit_fmt(context, align, "string value", "db \"%s\", 0",
                            c.value.str.value);
         break;
@@ -395,10 +396,35 @@ static void assembler_emit_object_prototypes(assembler_context *context,
     }
 }
 
+static void assembler_emit_tac_dispatch_call(assembler_context *context,
+                                             size_t i, program_node *program,
+                                             semantic_mapping *mapping,
+                                             tac_dispatch_call instr) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    for (size_t i = 0; i < instr.args.count; i++) {
+        char *arg;
+        ds_dynamic_array_get(&instr.args, instr.args.count - i - 1, &arg);
+        assembler_emit_fmt(context, 4, NULL, "push    %s", arg);
+    }
+
+    // TODO: call correct method
+    assembler_emit_fmt(context, 4, NULL, "call IO.out_string", instr.expr,
+                       instr.type, instr.method);
+    assembler_emit_fmt(context, 4, NULL, "%s = 0", instr.ident);
+
+    for (unsigned int i = 0; i < instr.args.count; i++) {
+        char *arg;
+        ds_dynamic_array_get(&instr.args, i, &arg);
+        assembler_emit_fmt(context, 4, NULL, "pop     rax");
+    }
+}
+
 static void assembler_emit_tac_ident(assembler_context *context, size_t i,
                                      program_node *program,
                                      semantic_mapping *mapping,
-                                     const tac_ident instr) {
+                                     tac_ident instr) {
     class_mapping_item *class = NULL;
     ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
 
@@ -408,7 +434,7 @@ static void assembler_emit_tac_ident(assembler_context *context, size_t i,
 static void assembler_emit_tac_assign_int(assembler_context *context, size_t i,
                                           program_node *program,
                                           semantic_mapping *mapping,
-                                          const tac_assign_int instr) {
+                                          tac_assign_int instr) {
     class_mapping_item *class = NULL;
     ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
 
@@ -420,6 +446,30 @@ static void assembler_emit_tac_assign_int(assembler_context *context, size_t i,
 
     assembler_emit_fmt(context, 4, NULL, "%s = %s", instr.ident,
                        int_const->name);
+}
+
+static void assembler_emit_tac_assign_string(assembler_context *context,
+                                             size_t i, program_node *program,
+                                             semantic_mapping *mapping,
+                                             tac_assign_string instr) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    asm_const *int_const = NULL;
+    assembler_new_const(context,
+                        (asm_const_value){.type = ASM_CONST_INT,
+                                          .integer = strlen(instr.value)},
+                        &int_const);
+
+    asm_const *str_const = NULL;
+    assembler_new_const(
+        context,
+        (asm_const_value){.type = ASM_CONST_STR,
+                          .str = {int_const->name, instr.value}},
+        &str_const);
+
+    assembler_emit_fmt(context, 4, NULL, "%s = %s", instr.ident,
+                       str_const->name);
 }
 
 static void assembler_emit_tac(assembler_context *context, size_t i,
@@ -439,7 +489,8 @@ static void assembler_emit_tac(assembler_context *context, size_t i,
     case TAC_ASSIGN_VALUE:
         // return assembler_emit_tac_assign_value(instr->assign_value);
     case TAC_DISPATCH_CALL:
-        // return assembler_emit_tac_dispatch_call(instr->dispatch_call);
+        return assembler_emit_tac_dispatch_call(context, i, program, mapping,
+                                                instr->dispatch_call);
     case TAC_ASSIGN_NEW:
         // return assembler_emit_tac_assign_new(instr->assign_new);
     case TAC_ASSIGN_ISVOID:
@@ -470,7 +521,8 @@ static void assembler_emit_tac(assembler_context *context, size_t i,
         return assembler_emit_tac_assign_int(context, i, program, mapping,
                                              instr->assign_int);
     case TAC_ASSIGN_STRING:
-        // return assembler_emit_tac_assign_string(instr->assign_string);
+        return assembler_emit_tac_assign_string(context, i, program, mapping,
+                                                instr->assign_string);
     case TAC_ASSIGN_BOOL:
         // return assembler_emit_tac_assign_bool(instr->assign_bool);
         break;
