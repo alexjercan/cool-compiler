@@ -968,10 +968,19 @@ static void build_attribute(struct parser *parser, attribute_node *attribute) {
     parser_advance(parser);
 
     parser_current(parser, &token);
+
     if (token.type == ASSIGN) {
         parser_advance(parser);
 
-        build_expr(parser, &attribute->value);
+        parser_current(parser, &token);
+        if (token.type == EXTERN) {
+            attribute->value.type = NULL;
+            attribute->value.kind = EXPR_EXTERN;
+
+            parser_advance(parser);
+        } else {
+            build_expr(parser, &attribute->value);
+        }
     }
 }
 
