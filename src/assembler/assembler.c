@@ -332,8 +332,18 @@ static void assembler_emit_attribute_init(assembler_context *context,
         assembler_emit_fmt(context, 4, comment, "dq %s", str_const->name);
         break;
     }
-    case EXPR_EXTERN:
+    case EXPR_EXTERN: {
+        if (strcmp(node->type.value, STRING_TYPE) == 0) {
+            assembler_emit_fmt(context, 4, comment, "dq \"\"");
+        } else if (strcmp(node->type.value, INT_TYPE) == 0) {
+            assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+        } else if (strcmp(node->type.value, BOOL_TYPE) == 0) {
+            assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+        } else {
+            assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+        }
         break;
+    }
     default:
         assembler_emit_fmt(context, 4, comment, "dq %d", 0);
         break;

@@ -4,16 +4,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-// Is it possible to handle these class names in a more generic way?
-// For example, illegal inherit when a class has external attributes
-// TODO: Come up with some rules for this
-#define OBJECT_TYPE "Object"
-#define INT_TYPE "Int"
-#define STRING_TYPE "String"
-#define BOOL_TYPE "Bool"
-
-#define SELF_TYPE "SELF_TYPE"
-
 typedef struct semantic_context {
         const char *filename;
         enum semantic_result result;
