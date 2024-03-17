@@ -227,7 +227,8 @@ static const char *least_common_ancestor(semantic_context *context,
     class_context *class_ctx2 = NULL;
     find_class_ctx(context, type2, &class_ctx2);
 
-    if (class_ctx1 == NULL || (class_ctx2 == NULL && strcmp(type2, SELF_TYPE) != 0)) {
+    if (class_ctx1 == NULL ||
+        (class_ctx2 == NULL && strcmp(type2, SELF_TYPE) != 0)) {
         return NULL;
     }
 
@@ -2026,7 +2027,8 @@ static void build_semantic_class_mapping(semantic_context *context,
 
             for (unsigned int k = 0; k < current_ctx->objects.count; k++) {
                 object_context *object = NULL;
-                ds_dynamic_array_get_ref(&current_ctx->objects, k,
+                ds_dynamic_array_get_ref(&current_ctx->objects,
+                                         current_ctx->objects.count - k - 1,
                                          (void **)&object);
 
                 const char *attribute_name = object->name;
