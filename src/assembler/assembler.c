@@ -395,19 +395,103 @@ static void assembler_emit_object_prototypes(assembler_context *context,
     }
 }
 
+static void assembler_emit_tac_ident(assembler_context *context, size_t i,
+                                     program_node *program,
+                                     semantic_mapping *mapping,
+                                     const tac_ident instr) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", instr.name);
+}
+
+static void assembler_emit_tac_assign_int(assembler_context *context, size_t i,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          const tac_assign_int instr) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+
+    asm_const *int_const = NULL;
+    assembler_new_const(
+        context,
+        (asm_const_value){.type = ASM_CONST_INT, .integer = instr.value},
+        &int_const);
+
+    assembler_emit_fmt(context, 4, NULL, "%s = %s", instr.ident,
+                       int_const->name);
+}
+
+static void assembler_emit_tac(assembler_context *context, size_t i,
+                               program_node *program, semantic_mapping *mapping,
+                               const tac_instr *instr) {
+    switch (instr->kind) {
+    case TAC_LABEL:
+        // return assembler_emit_tac_label(instr->label);
+    case TAC_JUMP:
+        // return assembler_emit_tac_jump(instr->jump);
+    case TAC_JUMP_IF_TRUE:
+        // return assembler_emit_tac_jump_if_true(instr->jump_if_true);
+    case TAC_ASSIGN_ISINSTANCE:
+        // return assembler_emit_tac_assign_isinstance(instr->isinstance);
+    case TAC_CAST:
+        // return assembler_emit_tac_cast(instr->cast);
+    case TAC_ASSIGN_VALUE:
+        // return assembler_emit_tac_assign_value(instr->assign_value);
+    case TAC_DISPATCH_CALL:
+        // return assembler_emit_tac_dispatch_call(instr->dispatch_call);
+    case TAC_ASSIGN_NEW:
+        // return assembler_emit_tac_assign_new(instr->assign_new);
+    case TAC_ASSIGN_ISVOID:
+        // return assembler_emit_tac_assign_unary(instr->assign_unary,
+        // "isvoid");
+    case TAC_ASSIGN_ADD:
+        // return assembler_emit_tac_assign_binary(instr->assign_binary, "+");
+    case TAC_ASSIGN_SUB:
+        // return assembler_emit_tac_assign_binary(instr->assign_binary, "-");
+    case TAC_ASSIGN_MUL:
+        // return assembler_emit_tac_assign_binary(instr->assign_binary, "*");
+    case TAC_ASSIGN_DIV:
+        // return assembler_emit_tac_assign_binary(instr->assign_binary, "/");
+    case TAC_ASSIGN_NEG:
+        // return assembler_emit_tac_assign_unary(instr->assign_unary, "~");
+    case TAC_ASSIGN_LT:
+        // return assembler_emit_tac_assign_binary(instr->assign_binary, "<");
+    case TAC_ASSIGN_LE:
+        // return assembler_emit_tac_assign_binary(instr->assign_binary, "<=");
+    case TAC_ASSIGN_EQ:
+        // return assembler_emit_tac_assign_binary(instr->assign_binary, "=");
+    case TAC_ASSIGN_NOT:
+        // return assembler_emit_tac_assign_unary(instr->assign_unary, "not");
+    case TAC_IDENT:
+        return assembler_emit_tac_ident(context, i, program, mapping,
+                                        instr->ident);
+    case TAC_ASSIGN_INT:
+        return assembler_emit_tac_assign_int(context, i, program, mapping,
+                                             instr->assign_int);
+    case TAC_ASSIGN_STRING:
+        // return assembler_emit_tac_assign_string(instr->assign_string);
+    case TAC_ASSIGN_BOOL:
+        // return assembler_emit_tac_assign_bool(instr->assign_bool);
+        break;
+    }
+}
+
 static void assembler_emit_expr(assembler_context *context, size_t i,
                                 program_node *program,
                                 semantic_mapping *mapping,
                                 const expr_node *expr) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
-
     ds_dynamic_array tac;
     ds_dynamic_array_init(&tac, sizeof(tac_instr));
 
     codegen_expr_to_tac(expr, &tac);
 
-    // TODO: generate asm from tac
+    for (size_t j = 0; j < tac.count; j++) {
+        tac_instr *instr = NULL;
+        ds_dynamic_array_get_ref(&tac, j, (void **)&instr);
+
+        assembler_emit_tac(context, i, program, mapping, instr);
+    }
 }
 
 static void assembler_emit_object_init_attribute(assembler_context *context,
