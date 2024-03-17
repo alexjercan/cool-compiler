@@ -24,6 +24,7 @@ void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
                     unsigned int *col);
 
 int util_read_file(const char *filename, char **buffer);
+int util_write_file(const char *filename, char *buffer);
 const char *util_filepath_to_basename(const char *path);
 
 #endif // UTIL_H

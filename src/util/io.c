@@ -60,3 +60,30 @@ defer:
     ds_string_builder_free(&sb);
     return result;
 }
+
+int util_write_file(const char *filename, char *buffer) {
+    int result = 0;
+    FILE *file = NULL;
+
+    if (filename != NULL) {
+        file = fopen(filename, "w");
+        if (file == NULL) {
+            DS_LOG_ERROR("Failed to open file: %s", filename);
+            return_defer(-1);
+        }
+    } else {
+        file = stdout;
+    }
+
+    if (fputs(buffer, file) == EOF) {
+        DS_LOG_ERROR("Failed to write to file");
+        return_defer(-1);
+    }
+
+    result = 0;
+
+defer:
+    if (filename != NULL && file != NULL)
+        fclose(file);
+    return result;
+}
