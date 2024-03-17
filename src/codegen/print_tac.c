@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "parser.h"
 
 static void print_tac_label(tac_label label) { printf("%s:\n", label.label); }
 
@@ -122,6 +123,10 @@ void codegen_tac_print(program_node *program) {
         for (unsigned int j = 0; j < class.methods.count; j++) {
             method_node method;
             ds_dynamic_array_get(&class.methods, j, &method);
+
+            if (method.body.kind == EXPR_EXTERN) {
+                continue;
+            }
 
             ds_dynamic_array tac;
             codegen_expr_to_tac(&method.body, &tac);

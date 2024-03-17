@@ -1,13 +1,3 @@
-Object.abort
-Object.type_name
-Object.copy
-IO.out_string
-IO.out_int
-IO.in_string
-IO.in_int
-String.length
-String.concat
-String.substr
 A.f
 t0 <- x + y
 z <- t0
