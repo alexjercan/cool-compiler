@@ -15,7 +15,7 @@
 //   - X_protObj (done)
 //     - X_dispTable (done)
 //       - X_methods (partially done, implement body)
-//     - attributes (partially done, implement init with constant/default values)
+//     - attributes (done)
 //   - X_init (partially done, implement body)
 //
 // External things:

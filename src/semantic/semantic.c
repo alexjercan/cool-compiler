@@ -26,6 +26,7 @@ typedef struct method_context {
 typedef struct object_context {
         const char *name;
         const char *type;
+        int external;
 } object_context;
 
 typedef struct method_environment_item {
@@ -480,8 +481,14 @@ static void semantic_check_attributes(semantic_context *context,
                 continue;
             }
 
+            int external = 0;
+            if (attribute.value.kind == EXPR_EXTERN) {
+                external = 1;
+            }
+
             object_context object = {.name = attribute.name.value,
-                                     .type = attribute.type.value};
+                                     .type = attribute.type.value,
+                                     .external = external};
             ds_dynamic_array_append(&class_ctx->objects, &object);
         }
     }
@@ -697,7 +704,8 @@ static void semantic_check_methods(semantic_context *context,
                 }
 
                 object_context object = {.name = formal.name.value,
-                                         .type = formal.type.value};
+                                         .type = formal.type.value,
+                                         .external = 0};
                 ds_dynamic_array_append(&method_ctx.formals, &object);
             }
 
@@ -880,7 +888,8 @@ static void build_object_environment(semantic_context *context,
             current_ctx = current_ctx->parent;
         } while (current_ctx != NULL && class_ctx != current_ctx);
 
-        object_context object = {.name = "self", .type = SELF_TYPE};
+        object_context object = {
+            .name = "self", .type = SELF_TYPE, .external = 0};
         ds_dynamic_array_append(&item.objects, &object);
 
         ds_dynamic_array_append(&env->items, &item);
@@ -984,7 +993,8 @@ static const char *semantic_check_let_expression(
             }
         }
 
-        object_context object = {.name = init->name.value, .type = init_type};
+        object_context object = {
+            .name = init->name.value, .type = init_type, .external = 0};
         ds_dynamic_array_append(&object_env->objects, &object);
 
         depth++;
@@ -1064,7 +1074,8 @@ static const char *semantic_check_case_expression(
         }
 
         object_context object = {.name = branch->name.value,
-                                 .type = branch->type.value};
+                                 .type = branch->type.value,
+                                 .external = 0};
         ds_dynamic_array_append(&object_env->objects, &object);
 
         const char *branch_type = semantic_check_expression(
@@ -1101,11 +1112,33 @@ static int is_ident_undefined(object_environment_item *object_env,
     context_show_errorf(context, ident->line, ident->col,                      \
                         "Undefined identifier %s", ident->value)
 
+static int is_external_ident(object_environment_item *object_env,
+                             node_info *ident) {
+    for (unsigned int i = 0; i < object_env->objects.count; i++) {
+        object_context object;
+        ds_dynamic_array_get(&object_env->objects, i, &object);
+
+        if (strcmp(object.name, ident->value) == 0) {
+            return object.external;
+        }
+    }
+
+    return 0;
+}
+
+#define context_show_error_external_ident(context, ident)                      \
+    context_show_errorf(context, ident->line, ident->col,                      \
+                        "Cannot use external attribute %s", ident->value)
+
 static const char *semantic_check_ident_expression(
     semantic_context *context, node_info *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
     if (is_ident_undefined(object_env, expr)) {
         context_show_error_ident_undefined(context, expr);
+    }
+
+    if (is_external_ident(object_env, expr)) {
+        context_show_error_external_ident(context, expr);
     }
 
     unsigned int n = object_env->objects.count;

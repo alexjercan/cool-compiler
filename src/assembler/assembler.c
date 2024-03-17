@@ -505,9 +505,6 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
         return_defer(1);
     }
 
-    // TODO: handle extern methods (they will be skipped and taken from asm
-    // file)
-
     int int_tag = 0, str_tag = 0, bool_tag = 0;
     for (size_t i = 0; i < mapping->parents.classes.count; i++) {
         class_node *class = NULL;

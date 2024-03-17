@@ -7,7 +7,6 @@
 // Is it possible to handle these class names in a more generic way?
 // For example, illegal inherit when a class has external attributes
 // TODO: Come up with some rules for this
-// TODO: Rules for extern keyword
 #define OBJECT_TYPE "Object"
 #define INT_TYPE "Int"
 #define STRING_TYPE "String"
