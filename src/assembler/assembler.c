@@ -6,6 +6,15 @@
 #include "stdio.h"
 #include <stdarg.h>
 
+// obj_tag dq 0
+// obj_size dq 8
+// disp_tab dq 16
+// int_slot dq 24
+// bool_slot dq 24
+// str_size dq 24
+// str_field dq 32
+const int bool_slot = 24;
+
 enum asm_const_type {
     ASM_CONST_INT,
     ASM_CONST_STR,
@@ -454,7 +463,7 @@ static void assembler_emit_tac_jump_if_true(
     assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
                        8 * offset);
     comment = comment_fmt("access bool value");
-    assembler_emit_fmt(context, 4, comment, "add     rax, qword [bool_slot]");
+    assembler_emit_fmt(context, 4, comment, "add     rax, %d", bool_slot);
     comment = comment_fmt("dereference bool");
     assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
 
