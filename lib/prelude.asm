@@ -315,9 +315,14 @@ IO.in_string:
 
     mov     rax, qword [rbp - 24]      ; get t1
     add     rax, [str_field]           ; get *t1.s
-    mov     qword [rbp - 32], rax      ; t2 <- *t1.s
+    mov     qword [rbp - 32], rax      ; t2 <- *t1.s (start pointer)
 
-    mov     rax, qword [rbp - 32]      ; get t2
+    mov     rax, qword [rbp - 24]      ; get t1
+    add     rax, [str_field]           ; get *t1.s
+    mov     qword [rbp - 40], rax      ; t3 <- *t1.s (end pointer)
+
+.again:
+    mov     rax, qword [rbp - 40]      ; get t3
     add     rax, [read_len]            ; max read of read_len
     cmp     rax, [heap_end]            ; check if there is enough space
     jle     .read
@@ -330,7 +335,7 @@ IO.in_string:
     mov     [heap_end], rax            ; save the new end of the heap
 
 .read:
-    mov     rax, qword [rbp - 32]      ; get t2
+    mov     rax, qword [rbp - 40]      ; get t3
 
     mov     rdi, 0                     ; fd = stdin
     mov     rsi, rax                   ; buf = *t1.s
@@ -338,15 +343,24 @@ IO.in_string:
     mov     rax, 0                     ; read
     syscall
 
+    mov     qword [rbp - 48], rax      ; t4 <- read count
+
+    ; read until newline
+    mov     rax, qword [rbp - 48]      ; get t4
+    add     qword [rbp - 40], rax      ; t3 <- t3 + t4
+    mov     rax, qword [rbp - 40]      ; get t3
+    mov     al, byte [rax - 1]         ; get last byte
+    cmp     al, 10                     ; check if byte is newline
+    jne     .again
+
     ; Compute the length of the string
-    mov     qword [rbp - 40], rax      ; t3 <- read count
+    mov     rax, qword [rbp - 40]      ; get t3 (end pointer)
+    sub     rax, qword [rbp - 32]      ; get t3 - t2
+    mov     qword [rbp - 48], rax      ; t4 <- t3 - t2
     mov     rax, qword [rbp - 16]      ; get t0
     add     rax, [int_slot]            ; get *t0.val
-    mov     rdi, [rax]                 ; get *t0.val
-    add     rdi, qword [rbp - 40]
-    mov     qword [rax], rdi           ; *t0.val <- *t0.val + t3
-
-    ; TODO remove the '\n' from the string + plus read until newline
+    mov     rdi, qword [rbp - 48]      ; get t4
+    mov     qword [rax], rdi           ; *t0.val <- t4
 
     ; Set the length of the string
     mov     rax, qword [rbp - 24]      ; get t1
