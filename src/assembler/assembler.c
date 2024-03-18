@@ -551,6 +551,38 @@ static void assembler_emit_tac_dispatch_call(
     assembler_emit_fmt(context, 4, comment, "add     rsp, %d",
                        8 * instr.args.count);
 }
+static void assembler_emit_tac_assign_not(assembler_context *context,
+                                     size_t class_idx, program_node *program,
+                                     semantic_mapping *mapping, tac_result tac,
+                                     tac_assign_unary instr) {
+    const char *comment;
+    int offset;
+
+    offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.expr, &offset);
+
+    comment = comment_fmt("load %s", instr.expr);
+    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
+                       8 * offset);
+
+    comment = comment_fmt("copy the object");
+    assembler_emit_fmt(context, 4, comment, "call    Object.copy");
+
+    comment = comment_fmt("access the bool value");
+    assembler_emit_fmt(context, 4, comment, "add     rax, qword [bool_slot]");
+
+    comment = comment_fmt("flip the bool value");
+    assembler_emit_fmt(context, 4, comment, "xor     qword [rax], 1");
+
+    offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.ident, &offset);
+
+    comment = comment_fmt("store not %s in %s", instr.expr, instr.ident);
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
+                       8 * offset);
+}
 
 static void assembler_emit_tac_ident(assembler_context *context,
                                      size_t class_idx, program_node *program,
@@ -681,7 +713,8 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
     case TAC_ASSIGN_EQ:
         // return assembler_emit_tac_assign_binary(instr->assign_binary, "=");
     case TAC_ASSIGN_NOT:
-        // return assembler_emit_tac_assign_unary(instr->assign_unary, "not");
+        return assembler_emit_tac_assign_not(context, class_idx, program,
+                                             mapping, tac, instr->assign_unary);
     case TAC_IDENT:
         return assembler_emit_tac_ident(context, class_idx, program, mapping,
                                         tac, instr->ident);
