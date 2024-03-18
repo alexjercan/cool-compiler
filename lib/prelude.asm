@@ -51,17 +51,23 @@ Object.copy:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
     push    rbx                        ; save register
-    push    [heap_pos]                 ; push new object position
     mov     rbx, rax                   ; save self
+    sub     rsp, 24                    ; allocate 3 local variables
+
+    mov     rax, qword [heap_pos]      ; get new object position
+    mov     qword [rbp - 16], rax       ; t0 <- new object position
 
     mov     rax, rbx                   ; get self
     add     rax, [obj_size]            ; get *self.size
     mov     rax, [rax]                 ; get self.size (in qwords)
     shl     rax, 3                     ; get self.size (in bytes)
+    mov     qword [rbp - 24], rax      ; t1 <- self.size * 8
 
-    add     rax, [heap_pos]            ; heap_pos after copy
+    mov     rax, qword [rbp - 16]      ; get t0
+    add     rax, qword [rbp - 24]      ; get t0 + t1 (get the new heap_pos)
+    mov     qword [rbp - 32], rax      ; t2 <- t0 + t1
     cmp     rax, [heap_end]            ; check if there is enough space
-    jle     _oc_ok
+    jle     .copy
 
     ; allocate more space
     mov     rax, 12                    ; brk
@@ -70,21 +76,29 @@ Object.copy:
     syscall
     mov     [heap_end], rax            ; save the new end of the heap
 
-_oc_ok:
-    mov     rax, rbx                   ; get self
-    add     rax, [obj_size]            ; get *self.size
-    mov     rax, [rax]                 ; get self.size (in qwords)
-_oc_loop:
-    mov     rdi, [heap_pos]            ; get new object position
-    mov     rsi, [rbx]                 ; get *self[i]
-    add     rbx, 8                     ; next slot
-    dec     rax                        ; decrement counter
-    mov     [rdi], rsi                 ; copy slot
-    add     [heap_pos], 8              ; increment new object position
-    cmp     rax, 0                     ; check if done
-    jg      _oc_loop
+.copy:
+    mov     rdi, qword [rbp - 16]      ; get t0
+    mov     rsi, rbx                   ; get self
+    mov     rdx, qword [rbp - 24]      ; get t1
+.next_byte:
+    cmp     rdx, 0                     ; check if done
+    jle     .done
 
-    pop     rax                        ; return new object
+    mov     al, byte [rsi]             ; get byte from self
+    mov     byte [rdi], al             ; copy byte to new object
+
+    inc     rdi                        ; increment destination
+    inc     rsi                        ; increment source
+    dec     rdx                        ; decrement count
+
+    jmp .next_byte
+.done:
+
+    mov     rax, qword [rbp - 32]      ; get t2
+    mov     qword [heap_pos], rax      ; update the heap_pos
+    mov     rax, qword [rbp - 16]      ; get t0 return
+
+    add     rsp, 24                    ; deallocate local variables
     pop     rbx                        ; restore register
     pop     rbp                        ; restore return address
     ret
@@ -149,6 +163,7 @@ IO.out_string:
     syscall
 
     mov     rax, rbx                   ; restore self and return it
+
     pop     rbx                        ; restore register
     pop     rbp                        ; restore return address
     ret
@@ -269,7 +284,7 @@ String.concat:
 ;		Returns the sub string of self from i with length l
 ;		Offset starts at 0.
 ;
-;	INPUT:	rax contains self
+;	INPUT: rax contains self
 ;	STACK:
 ;		i int object
 ;		l int object
