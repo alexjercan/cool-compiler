@@ -128,13 +128,13 @@ void codegen_tac_print(program_node *program) {
                 continue;
             }
 
-            ds_dynamic_array tac;
+            tac_result tac;
             codegen_expr_to_tac(&method.body, &tac);
 
             printf("%s.%s\n", class.name.value, method.name.value);
-            for (unsigned int k = 0; k < tac.count; k++) {
+            for (unsigned int k = 0; k < tac.instrs.count; k++) {
                 tac_instr instr;
-                ds_dynamic_array_get(&tac, k, &instr);
+                ds_dynamic_array_get(&tac.instrs, k, &instr);
 
                 print_tac(instr);
             }

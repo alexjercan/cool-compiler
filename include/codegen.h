@@ -31,6 +31,7 @@ enum tac_kind {
 
 typedef struct tac_ident {
         char *name;
+        int index;
 } tac_ident;
 
 typedef struct tac_assign_int {
@@ -123,7 +124,12 @@ typedef struct tac_instr {
         };
 } tac_instr;
 
-int codegen_expr_to_tac(const expr_node *expr, ds_dynamic_array *tac);
+typedef struct tac_result {
+        ds_dynamic_array locals; // char *
+        ds_dynamic_array instrs; // tac_instr
+} tac_result;
+
+int codegen_expr_to_tac(const expr_node *expr, tac_result *result);
 
 void codegen_tac_print(program_node *program);
 

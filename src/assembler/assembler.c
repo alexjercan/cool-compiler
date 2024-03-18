@@ -409,47 +409,111 @@ static void assembler_emit_object_prototypes(assembler_context *context,
     }
 }
 
-static void assembler_emit_tac_dispatch_call(assembler_context *context,
-                                             size_t i, program_node *program,
-                                             semantic_mapping *mapping,
-                                             tac_dispatch_call instr) {
+static void assembler_get_stack_offset(assembler_context *context,
+                                       size_t class_idx, program_node *program,
+                                       semantic_mapping *mapping,
+                                       tac_result tac, char *ident,
+                                       int *offset) {
+    for (size_t i = 0; i < tac.locals.count; i++) {
+        char *local = NULL;
+        ds_dynamic_array_get_ref(&tac.locals, i, (void **)&local);
+
+        if (strcmp(local, ident) == 0) {
+            *offset = i;
+            return;
+        }
+    }
+
+    return;
+}
+
+static void assembler_emit_tac_dispatch_call(
+    assembler_context *context, size_t class_idx, program_node *program,
+    semantic_mapping *mapping, tac_result tac, tac_dispatch_call instr) {
+    const char *comment;
+
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
+                             (void **)&class);
+
+    int offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.ident, &offset);
 
     for (size_t i = 0; i < instr.args.count; i++) {
         char *arg;
         ds_dynamic_array_get(&instr.args, instr.args.count - i - 1, &arg);
-        assembler_emit_fmt(context, 4, NULL, "push    %s", arg);
+
+        int offset = 0;
+        assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                                   arg, &offset);
+
+        comment = comment_fmt("arg0: %s", arg);
+        assembler_emit_fmt(context, 4, comment, "push    qword [rbp-%d]",
+                           8 * offset);
     }
 
-    // TODO: call correct method
-    assembler_emit_fmt(context, 4, NULL, "call IO.out_string", instr.expr,
-                       instr.type, instr.method);
-    assembler_emit_fmt(context, 4, NULL, "%s = 0", instr.ident);
+    if (strcmp(instr.expr, "self") == 0) {
+        comment = comment_fmt("get self");
+        assembler_emit_fmt(context, 4, comment, "mov     rax, rbx");
+    } else {
+        int offset = 0;
+        assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                                   instr.expr, &offset);
 
-    for (unsigned int i = 0; i < instr.args.count; i++) {
-        char *arg;
-        ds_dynamic_array_get(&instr.args, i, &arg);
-        assembler_emit_fmt(context, 4, NULL, "pop     rax");
+        comment = comment_fmt("get %s", instr.expr);
+        assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
+                           8 * offset);
     }
+
+    for (size_t i = 0; i < mapping->implementations.items.count; i++) {
+        implementation_mapping_item *method = NULL;
+        ds_dynamic_array_get_ref(&mapping->implementations.items, i,
+                                 (void **)&method);
+
+        if (strcmp(method->class_name, class->class_name) != 0) {
+            continue;
+        }
+
+        if (strcmp(method->method_name, instr.method) != 0) {
+            continue;
+        }
+
+        assembler_emit_fmt(context, 4, NULL, "call %s.%s", method->parent_name,
+                           method->method_name);
+
+        break;
+    }
+
+    comment = comment_fmt("save result in %s", instr.ident);
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
+                       8 * offset);
+
+    comment = comment_fmt("free %d args", instr.args.count);
+    assembler_emit_fmt(context, 4, comment, "add     rsp, %d",
+                       8 * instr.args.count);
 }
 
-static void assembler_emit_tac_ident(assembler_context *context, size_t i,
-                                     program_node *program,
-                                     semantic_mapping *mapping,
+static void assembler_emit_tac_ident(assembler_context *context,
+                                     size_t class_idx, program_node *program,
+                                     semantic_mapping *mapping, tac_result tac,
                                      tac_ident instr) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+    int offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.name, &offset);
 
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", instr.name);
+    const char *comment = comment_fmt("load %s", instr.name);
+    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
+                       8 * offset);
 }
 
-static void assembler_emit_tac_assign_int(assembler_context *context, size_t i,
-                                          program_node *program,
-                                          semantic_mapping *mapping,
-                                          tac_assign_int instr) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+static void
+assembler_emit_tac_assign_int(assembler_context *context, size_t class_idx,
+                              program_node *program, semantic_mapping *mapping,
+                              tac_result tac, tac_assign_int instr) {
+    int offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.ident, &offset);
 
     asm_const *int_const = NULL;
     assembler_new_const(
@@ -457,16 +521,18 @@ static void assembler_emit_tac_assign_int(assembler_context *context, size_t i,
         (asm_const_value){.type = ASM_CONST_INT, .integer = instr.value},
         &int_const);
 
-    assembler_emit_fmt(context, 4, NULL, "%s = %s", instr.ident,
-                       int_const->name);
+    const char *comment =
+        comment_fmt("store %d in %s", instr.value, instr.ident);
+    assembler_emit_fmt(context, 4, comment, "mov    qword [rbp-%d], %s",
+                       8 * offset, int_const->name);
 }
 
-static void assembler_emit_tac_assign_string(assembler_context *context,
-                                             size_t i, program_node *program,
-                                             semantic_mapping *mapping,
-                                             tac_assign_string instr) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+static void assembler_emit_tac_assign_string(
+    assembler_context *context, size_t class_idx, program_node *program,
+    semantic_mapping *mapping, tac_result tac, tac_assign_string instr) {
+    int offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.ident, &offset);
 
     asm_const *int_const = NULL;
     assembler_new_const(context,
@@ -481,13 +547,19 @@ static void assembler_emit_tac_assign_string(assembler_context *context,
                           .str = {int_const->name, instr.value}},
         &str_const);
 
-    assembler_emit_fmt(context, 4, NULL, "%s = %s", instr.ident,
-                       str_const->name);
+    // TODO: string repr => show instr.value
+    const char *comment =
+        comment_fmt("store %s in %s", str_const->name, instr.ident);
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], %s",
+                       8 * offset, str_const->name);
 }
 
-static void assembler_emit_tac(assembler_context *context, size_t i,
+static void assembler_emit_tac(assembler_context *context, size_t class_idx,
                                program_node *program, semantic_mapping *mapping,
-                               tac_instr *instr) {
+                               tac_result tac, size_t instr_idx) {
+    tac_instr *instr = NULL;
+    ds_dynamic_array_get_ref(&tac.instrs, instr_idx, (void **)&instr);
+
     // TODO: implement
     switch (instr->kind) {
     case TAC_LABEL:
@@ -503,8 +575,8 @@ static void assembler_emit_tac(assembler_context *context, size_t i,
     case TAC_ASSIGN_VALUE:
         // return assembler_emit_tac_assign_value(instr->assign_value);
     case TAC_DISPATCH_CALL:
-        return assembler_emit_tac_dispatch_call(context, i, program, mapping,
-                                                instr->dispatch_call);
+        return assembler_emit_tac_dispatch_call(
+            context, class_idx, program, mapping, tac, instr->dispatch_call);
     case TAC_ASSIGN_NEW:
         // return assembler_emit_tac_assign_new(instr->assign_new);
     case TAC_ASSIGN_ISVOID:
@@ -529,67 +601,75 @@ static void assembler_emit_tac(assembler_context *context, size_t i,
     case TAC_ASSIGN_NOT:
         // return assembler_emit_tac_assign_unary(instr->assign_unary, "not");
     case TAC_IDENT:
-        return assembler_emit_tac_ident(context, i, program, mapping,
-                                        instr->ident);
+        return assembler_emit_tac_ident(context, class_idx, program, mapping,
+                                        tac, instr->ident);
     case TAC_ASSIGN_INT:
-        return assembler_emit_tac_assign_int(context, i, program, mapping,
-                                             instr->assign_int);
+        return assembler_emit_tac_assign_int(context, class_idx, program,
+                                             mapping, tac, instr->assign_int);
     case TAC_ASSIGN_STRING:
-        return assembler_emit_tac_assign_string(context, i, program, mapping,
-                                                instr->assign_string);
+        return assembler_emit_tac_assign_string(
+            context, class_idx, program, mapping, tac, instr->assign_string);
     case TAC_ASSIGN_BOOL:
         // return assembler_emit_tac_assign_bool(instr->assign_bool);
         break;
     }
 }
 
-static void assembler_emit_expr(assembler_context *context, size_t i,
+static void assembler_emit_expr(assembler_context *context, size_t class_idx,
                                 program_node *program,
                                 semantic_mapping *mapping,
                                 const expr_node *expr) {
-    ds_dynamic_array tac;
-    ds_dynamic_array_init(&tac, sizeof(tac_instr));
-
+    tac_result tac;
     codegen_expr_to_tac(expr, &tac);
 
-    for (size_t j = 0; j < tac.count; j++) {
-        tac_instr *instr = NULL;
-        ds_dynamic_array_get_ref(&tac, j, (void **)&instr);
+    const char *comment = comment_fmt("allocate %d locals", tac.locals.count);
+    assembler_emit_fmt(context, 4, comment, "sub     rsp, %d",
+                       8 * tac.locals.count);
 
-        assembler_emit_tac(context, i, program, mapping, instr);
+    for (size_t j = 0; j < tac.instrs.count; j++) {
+        assembler_emit_tac(context, class_idx, program, mapping, tac, j);
     }
+
+    assembler_emit_fmt(context, 4, "free locals", "add     rsp, %d",
+                       8 * tac.locals.count);
 }
 
 static void assembler_emit_object_init_attribute(assembler_context *context,
-                                                 size_t i, size_t j,
+                                                 size_t class_idx,
+                                                 size_t attr_idx,
                                                  program_node *program,
                                                  semantic_mapping *mapping) {
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
+                             (void **)&class);
 
     class_mapping_attribute *attr = NULL;
-    ds_dynamic_array_get_ref(&class->attributes, j, (void **)&attr);
+    ds_dynamic_array_get_ref(&class->attributes, attr_idx, (void **)&attr);
 
-    assembler_emit_expr(context, i, program, mapping, &attr->attribute->value);
+    assembler_emit_expr(context, class_idx, program, mapping,
+                        &attr->attribute->value);
 }
 
 static void assembler_emit_object_init_attributes(assembler_context *context,
-                                                  size_t i,
+                                                  size_t class_idx,
                                                   program_node *program,
                                                   semantic_mapping *mapping) {
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
+                             (void **)&class);
 
     for (size_t j = 0; j < class->attributes.count; j++) {
-        assembler_emit_object_init_attribute(context, i, j, program, mapping);
+        assembler_emit_object_init_attribute(context, class_idx, j, program,
+                                             mapping);
     }
 }
 
-static void assembler_emit_object_init(assembler_context *context, size_t i,
-                                       program_node *program,
+static void assembler_emit_object_init(assembler_context *context,
+                                       size_t class_idx, program_node *program,
                                        semantic_mapping *mapping) {
     parent_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->parents.classes, i, (void **)&class);
+    ds_dynamic_array_get_ref(&mapping->parents.classes, class_idx,
+                             (void **)&class);
 
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s_init:", class->name);
@@ -602,7 +682,7 @@ static void assembler_emit_object_init(assembler_context *context, size_t i,
                            class->parent->name);
     }
 
-    assembler_emit_object_init_attributes(context, i, program, mapping);
+    assembler_emit_object_init_attributes(context, class_idx, program, mapping);
 
     assembler_emit_fmt(context, 4, "restore self", "mov     rax, rbx");
     assembler_emit_fmt(context, 4, NULL, "pop     rbx");
@@ -618,11 +698,13 @@ static void assembler_emit_object_inits(assembler_context *context,
     }
 }
 
-static void assembler_emit_dispatch_table(assembler_context *context, size_t i,
+static void assembler_emit_dispatch_table(assembler_context *context,
+                                          size_t class_idx,
                                           program_node *program,
                                           semantic_mapping *mapping) {
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
+                             (void **)&class);
 
     const char *class_name = class->class_name;
 
@@ -651,11 +733,11 @@ static void assembler_emit_dispatch_tables(assembler_context *context,
     }
 }
 
-static void assembler_emit_method(assembler_context *context, size_t i,
+static void assembler_emit_method(assembler_context *context, size_t method_idx,
                                   program_node *program,
                                   semantic_mapping *mapping) {
     implementation_mapping_item *method = NULL;
-    ds_dynamic_array_get_ref(&mapping->implementations.items, i,
+    ds_dynamic_array_get_ref(&mapping->implementations.items, method_idx,
                              (void **)&method);
 
     if (strcmp(method->class_name, method->parent_name) != 0) {

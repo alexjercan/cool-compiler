@@ -6,11 +6,16 @@ typedef struct tac_context {
         int result;
         int temp_count;
         int label_count;
+        ds_dynamic_array locals; // char *
 } tac_context;
 
 static void tac_new_var(tac_context *context, char **ident) {
-    *ident = malloc(32);
-    snprintf(*ident, 32, "t%d", context->temp_count++);
+    int needed = snprintf(NULL, 0, "t%d", context->temp_count) + 1;
+
+    *ident = malloc(needed);
+    snprintf(*ident, needed, "t%d", context->temp_count++);
+
+    ds_dynamic_array_append(&context->locals, *ident);
 }
 
 static void tac_new_label(tac_context *context, char **label) {
@@ -642,15 +647,17 @@ static void tac_expr(tac_context *context, expr_node *expr,
     }
 }
 
-int codegen_expr_to_tac(const expr_node *expr, ds_dynamic_array *tac) {
+int codegen_expr_to_tac(const expr_node *expr, tac_result *tac) {
     tac_context context = {.result = 0, .temp_count = 0, .label_count = 0};
+    ds_dynamic_array_init(&context.locals, sizeof(char *));
 
-    ds_dynamic_array_init(tac, sizeof(tac_instr));
+    ds_dynamic_array_init(&tac->instrs, sizeof(tac_instr));
     tac_instr result;
 
-    tac_expr(&context, (expr_node *)expr, tac, &result);
+    tac_expr(&context, (expr_node *)expr, &tac->instrs, &result);
 
-    ds_dynamic_array_append(tac, &result);
+    ds_dynamic_array_append(&tac->instrs, &result);
+    ds_dynamic_array_copy(&context.locals, &tac->locals);
 
     return context.result;
 }
