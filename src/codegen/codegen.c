@@ -19,8 +19,10 @@ static void tac_new_var(tac_context *context, char **ident) {
 }
 
 static void tac_new_label(tac_context *context, char **label) {
-    *label = malloc(32);
-    snprintf(*label, 32, "L%d", context->label_count++);
+    int needed = snprintf(NULL, 0, "L%d", context->label_count) + 1;
+
+    *label = malloc(needed);
+    snprintf(*label, needed, "L%d", context->label_count++);
 }
 
 static void tac_expr(tac_context *context, expr_node *expr,

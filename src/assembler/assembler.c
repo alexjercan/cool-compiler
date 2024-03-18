@@ -240,7 +240,7 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
     case ASM_CONST_BOOL: {
         assembler_emit_fmt(context, align, "object size", "dq %d", 4);
         assembler_emit_fmt(context, align, "dispatch table", "dq Bool_dispTab");
-        assembler_emit_fmt(context, align, "boolean value", "db %d",
+        assembler_emit_fmt(context, align, "boolean value", "dq %d",
                            c.value.boolean);
         break;
     }
@@ -427,6 +427,64 @@ static void assembler_get_stack_offset(assembler_context *context,
     return;
 }
 
+static void assembler_emit_tac_label(assembler_context *context,
+                                     size_t class_idx, program_node *program,
+                                     semantic_mapping *mapping, tac_result tac,
+                                     tac_label label) {
+    assembler_emit_fmt(context, 0, NULL, ".%s:", label.label);
+}
+
+static void assembler_emit_tac_jump(assembler_context *context,
+                                    size_t class_idx, program_node *program,
+                                    semantic_mapping *mapping, tac_result tac,
+                                    tac_jump jump) {
+    assembler_emit_fmt(context, 4, NULL, "jmp     .%s", jump.label);
+}
+
+static void assembler_emit_tac_jump_if_true(
+    assembler_context *context, size_t class_idx, program_node *program,
+    semantic_mapping *mapping, tac_result tac, tac_jump_if_true jump) {
+    int offset = 0;
+    const char *comment;
+
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               jump.expr, &offset);
+
+    comment = comment_fmt("get %s", jump.expr);
+    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
+                       8 * offset);
+    comment = comment_fmt("access bool value");
+    assembler_emit_fmt(context, 4, comment, "add     rax, qword [bool_slot]");
+    comment = comment_fmt("dereference bool");
+    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
+
+    assembler_emit_fmt(context, 4, NULL, "test    rax, rax");
+    assembler_emit_fmt(context, 4, NULL, "jnz     .%s", jump.label);
+}
+
+static void assembler_emit_tac_assign_value(
+    assembler_context *context, size_t class_idx, program_node *program,
+    semantic_mapping *mapping, tac_result tac, tac_assign_value instr) {
+    const char *comment;
+    int offset;
+
+    offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.expr, &offset);
+
+    comment = comment_fmt("load %s", instr.expr);
+    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
+                       8 * offset);
+
+    offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.ident, &offset);
+
+    comment = comment_fmt("store %s in %s", instr.expr, instr.ident);
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
+                       8 * offset);
+}
+
 static void assembler_emit_tac_dispatch_call(
     assembler_context *context, size_t class_idx, program_node *program,
     semantic_mapping *mapping, tac_result tac, tac_dispatch_call instr) {
@@ -479,8 +537,8 @@ static void assembler_emit_tac_dispatch_call(
             continue;
         }
 
-        assembler_emit_fmt(context, 4, NULL, "call %s.%s", method->parent_name,
-                           method->method_name);
+        assembler_emit_fmt(context, 4, NULL, "call    %s.%s",
+                           method->parent_name, method->method_name);
 
         break;
     }
@@ -523,7 +581,7 @@ assembler_emit_tac_assign_int(assembler_context *context, size_t class_idx,
 
     const char *comment =
         comment_fmt("store %d in %s", instr.value, instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov    qword [rbp-%d], %s",
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], %s",
                        8 * offset, int_const->name);
 }
 
@@ -554,6 +612,26 @@ static void assembler_emit_tac_assign_string(
                        8 * offset, str_const->name);
 }
 
+static void
+assembler_emit_tac_assign_bool(assembler_context *context, size_t class_idx,
+                               program_node *program, semantic_mapping *mapping,
+                               tac_result tac, tac_assign_bool instr) {
+    int offset = 0;
+    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
+                               instr.ident, &offset);
+
+    asm_const *bool_const = NULL;
+    assembler_new_const(
+        context,
+        (asm_const_value){.type = ASM_CONST_BOOL, .boolean = instr.value},
+        &bool_const);
+
+    const char *comment =
+        comment_fmt("store %d in %s", instr.value, instr.ident);
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], %s",
+                       8 * offset, bool_const->name);
+}
+
 static void assembler_emit_tac(assembler_context *context, size_t class_idx,
                                program_node *program, semantic_mapping *mapping,
                                tac_result tac, size_t instr_idx) {
@@ -563,17 +641,21 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
     // TODO: implement
     switch (instr->kind) {
     case TAC_LABEL:
-        // return assembler_emit_tac_label(instr->label);
+        return assembler_emit_tac_label(context, class_idx, program, mapping,
+                                        tac, instr->label);
     case TAC_JUMP:
-        // return assembler_emit_tac_jump(instr->jump);
+        return assembler_emit_tac_jump(context, class_idx, program, mapping,
+                                       tac, instr->jump);
     case TAC_JUMP_IF_TRUE:
-        // return assembler_emit_tac_jump_if_true(instr->jump_if_true);
+        return assembler_emit_tac_jump_if_true(
+            context, class_idx, program, mapping, tac, instr->jump_if_true);
     case TAC_ASSIGN_ISINSTANCE:
         // return assembler_emit_tac_assign_isinstance(instr->isinstance);
     case TAC_CAST:
         // return assembler_emit_tac_cast(instr->cast);
     case TAC_ASSIGN_VALUE:
-        // return assembler_emit_tac_assign_value(instr->assign_value);
+        return assembler_emit_tac_assign_value(
+            context, class_idx, program, mapping, tac, instr->assign_value);
     case TAC_DISPATCH_CALL:
         return assembler_emit_tac_dispatch_call(
             context, class_idx, program, mapping, tac, instr->dispatch_call);
@@ -610,7 +692,8 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
         return assembler_emit_tac_assign_string(
             context, class_idx, program, mapping, tac, instr->assign_string);
     case TAC_ASSIGN_BOOL:
-        // return assembler_emit_tac_assign_bool(instr->assign_bool);
+        return assembler_emit_tac_assign_bool(context, class_idx, program,
+                                              mapping, tac, instr->assign_bool);
         break;
     }
 }
