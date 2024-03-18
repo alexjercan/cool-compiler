@@ -283,6 +283,48 @@ IO.out_int:
 ;
 segment readable executable
 IO.in_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+    sub     rsp, 40                    ; allocate 5 local variables
+
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - 16], rax      ; t0 <- new int object
+
+    mov     rax, rbx                   ; get self
+    call    IO.in_string               ; read string from terminal
+    mov     qword [rbp - 24], rax      ; t1 <- string object
+
+    mov     rax, qword [rbp - 24]      ; get t1
+    add     rax, [str_field]           ; get *t1.s
+    mov     qword [rbp - 32], rax      ; t2 <- *t1.s (start pointer)
+
+    mov     rax, qword [rbp - 24]      ; get t1
+    add     rax, [str_size]            ; get *t1.l
+    mov     rax, [rax]                 ; get t1.l
+    add     rax, [int_slot]            ; get *t1.l.val
+    mov     rax, [rax]                 ; get t1.l.val
+    mov     qword [rbp - 40], rax      ; t3 <- t1.l.val
+
+    mov     rdi, qword [rbp - 32]      ; get *t1.s
+    mov     rsi, qword [rbp - 40]      ; get t1.l.val
+    call    parseInt                   ; convert string to int
+    mov     qword [rbp - 48], rax      ; t4 <- int value
+
+    mov     rax, qword [rbp - 16]      ; get t0
+    add     rax, [int_slot]            ; get *t0.val
+    mov     rdi, qword [rbp - 48]      ; get t4
+    mov     qword [rax], rdi           ; *t0.val <- t4
+
+    mov     rax, qword [rbp - 16]      ; get t0
+
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
 
 ;
 ;
@@ -295,6 +337,7 @@ IO.in_int:
 ;   STACK: empty
 ;   OUTPUT: rax contains the string object read from the terminal
 ;
+; TODO: Kind of have to also check for EOF
 segment readable executable
 IO.in_string:
     push    rbp                        ; save return address
@@ -360,6 +403,7 @@ IO.in_string:
     mov     rax, qword [rbp - 16]      ; get t0
     add     rax, [int_slot]            ; get *t0.val
     mov     rdi, qword [rbp - 48]      ; get t4
+    dec     rdi                        ; remove the newline
     mov     qword [rax], rdi           ; *t0.val <- t4
 
     ; Set the length of the string
@@ -432,9 +476,10 @@ String.substr:
 ;
 ;
 ; memcpy
-;   INPUT: rdi points to destination
-;          rsi points to source
-;          rdx contains the number of bytes to copy
+;   INPUT:
+;       rdi points to destination
+;       rsi points to source
+;       rdx contains the number of bytes to copy
 ;   STACK: empty
 ;   OUTPUT: nothing
 ;
@@ -464,33 +509,50 @@ memcpy:
 
 ;
 ;
-; strlen
-;   INPUT: rdi points to the string
+; parseInt
+;   INPUT:
+;       rdi points to the string
+;       rsi contains the length of the string
 ;   STACK: empty
-;   OUTPUT: rax contains the length of the string
-strlen:
+;   OUTPUT: rax contains the integer value of the string
+parseInt:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
     push    rbx                        ; save register
-    mov     rbx, rdi                   ; save self
-    sub     rsp, 1                     ; allocate 1 local variables
+    mov     rbx, rax                   ; save self
+    sub     rsp, 24                    ; allocate 3 local variables
 
-    mov     rax, 0
-    mov     qword [rbp - 8], rax       ; t0 <- 0
+    mov     rcx, 10                    ; base = 10
+    mov     rax, 0                     ; result = 0
+    mov     qword [rbp - 16], rax      ; t0 <- result
 
-.next_byte:
+.next_digit:
+    cmp     rsi, 0                     ; check if done
+    jle     .done
+
+    xor     rax, rax                   ; clear rax
     mov     al, byte [rdi]             ; get byte from string
-    cmp     al, 0                      ; check if byte is zero
-    je      .done
+    cmp     rax, '0'
+    jl      .done
+    cmp     rax, '9'
+    jg      .done
+    sub     rax, '0'                   ; convert to integer
 
-    mov     rax, qword [rbp - 8]
-    inc     rax
-    mov     qword [rbp - 8], rax       ; t0 <- t0 + 1
+    mov     qword [rbp - 24], rax      ; t1 <- digit
+    mov     rax, qword [rbp - 16]      ; get t0
+    mul     rcx
+    add     rax, qword [rbp - 24]
+    mov     qword [rbp - 16], rax      ; t0 <- t0 * 10 + t1
 
+    inc     rdi                        ; increment string
+    dec     rsi                        ; decrement count
+
+    jmp     .next_digit
 .done:
 
-    mov     rax, qword [rbp - 8]       ; get t0
+    mov     rax, qword [rbp - 16]      ; get t0
 
+    add     rsp, 24                    ; deallocate local variables
     pop     rbx                        ; restore register
     pop     rbp                        ; restore return address
     ret
