@@ -524,7 +524,12 @@ static void assembler_emit_tac_dispatch_call(
         ds_dynamic_array_get_ref(&mapping->implementations.items, i,
                                  (void **)&method);
 
-        if (strcmp(method->class_name, class->class_name) != 0) {
+        const char *class_name = instr.type;
+        if (strcmp(class_name, "SELF_TYPE") == 0) {
+            class_name = class->class_name;
+        }
+
+        if (strcmp(method->class_name, class_name) != 0) {
             continue;
         }
 
