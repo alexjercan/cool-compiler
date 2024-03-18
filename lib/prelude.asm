@@ -32,11 +32,10 @@ heap_end dq 0
 segment readable
 obj_tag dq 0
 obj_size dq 8
-disp_tab dq 16
-int_slot dq 24
-bool_slot dq 24
-str_size dq 24
-str_field dq 32
+int_slot dq 16
+bool_slot dq 16
+str_size dq 16
+str_field dq 24
 
 ;
 ;

@@ -8,12 +8,11 @@
 
 // obj_tag dq 0
 // obj_size dq 8
-// disp_tab dq 16
-// int_slot dq 24
-// bool_slot dq 24
-// str_size dq 24
-// str_field dq 32
-const int bool_slot = 24;
+// int_slot dq 16
+// bool_slot dq 16
+// str_size dq 16
+// str_field dq 24
+const int bool_slot = 16;
 
 enum asm_const_type {
     ASM_CONST_INT,
@@ -216,9 +215,7 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
 
     switch (c.value.type) {
     case ASM_CONST_STR: {
-        assembler_emit_fmt(context, align, "object size", "dq %d", 5);
-        assembler_emit_fmt(context, align, "dispatch table",
-                           "dq String_dispTab");
+        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
                            c.value.str.len_label);
         ds_string_builder sb;
@@ -240,15 +237,13 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
         break;
     }
     case ASM_CONST_INT: {
-        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
-        assembler_emit_fmt(context, align, "dispatch table", "dq Int_dispTab");
+        assembler_emit_fmt(context, align, "object size", "dq %d", 3);
         assembler_emit_fmt(context, align, "integer value", "dq %d",
                            c.value.integer);
         break;
     }
     case ASM_CONST_BOOL: {
-        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
-        assembler_emit_fmt(context, align, "dispatch table", "dq Bool_dispTab");
+        assembler_emit_fmt(context, align, "object size", "dq %d", 3);
         assembler_emit_fmt(context, align, "boolean value", "dq %d",
                            c.value.boolean);
         break;
@@ -399,8 +394,7 @@ static void assembler_emit_object_prototype(assembler_context *context,
     assembler_emit_fmt(context, 0, NULL, "%s_protObj:", class_name);
     assembler_emit_fmt(context, 4, "object tag", "dq %d", i);
     assembler_emit_fmt(context, 4, "object size", "dq %d",
-                       class->attributes.count + 3);
-    assembler_emit_fmt(context, 4, NULL, "dq %s_dispTab", class_name);
+                       class->attributes.count + 2);
 
     for (size_t j = 0; j < class->attributes.count; j++) {
         class_mapping_attribute *attr = NULL;
@@ -823,41 +817,6 @@ static void assembler_emit_object_inits(assembler_context *context,
     }
 }
 
-static void assembler_emit_dispatch_table(assembler_context *context,
-                                          size_t class_idx,
-                                          program_node *program,
-                                          semantic_mapping *mapping) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
-                             (void **)&class);
-
-    const char *class_name = class->class_name;
-
-    assembler_emit(context, "segment readable");
-    assembler_emit_fmt(context, 0, NULL, "%s_dispTab:", class_name);
-
-    for (size_t j = 0; j < mapping->implementations.items.count; j++) {
-        implementation_mapping_item *method = NULL;
-        ds_dynamic_array_get_ref(&mapping->implementations.items, j,
-                                 (void **)&method);
-
-        if (strcmp(method->class_name, class_name) != 0) {
-            continue;
-        }
-
-        assembler_emit_fmt(context, 4, NULL, "dq %s.%s", method->parent_name,
-                           method->method_name);
-    }
-}
-
-static void assembler_emit_dispatch_tables(assembler_context *context,
-                                           program_node *program,
-                                           semantic_mapping *mapping) {
-    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
-        assembler_emit_dispatch_table(context, i, program, mapping);
-    }
-}
-
 static void assembler_emit_method(assembler_context *context, size_t method_idx,
                                   program_node *program,
                                   semantic_mapping *mapping) {
@@ -936,7 +895,6 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
     assembler_emit_class_object_table(&context, program, mapping);
     assembler_emit_object_prototypes(&context, program, mapping);
     assembler_emit_object_inits(&context, program, mapping);
-    assembler_emit_dispatch_tables(&context, program, mapping);
     assembler_emit_methods(&context, program, mapping);
     assembler_emit_consts(&context, program, mapping);
 
