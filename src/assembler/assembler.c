@@ -794,7 +794,7 @@ static void assembler_emit_object_init(assembler_context *context,
     assembler_emit_fmt(context, 4, NULL, "push    rbx");
     assembler_emit_fmt(context, 4, "save self", "mov     rbx, rax");
     if (class->parent != NULL) {
-        assembler_emit_fmt(context, 4, NULL, "call %s_init",
+        assembler_emit_fmt(context, 4, NULL, "call    %s_init",
                            class->parent->name);
     }
 
