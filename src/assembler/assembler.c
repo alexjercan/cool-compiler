@@ -6,14 +6,6 @@
 #include "stdio.h"
 #include <stdarg.h>
 
-// obj_tag dq 0
-// obj_size dq 8
-// int_slot dq 16
-// bool_slot dq 16
-// str_size dq 16
-// str_field dq 24
-const int bool_slot = 16;
-
 enum asm_const_type {
     ASM_CONST_INT,
     ASM_CONST_STR,
@@ -255,8 +247,8 @@ static void assembler_emit_consts(assembler_context *context,
                                   program_node *program,
                                   semantic_mapping *mapping) {
     assembler_emit(context, "segment readable");
-    assembler_emit(context, "_int_tag dq %d", context->int_tag);
     assembler_emit(context, "_string_tag dq %d", context->str_tag);
+    assembler_emit(context, "_int_tag dq %d", context->int_tag);
     assembler_emit(context, "_bool_tag dq %d", context->bool_tag);
 
     for (size_t i = 0; i < context->consts.count; i++) {
@@ -457,7 +449,7 @@ static void assembler_emit_tac_jump_if_true(
     assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
                        8 + 8 * offset);
     comment = comment_fmt("access bool value");
-    assembler_emit_fmt(context, 4, comment, "add     rax, %d", bool_slot);
+    assembler_emit_fmt(context, 4, comment, "add     rax, [bool_slot]");
     comment = comment_fmt("dereference bool");
     assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
 

@@ -21,12 +21,20 @@ _start:
     call    Main.main
     ; Exit the program
     mov     rax, 60
-    xor     edi, edi
+    xor     rdi, rdi
     syscall
 
 segment readable writable
 heap_pos dq 0
 heap_end dq 0
+
+; Define the messages
+segment readable
+_abort_msg db "Abort called from class ", 0
+_abort_msg_len dq $ - _abort_msg
+_nl db 10, 0
+_nl_len dq $ - _nl
+
 
 ; Define some constants
 segment readable
@@ -79,19 +87,7 @@ Object.copy:
     mov     rdi, qword [rbp - 16]      ; get t0
     mov     rsi, rbx                   ; get self
     mov     rdx, qword [rbp - 24]      ; get t1
-.next_byte:
-    cmp     rdx, 0                     ; check if done
-    jle     .done
-
-    mov     al, byte [rsi]             ; get byte from self
-    mov     byte [rdi], al             ; copy byte to new object
-
-    inc     rdi                        ; increment destination
-    inc     rsi                        ; increment source
-    dec     rdx                        ; decrement count
-
-    jmp .next_byte
-.done:
+    call    memcpy                     ; copy self to new object
 
     mov     rax, qword [rbp - 32]      ; get t2
     mov     qword [heap_pos], rax      ; update the heap_pos
@@ -115,6 +111,28 @@ Object.copy:
 ;
 segment readable executable
 Object.abort:
+    mov     rdi, 1                     ; fd = stdout
+    mov     rsi, _abort_msg            ; str "Abort called from class "
+    mov     rdx, [_abort_msg_len]      ; length of the string
+    mov     rax, 1                     ; write
+    syscall
+
+    mov     rax, rbx                   ; get self
+    call    Object.type_name           ; get class name
+
+    push    rax                        ; arg0
+    call    IO.out_string              ; print class name
+    pop     rax                        ; free args
+
+    mov     rdi, 1                     ; fd = stdout
+    mov     rsi, _nl                   ; str = "\n"
+    mov     rdx, [_nl_len]             ; length of the string
+    mov     rax, 1                     ; write
+    syscall
+
+    mov     rax, 60
+    xor     rdi, rdi
+    syscall
 
 ;
 ;
@@ -321,3 +339,68 @@ String.concat:
 segment readable executable
 String.substr:
 
+;
+;
+; memcpy
+;   INPUT: rdi points to destination
+;          rsi points to source
+;          rdx contains the number of bytes to copy
+;   STACK: empty
+;   OUTPUT: nothing
+;
+memcpy:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+.next_byte:
+    cmp     rdx, 0                     ; check if done
+    jle     .done
+
+    mov     al, byte [rsi]             ; get byte from self
+    mov     byte [rdi], al             ; copy byte to new object
+
+    inc     rdi                        ; increment destination
+    inc     rsi                        ; increment source
+    dec     rdx                        ; decrement count
+
+    jmp .next_byte
+.done:
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; strlen
+;   INPUT: rdi points to the string
+;   STACK: empty
+;   OUTPUT: rax contains the length of the string
+strlen:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rdi                   ; save self
+    sub     rsp, 1                     ; allocate 1 local variables
+
+    mov     rax, 0
+    mov     qword [rbp - 8], rax       ; t0 <- 0
+
+.next_byte:
+    mov     al, byte [rdi]             ; get byte from string
+    cmp     al, 0                      ; check if byte is zero
+    je      .done
+
+    mov     rax, qword [rbp - 8]
+    inc     rax
+    mov     qword [rbp - 8], rax       ; t0 <- t0 + 1
+
+.done:
+
+    mov     rax, qword [rbp - 8]       ; get t0
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
