@@ -309,6 +309,18 @@ IO.in_string:
 ;
 segment readable executable
 String.length:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, rbx                   ; get self
+    add     rax, [str_size]            ; get *self.l
+    mov     rax, [rax]                 ; get self.l
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
 
 ;
 ;
