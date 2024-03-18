@@ -44,6 +44,7 @@ int_slot dq 16
 bool_slot dq 16
 str_size dq 16
 str_field dq 24
+read_len dq 1024
 
 ;
 ;
@@ -296,6 +297,69 @@ IO.in_int:
 ;
 segment readable executable
 IO.in_string:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+    sub     rsp, 40                    ; allocate 5 local variables
+
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - 16], rax      ; t0 <- new int object
+
+    mov     rax, String_protObj
+    call    Object.copy
+    call    String_init
+    mov     qword [rbp - 24], rax      ; t1 <- new string object
+
+    mov     rax, qword [rbp - 24]      ; get t1
+    add     rax, [str_field]           ; get *t1.s
+    mov     qword [rbp - 32], rax      ; t2 <- *t1.s
+
+    mov     rax, qword [rbp - 32]      ; get t2
+    add     rax, [read_len]            ; max read of read_len
+    cmp     rax, [heap_end]            ; check if there is enough space
+    jle     .read
+
+    ; allocate more space
+    mov     rax, 12                    ; brk
+    mov     rdi, 0x10000               ; 64K bytes (larger obj. will fail)
+    add     rdi, [heap_end]            ; new end of the heap
+    syscall
+    mov     [heap_end], rax            ; save the new end of the heap
+
+.read:
+    mov     rax, qword [rbp - 32]      ; get t2
+
+    mov     rdi, 0                     ; fd = stdin
+    mov     rsi, rax                   ; buf = *t1.s
+    mov     rdx, [read_len]            ; count = read_len
+    mov     rax, 0                     ; read
+    syscall
+
+    ; Compute the length of the string
+    mov     qword [rbp - 40], rax      ; t3 <- read count
+    mov     rax, qword [rbp - 16]      ; get t0
+    add     rax, [int_slot]            ; get *t0.val
+    mov     rdi, [rax]                 ; get *t0.val
+    add     rdi, qword [rbp - 40]
+    mov     qword [rax], rdi           ; *t0.val <- *t0.val + t3
+
+    ; TODO remove the '\n' from the string + plus read until newline
+
+    ; Set the length of the string
+    mov     rax, qword [rbp - 24]      ; get t1
+    add     rax, [str_size]            ; get *t1.l
+    mov     rdi, qword [rbp - 16]      ; get t0
+    mov     qword [rax], rdi           ; *t1.l <- t0
+
+    mov     rax, qword [rbp - 24]      ; get t1
+
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
 
 ;
 ;

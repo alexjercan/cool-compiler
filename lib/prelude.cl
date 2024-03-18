@@ -63,7 +63,7 @@ class IO inherits Object {
 
 (* The String class provides methods for manipulating strings. *)
 class String inherits Object {
-    l: Int <- 0;            -- The default length of a String object.
+    l: Int <- extern;       -- The length of the string.
     str: String <- extern;  -- The default value of a String object.
 
     (*
