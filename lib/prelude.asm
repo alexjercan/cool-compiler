@@ -126,6 +126,35 @@ Object.abort:
 ;
 segment readable executable
 Object.type_name:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+    sub     rsp, 32                    ; allocate 4 local variables
+
+    mov    rax, class_nameTab
+    mov    qword [rbp - 16], rax       ; t0 <- class_nameTab
+
+    mov    rax, rbx
+    add    rax, [obj_tag]
+    mov    rax, [rax]
+    mov    qword [rbp - 24], rax       ; t1 <- obj_tag(self)
+
+    mov    rax, qword [rbp - 24]
+    shl    rax, 3
+    mov    qword [rbp - 32], rax       ; t2 <- t1 * 8
+
+    mov    rax, qword [rbp - 16]
+    add    rax, qword [rbp - 32]
+    mov    qword [rbp - 40], rax       ; t3 <- t0 + t2
+
+    mov    rax, qword [rbp - 40]
+    mov    rax, [rax]                  ; load class name
+
+    add     rsp, 32                    ; deallocate local variables
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
 
 ;
 ;
