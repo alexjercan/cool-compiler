@@ -57,6 +57,9 @@ arg_0 = 16
 arg_1 = 24
 arg_2 = 32
 
+; TODO: implement these methods as tac instructions and let the compiler do it
+; and do the syscalls manually after that
+
 ;
 ;
 ; Copy method
