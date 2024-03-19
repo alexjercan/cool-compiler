@@ -404,22 +404,64 @@ static void assembler_emit_object_prototypes(assembler_context *context,
     }
 }
 
-static void assembler_get_stack_offset(assembler_context *context,
-                                       size_t class_idx, program_node *program,
-                                       semantic_mapping *mapping,
-                                       tac_result tac, char *ident,
-                                       int *offset) {
+static void assembler_emit_load_variable(assembler_context *context,
+                                         size_t class_idx,
+                                         program_node *program,
+                                         semantic_mapping *mapping,
+                                         tac_result tac, char *ident) {
     for (size_t i = 0; i < tac.locals.count; i++) {
         char *local = NULL;
         ds_dynamic_array_get_ref(&tac.locals, i, (void **)&local);
 
         if (strcmp(local, ident) == 0) {
-            *offset = i + 1;
+            int offset = i;
+            const char *comment = comment_fmt("load %s", ident);
+            assembler_emit_fmt(context, 4, comment,
+                               "mov     rax, qword [rbp-%d]", 8 + 8 * offset);
             return;
         }
     }
 
-    return;
+    assembler_emit(context, "TODO");
+}
+
+static void assembler_emit_store_variable(assembler_context *context,
+                                          size_t class_idx,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac, char *ident) {
+    for (size_t i = 0; i < tac.locals.count; i++) {
+        char *local = NULL;
+        ds_dynamic_array_get_ref(&tac.locals, i, (void **)&local);
+
+        if (strcmp(local, ident) == 0) {
+            int offset = i;
+            const char *comment = comment_fmt("store %s", ident);
+            assembler_emit_fmt(context, 4, comment,
+                               "mov     qword [rbp-%d], rax", 8 + 8 * offset);
+            return;
+        }
+    }
+
+    assembler_emit(context, "TODO");
+}
+
+static void assembler_emit_load_bool(assembler_context *context, char *ident) {
+    const char *comment = NULL;
+
+    comment = comment_fmt("*%s.val", ident);
+    assembler_emit_fmt(context, 4, comment, "add     rax, [bool_slot]");
+    comment = comment_fmt("%s.val", ident);
+    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
+}
+
+static void assembler_emit_load_int(assembler_context *context, char *ident) {
+    const char *comment = NULL;
+
+    comment = comment_fmt("*%s.val", ident);
+    assembler_emit_fmt(context, 4, comment, "add     rax, [int_slot]");
+    comment = comment_fmt("%s.val", ident);
+    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
 }
 
 static void assembler_emit_tac_label(assembler_context *context,
@@ -439,19 +481,12 @@ static void assembler_emit_tac_jump(assembler_context *context,
 static void assembler_emit_tac_jump_if_true(
     assembler_context *context, size_t class_idx, program_node *program,
     semantic_mapping *mapping, tac_result tac, tac_jump_if_true jump) {
-    int offset = 0;
     const char *comment;
 
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               jump.expr, &offset);
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 jump.expr);
 
-    comment = comment_fmt("get %s", jump.expr);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * offset);
-    comment = comment_fmt("access bool value");
-    assembler_emit_fmt(context, 4, comment, "add     rax, [bool_slot]");
-    comment = comment_fmt("dereference bool");
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
+    assembler_emit_load_bool(context, jump.expr);
 
     assembler_emit_fmt(context, 4, NULL, "test    rax, rax");
     assembler_emit_fmt(context, 4, NULL, "jnz     .%s", jump.label);
@@ -461,62 +496,38 @@ static void assembler_emit_tac_assign_value(
     assembler_context *context, size_t class_idx, program_node *program,
     semantic_mapping *mapping, tac_result tac, tac_assign_value instr) {
     const char *comment;
-    int offset;
 
-    offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.expr, &offset);
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.expr);
 
-    comment = comment_fmt("load %s", instr.expr);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * offset);
-
-    offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.ident, &offset);
-
-    comment = comment_fmt("store %s in %s", instr.expr, instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
-                       8 + 8 * offset);
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
 }
 
 static void assembler_emit_tac_dispatch_call(
     assembler_context *context, size_t class_idx, program_node *program,
     semantic_mapping *mapping, tac_result tac, tac_dispatch_call instr) {
-    const char *comment;
-
     class_mapping_item *class = NULL;
     ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
                              (void **)&class);
 
-    int offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.ident, &offset);
-
     for (size_t i = 0; i < instr.args.count; i++) {
-        char *arg;
+        char *arg = NULL;
         ds_dynamic_array_get(&instr.args, instr.args.count - i - 1, &arg);
 
-        int offset = 0;
-        assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                                   arg, &offset);
+        assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                     arg);
 
-        comment = comment_fmt("arg0: %s", arg);
-        assembler_emit_fmt(context, 4, comment, "push    qword [rbp-%d]",
-                           8 + 8 * offset);
+        const char *comment = comment_fmt("arg0: %s", arg);
+        assembler_emit_fmt(context, 4, comment, "push    rax");
     }
 
     if (strcmp(instr.expr, "self") == 0) {
-        comment = comment_fmt("get self");
+        const char *comment = comment_fmt("load self");
         assembler_emit_fmt(context, 4, comment, "mov     rax, rbx");
     } else {
-        int offset = 0;
-        assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                                   instr.expr, &offset);
-
-        comment = comment_fmt("get %s", instr.expr);
-        assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                           8 + 8 * offset);
+        assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                     instr.expr);
     }
 
     for (size_t i = 0; i < mapping->implementations.items.count; i++) {
@@ -543,13 +554,106 @@ static void assembler_emit_tac_dispatch_call(
         break;
     }
 
-    comment = comment_fmt("save result in %s", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
-                       8 + 8 * offset);
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
 
-    comment = comment_fmt("free %d args", instr.args.count);
+    const char *comment = comment_fmt("free %d args", instr.args.count);
     assembler_emit_fmt(context, 4, comment, "add     rsp, %d",
                        8 * instr.args.count);
+}
+
+static void
+assembler_emit_tac_assign_lt(assembler_context *context, size_t class_idx,
+                             program_node *program, semantic_mapping *mapping,
+                             tac_result tac, tac_assign_binary instr) {
+    const char *comment;
+
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.lhs);
+    assembler_emit_load_int(context, instr.lhs);
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.rhs);
+    assembler_emit_load_int(context, instr.rhs);
+
+    assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
+    assembler_emit_fmt(context, 4, NULL, "setl    al");
+    assembler_emit_fmt(context, 4, NULL, "and     al, 1");
+    comment = comment_fmt("%s.val < %s.val", instr.lhs, instr.rhs);
+    assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    comment = NULL; // TODO: This is new TAC instruction
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, Bool_protObj");
+    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
+    comment = comment_fmt("new Bool", instr.ident);
+    assembler_emit_fmt(context, 4, comment, "call    Bool_init");
+
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, 4, NULL, "mov     rsi, rax");
+
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.ident);
+
+    comment = comment_fmt("*%s.val", instr.ident);
+    assembler_emit_fmt(context, 4, comment, "add     rdi, qword [bool_slot]");
+
+    comment = comment_fmt("%s.val <- %s.val < %s.val", instr.ident, instr.lhs,
+                          instr.rhs);
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rdi], rax");
+
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, rsi");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+}
+
+static void
+assembler_emit_tac_assign_le(assembler_context *context, size_t class_idx,
+                             program_node *program, semantic_mapping *mapping,
+                             tac_result tac, tac_assign_binary instr) {
+    const char *comment;
+
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.lhs);
+    assembler_emit_load_int(context, instr.lhs);
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.rhs);
+    assembler_emit_load_int(context, instr.rhs);
+
+    assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
+    assembler_emit_fmt(context, 4, NULL, "setle   al");
+    assembler_emit_fmt(context, 4, NULL, "and     al, 1");
+    comment = comment_fmt("%s.val <= %s.val", instr.lhs, instr.rhs);
+    assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    comment = NULL; // TODO: This is new TAC instruction
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, Bool_protObj");
+    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
+    comment = comment_fmt("new Bool", instr.ident);
+    assembler_emit_fmt(context, 4, comment, "call    Bool_init");
+
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, 4, NULL, "mov     rsi, rax");
+
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.ident);
+
+    comment = comment_fmt("*%s.val", instr.ident);
+    assembler_emit_fmt(context, 4, comment, "add     rdi, qword [bool_slot]");
+
+    comment = comment_fmt("%s.val <- %s.val <= %s.val", instr.ident, instr.lhs,
+                          instr.rhs);
+    assembler_emit_fmt(context, 4, comment, "mov     qword [rdi], rax");
+
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, rsi");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
 }
 
 static void
@@ -560,163 +664,58 @@ assembler_emit_tac_assign_eq(assembler_context *context, size_t class_idx,
 }
 
 static void
-assembler_emit_tac_assign_le(assembler_context *context, size_t class_idx,
-                             program_node *program, semantic_mapping *mapping,
-                             tac_result tac, tac_assign_binary instr) {
-    const char *comment;
-    int lhs_offset = 0;
-    int rhs_offset = 0;
-    int result_offset = 0;
-
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.lhs, &lhs_offset);
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.rhs, &rhs_offset);
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.ident, &result_offset);
-
-    comment = comment_fmt("load %s", instr.lhs);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * rhs_offset);
-
-    comment = comment_fmt("get *%s.val", instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "add     rax, qword [int_slot]");
-
-    comment = comment_fmt("get %s.val", instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
-
-    comment = comment_fmt("%s <- %s.val", instr.ident, instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
-                       8 + 8 * result_offset);
-
-    comment = comment_fmt("load %s", instr.lhs);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * lhs_offset);
-
-    comment = comment_fmt("get *%s.val", instr.lhs);
-    assembler_emit_fmt(context, 4, comment, "add     rax, qword [int_slot]");
-
-    comment = comment_fmt("get %s.val", instr.lhs);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
-
-    comment = NULL;
-    assembler_emit_fmt(context, 4, comment, "cmp     rax, qword [rbp-%d]",
-                       8 + 8 * result_offset);
-
-    comment = NULL;
-    assembler_emit_fmt(context, 4, comment, "setle   al");
-
-    comment = NULL;
-    assembler_emit_fmt(context, 4, comment, "and     al, 1");
-
-    comment = NULL;
-    assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
-
-    comment = comment_fmt("%s <- %s.val <= %s.val", instr.ident, instr.lhs, instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
-                       8 + 8 * result_offset);
-
-    comment = NULL;
-    assembler_emit_fmt(context, 4, comment, "mov     rax, Bool_protObj");
-    assembler_emit_fmt(context, 4, comment, "call    Object.copy");
-    assembler_emit_fmt(context, 4, comment, "call    Bool_init");
-
-    comment = comment_fmt("load result");
-    assembler_emit_fmt(context, 4, comment, "mov     rdi, qword [rbp-%d]",
-                       8 + 8 * result_offset);
-
-    comment = comment_fmt("%s <- new Bool", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
-                       8 + 8 * result_offset);
-
-    comment = comment_fmt("load %s", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * result_offset);
-
-    comment = comment_fmt("get *%s.val", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "add     rax, qword [bool_slot]");
-
-    comment = comment_fmt("%s.val <- %s.val <= %s.val", instr.ident, instr.lhs, instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rax], rdi");
-
-    comment = comment_fmt("load %s", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * result_offset);
-}
-
-static void
 assembler_emit_tac_assign_not(assembler_context *context, size_t class_idx,
                               program_node *program, semantic_mapping *mapping,
                               tac_result tac, tac_assign_unary instr) {
     const char *comment;
     int offset;
 
-    offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.expr, &offset);
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.expr);
 
-    comment = comment_fmt("load %s", instr.expr);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * offset);
+    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
 
-    comment = comment_fmt("copy the object");
-    assembler_emit_fmt(context, 4, comment, "call    Object.copy");
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, 4, NULL, "mov     rsi, rax");
 
     comment = comment_fmt("access the bool value");
-    assembler_emit_fmt(context, 4, comment, "add     rax, qword [bool_slot]");
+    assembler_emit_fmt(context, 4, comment, "add     rdi, qword [bool_slot]");
 
     comment = comment_fmt("flip the bool value");
-    assembler_emit_fmt(context, 4, comment, "xor     qword [rax], 1");
+    assembler_emit_fmt(context, 4, comment, "xor     qword [rdi], 1");
 
-    offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.ident, &offset);
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, rsi");
 
-    comment = comment_fmt("store not %s in %s", instr.expr, instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], rax",
-                       8 + 8 * offset);
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
 }
 
 static void assembler_emit_tac_ident(assembler_context *context,
                                      size_t class_idx, program_node *program,
                                      semantic_mapping *mapping, tac_result tac,
                                      tac_ident instr) {
-    int offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.name, &offset);
-
-    const char *comment = comment_fmt("load %s", instr.name);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rbp-%d]",
-                       8 + 8 * offset);
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.name);
 }
 
 static void
 assembler_emit_tac_assign_int(assembler_context *context, size_t class_idx,
                               program_node *program, semantic_mapping *mapping,
                               tac_result tac, tac_assign_int instr) {
-    int offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.ident, &offset);
-
     asm_const *int_const = NULL;
     assembler_new_const(
         context,
         (asm_const_value){.type = ASM_CONST_INT, .integer = instr.value},
         &int_const);
 
-    const char *comment =
-        comment_fmt("store %d in %s", instr.value, instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], %s",
-                       8 + 8 * offset, int_const->name);
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", int_const->name);
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
 }
 
 static void assembler_emit_tac_assign_string(
     assembler_context *context, size_t class_idx, program_node *program,
     semantic_mapping *mapping, tac_result tac, tac_assign_string instr) {
-    int offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.ident, &offset);
-
     asm_const *int_const = NULL;
     assembler_new_const(context,
                         (asm_const_value){.type = ASM_CONST_INT,
@@ -730,31 +729,24 @@ static void assembler_emit_tac_assign_string(
                           .str = {int_const->name, instr.value}},
         &str_const);
 
-    // TODO: string repr => show instr.value
-    const char *comment =
-        comment_fmt("store %s in %s", str_const->name, instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], %s",
-                       8 + 8 * offset, str_const->name);
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", str_const->name);
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
 }
 
 static void
 assembler_emit_tac_assign_bool(assembler_context *context, size_t class_idx,
                                program_node *program, semantic_mapping *mapping,
                                tac_result tac, tac_assign_bool instr) {
-    int offset = 0;
-    assembler_get_stack_offset(context, class_idx, program, mapping, tac,
-                               instr.ident, &offset);
-
     asm_const *bool_const = NULL;
     assembler_new_const(
         context,
         (asm_const_value){.type = ASM_CONST_BOOL, .boolean = instr.value},
         &bool_const);
 
-    const char *comment =
-        comment_fmt("store %d in %s", instr.value, instr.ident);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rbp-%d], %s",
-                       8 + 8 * offset, bool_const->name);
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", bool_const->name);
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
 }
 
 static void assembler_emit_tac(assembler_context *context, size_t class_idx,
@@ -800,9 +792,9 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
     case TAC_ASSIGN_NEG:
         // return assembler_emit_tac_assign_unary(instr->assign_unary, "~");
     case TAC_ASSIGN_LT:
-        // return assembler_emit_tac_assign_binary(instr->assign_binary, "<");
+        return assembler_emit_tac_assign_lt(context, class_idx, program,
+                                            mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_LE:
-        // return assembler_emit_tac_assign_binary(instr->assign_binary, "<=");
         return assembler_emit_tac_assign_le(context, class_idx, program,
                                             mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_EQ:
@@ -837,12 +829,15 @@ static void assembler_emit_expr(assembler_context *context, size_t class_idx,
     const char *comment = comment_fmt("allocate %d locals", tac.locals.count);
     assembler_emit_fmt(context, 4, comment, "sub     rsp, %d",
                        8 * tac.locals.count);
+    assembler_emit_fmt(context, 4, NULL, "push    rbx");
+    assembler_emit_fmt(context, 4, NULL, "mov     rbx, rax");
 
     for (size_t j = 0; j < tac.instrs.count; j++) {
         assembler_emit_tac(context, class_idx, program, mapping, tac, j);
     }
 
-    assembler_emit_fmt(context, 4, "free locals", "add     rsp, %d",
+    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
+    assembler_emit_fmt(context, 4, NULL, "add     rsp, %d",
                        8 * tac.locals.count);
 }
 
@@ -940,12 +935,9 @@ static void assembler_emit_method(assembler_context *context, size_t method_idx,
                        method->method_name);
     assembler_emit_fmt(context, 4, NULL, "push    rbp");
     assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
-    assembler_emit_fmt(context, 4, NULL, "push    rbx");
-    assembler_emit_fmt(context, 4, "save self", "mov     rbx, rax");
 
     assembler_emit_expr(context, j, program, mapping, &method->method->body);
 
-    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
     assembler_emit_fmt(context, 4, NULL, "pop     rbp");
     assembler_emit_fmt(context, 4, NULL, "ret");
 }
