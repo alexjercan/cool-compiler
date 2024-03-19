@@ -455,6 +455,23 @@ static void assembler_emit_load_bool(assembler_context *context, char *ident) {
     assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
 }
 
+// ident.val <- rax
+static void assembler_emit_set_bool(assembler_context *context,
+                                    size_t class_idx, program_node *program,
+                                    semantic_mapping *mapping, tac_result tac,
+                                    char *ident) {
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 ident);
+
+    assembler_emit_fmt(context, 4, NULL, "xchg    rdi, rax");
+
+    // TODO: find any attribute of the object given by val
+    assembler_emit_fmt(context, 4, NULL, "add     rdi, qword [bool_slot]");
+    assembler_emit_fmt(context, 4, NULL, "mov     qword [rdi], rax");
+}
+
 static void assembler_emit_load_int(assembler_context *context, char *ident) {
     const char *comment = NULL;
 
@@ -462,6 +479,15 @@ static void assembler_emit_load_int(assembler_context *context, char *ident) {
     assembler_emit_fmt(context, 4, comment, "add     rax, [int_slot]");
     comment = comment_fmt("%s.val", ident);
     assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
+}
+
+static void assembler_emit_new_type(assembler_context *context, char *type) {
+    const char *comment = NULL;
+
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s_protObj", type);
+    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
+    comment = comment_fmt("new %s", type);
+    assembler_emit_fmt(context, 4, comment, "call    %s_init", type);
 }
 
 static void assembler_emit_tac_label(assembler_context *context,
@@ -485,7 +511,6 @@ static void assembler_emit_tac_jump_if_true(
 
     assembler_emit_load_variable(context, class_idx, program, mapping, tac,
                                  jump.expr);
-
     assembler_emit_load_bool(context, jump.expr);
 
     assembler_emit_fmt(context, 4, NULL, "test    rax, rax");
@@ -568,45 +593,32 @@ assembler_emit_tac_assign_lt(assembler_context *context, size_t class_idx,
                              tac_result tac, tac_assign_binary instr) {
     const char *comment;
 
+    // t2 <- new Bool
+    assembler_emit_new_type(context, "Bool");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    // set rdi to t0
     assembler_emit_load_variable(context, class_idx, program, mapping, tac,
                                  instr.lhs);
     assembler_emit_load_int(context, instr.lhs);
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
+    // set rax to t1
     assembler_emit_load_variable(context, class_idx, program, mapping, tac,
                                  instr.rhs);
     assembler_emit_load_int(context, instr.rhs);
 
+    // set rax to t0 < t1
     assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
     assembler_emit_fmt(context, 4, NULL, "setl    al");
     assembler_emit_fmt(context, 4, NULL, "and     al, 1");
     comment = comment_fmt("%s.val < %s.val", instr.lhs, instr.rhs);
     assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
 
-    comment = NULL; // TODO: This is new TAC instruction
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, Bool_protObj");
-    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
-    comment = comment_fmt("new Bool", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "call    Bool_init");
-
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
-    assembler_emit_fmt(context, 4, NULL, "mov     rsi, rax");
-
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.ident);
-
-    comment = comment_fmt("*%s.val", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "add     rdi, qword [bool_slot]");
-
-    comment = comment_fmt("%s.val <- %s.val < %s.val", instr.ident, instr.lhs,
-                          instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rdi], rax");
-
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, rsi");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    // set t2.val to rax
+    assembler_emit_set_bool(context, class_idx, program, mapping, tac,
+                            instr.ident);
 }
 
 static void
@@ -615,45 +627,32 @@ assembler_emit_tac_assign_le(assembler_context *context, size_t class_idx,
                              tac_result tac, tac_assign_binary instr) {
     const char *comment;
 
+    // t2 <- new Bool
+    assembler_emit_new_type(context, "Bool");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    // set rdi to t0
     assembler_emit_load_variable(context, class_idx, program, mapping, tac,
                                  instr.lhs);
     assembler_emit_load_int(context, instr.lhs);
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
+    // set rax to t1
     assembler_emit_load_variable(context, class_idx, program, mapping, tac,
                                  instr.rhs);
     assembler_emit_load_int(context, instr.rhs);
 
+    // set rax to t0 <= t1
     assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
     assembler_emit_fmt(context, 4, NULL, "setle   al");
     assembler_emit_fmt(context, 4, NULL, "and     al, 1");
-    comment = comment_fmt("%s.val <= %s.val", instr.lhs, instr.rhs);
+    comment = comment_fmt("%s.val < %s.val", instr.lhs, instr.rhs);
     assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
 
-    comment = NULL; // TODO: This is new TAC instruction
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, Bool_protObj");
-    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
-    comment = comment_fmt("new Bool", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "call    Bool_init");
-
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
-    assembler_emit_fmt(context, 4, NULL, "mov     rsi, rax");
-
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.ident);
-
-    comment = comment_fmt("*%s.val", instr.ident);
-    assembler_emit_fmt(context, 4, comment, "add     rdi, qword [bool_slot]");
-
-    comment = comment_fmt("%s.val <- %s.val <= %s.val", instr.ident, instr.lhs,
-                          instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rdi], rax");
-
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, rsi");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    // set t2.val to rax
+    assembler_emit_set_bool(context, class_idx, program, mapping, tac,
+                            instr.ident);
 }
 
 static void
@@ -670,24 +669,20 @@ assembler_emit_tac_assign_not(assembler_context *context, size_t class_idx,
     const char *comment;
     int offset;
 
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.expr);
-
-    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
-
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
-    assembler_emit_fmt(context, 4, NULL, "mov     rsi, rax");
-
-    comment = comment_fmt("access the bool value");
-    assembler_emit_fmt(context, 4, comment, "add     rdi, qword [bool_slot]");
-
-    comment = comment_fmt("flip the bool value");
-    assembler_emit_fmt(context, 4, comment, "xor     qword [rdi], 1");
-
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, rsi");
-
+    // t1 <- new Bool
+    assembler_emit_new_type(context, "Bool");
     assembler_emit_store_variable(context, class_idx, program, mapping, tac,
                                   instr.ident);
+
+    // set rax to not t0.val
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 instr.expr);
+    assembler_emit_load_bool(context, instr.expr);
+    assembler_emit_fmt(context, 4, NULL, "xor     rax, 1");
+
+    // set t1.val to rax
+    assembler_emit_set_bool(context, class_idx, program, mapping, tac,
+                            instr.ident);
 }
 
 static void assembler_emit_tac_ident(assembler_context *context,
