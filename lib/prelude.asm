@@ -76,37 +76,41 @@ Object.copy:
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    mov     rax, qword [heap_pos]      ; get new object position
-    mov     qword [rbp - loc_0], rax   ; t0 <- new object position
+    ; t0 <- heap_pos
+    mov     rax, qword [heap_pos]
+    mov     qword [rbp - loc_0], rax
 
-    mov     rax, rbx                   ; get self
-    add     rax, [obj_size]            ; get *self.size
-    mov     rax, [rax]                 ; get self.size (in qwords)
-    shl     rax, 3                     ; get self.size (in bytes)
-    mov     qword [rbp - loc_1], rax   ; t1 <- self.size * 8
+    ; t1 <- sizeof(self)
+    mov     rax, rbx
+    call    sizeof
+    mov     qword [rbp - loc_1], rax
 
-    mov     rax, qword [rbp - loc_0]   ; get t0
-    add     rax, qword [rbp - loc_1]   ; get t0 + t1 (get the new heap_pos)
-    mov     qword [rbp - loc_2], rax   ; t2 <- t0 + t1
-    cmp     rax, [heap_end]            ; check if there is enough space
+    ; t2 <- t0 + t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, qword [rbp - loc_1]
+    mov     qword [rbp - loc_2], rax
+
+    ; cmp t2 <= heap_end
+    mov     rax, qword [rbp - loc_2]
+    cmp     rax, qword [heap_end]
     jle     .copy
 
-    ; allocate more space
-    mov     rax, 12                    ; brk
-    mov     rdi, 0x10000               ; 64K bytes (larger obj. will fail)
-    add     rdi, [heap_end]            ; new end of the heap
-    syscall
-    mov     [heap_end], rax            ; save the new end of the heap
+    ; malloc_64k()
+    call    malloc_64k
 
 .copy:
-    mov     rdi, qword [rbp - loc_0]   ; get t0
-    mov     rsi, rbx                   ; get self
-    mov     rdx, qword [rbp - loc_1]   ; get t1
-    call    memcpy                     ; copy self to new object
+    ; memcpy(t0, self, t1)
+    mov     rdi, qword [rbp - loc_0]
+    mov     rsi, rbx
+    mov     rdx, qword [rbp - loc_1]
+    call    memcpy
 
-    mov     rax, qword [rbp - loc_2]   ; get t2
-    mov     qword [heap_pos], rax      ; update the heap_pos
-    mov     rax, qword [rbp - loc_0]   ; get t0 return
+    ; heap_pos <- t2
+    mov     rax, qword [rbp - loc_2]
+    mov     qword [heap_pos], rax
+
+    ; t0
+    mov     rax, qword [rbp - loc_0]
 
     pop     rbx                        ; restore register
     add     rsp, 24                    ; deallocate local variables
@@ -132,12 +136,15 @@ Object.abort:
     mov     rax, 1                     ; write
     syscall
 
-    mov     rax, rbx                   ; get self
-    call    Object.type_name           ; get class name
+    ; t0 <- self@Object.type_name()
+    mov     rax, rbx
+    call    Object.type_name
 
-    push    rax                        ; arg0
-    call    IO.out_string              ; print class name
-    pop     rax                        ; free args
+    ; t1 <- self@IO.out_string(t0)
+    push    rax
+    mov     rax, rbx
+    call    IO.out_string
+    pop     rax
 
     mov     rdi, 1                     ; fd = stdout
     mov     rsi, _nl                   ; str = "\n"
@@ -165,24 +172,29 @@ Object.type_name:
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
+    ; t0 <- class_nameTab
     mov    rax, class_nameTab
-    mov    qword [rbp - loc_0], rax    ; t0 <- class_nameTab
+    mov    qword [rbp - loc_0], rax
 
+    ; t1 <- obj_tag(self)
     mov    rax, rbx
     add    rax, [obj_tag]
     mov    rax, [rax]
-    mov    qword [rbp - loc_1], rax    ; t1 <- obj_tag(self)
+    mov    qword [rbp - loc_1], rax
 
+    ; t2 <- t1 * 8
     mov    rax, qword [rbp - loc_1]
     shl    rax, 3
-    mov    qword [rbp - loc_2], rax    ; t2 <- t1 * 8
+    mov    qword [rbp - loc_2], rax
 
+    ; t3 <- t0 + t2
     mov    rax, qword [rbp - loc_0]
     add    rax, qword [rbp - loc_2]
-    mov    qword [rbp - loc_3], rax    ; t3 <- t0 + t2
+    mov    qword [rbp - loc_3], rax
 
+    ; deref t3
     mov    rax, qword [rbp - loc_3]
-    mov    rax, [rax]                  ; load class name
+    mov    rax, [rax]
 
     pop     rbx                        ; restore register
     add     rsp, 32                    ; deallocate local variables
@@ -208,10 +220,12 @@ IO.out_string:
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
+    ; deref x.s
     mov     rax, [rbp + arg_0]         ; get x
     add     rax, [str_field]           ; get *x.s
     mov     rsi, rax                   ; buf = *x.s
 
+    ; deref x.l.val
     mov     rax, [rbp + arg_0]         ; get x
     add     rax, [str_size]            ; get *x.l
     mov     rax, [rax]                 ; get x.l
@@ -248,6 +262,7 @@ IO.out_int:
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
+    ; deref x.val
     mov     rax, [rbp + arg_0]         ; get x
     add     rax, [int_slot]            ; get *x.val
     mov     rax, [rax]                 ; get x.val
@@ -360,73 +375,76 @@ IO.in_string:
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
+    ; t0 <- new Int
     mov     rax, Int_protObj
     call    Object.copy
     call    Int_init
-    mov     qword [rbp - loc_0], rax   ; t0 <- new int object
+    mov     qword [rbp - loc_0], rax
 
+    ; t1 <- new String
     mov     rax, String_protObj
     call    Object.copy
     call    String_init
-    mov     qword [rbp - loc_1], rax   ; t1 <- new string object
+    mov     qword [rbp - loc_1], rax
 
-    mov     rax, qword [rbp - loc_1]   ; get t1
-    add     rax, [str_field]           ; get *t1.s
-    mov     qword [rbp - loc_2], rax   ; t2 <- *t1.s (start pointer)
+    ; t2 <- *t1.s
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    mov     qword [rbp - loc_2], rax
 
-    mov     rax, qword [rbp - loc_1]   ; get t1
-    add     rax, [str_field]           ; get *t1.s
-    mov     qword [rbp - loc_3], rax   ; t3 <- *t1.s (end pointer)
+    ; t3 <- *t1.s
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    mov     qword [rbp - loc_3], rax
 
 .again:
-    mov     rax, qword [rbp - loc_3]   ; get t3
-    add     rax, [read_len]            ; max read of read_len
-    cmp     rax, [heap_end]            ; check if there is enough space
+    ; cmp t3 + read_len <= heap_end
+    mov     rax, qword [rbp - loc_3]
+    add     rax, [read_len]
+    cmp     rax, [heap_end]
     jle     .read
 
-    ; allocate more space
-    mov     rax, 12                    ; brk
-    mov     rdi, 0x10000               ; 64K bytes (larger obj. will fail)
-    add     rdi, [heap_end]            ; new end of the heap
-    syscall
-    mov     [heap_end], rax            ; save the new end of the heap
+    ; malloc_64k()
+    call    malloc_64k
 
 .read:
-    mov     rax, qword [rbp - loc_3]   ; get t3
-
-    mov     rdi, 0                     ; fd = stdin
-    mov     rsi, rax                   ; buf = *t1.s
-    mov     rdx, [read_len]            ; count = read_len
-    mov     rax, 0                     ; read
+    ; t4 <- syscall read(stdin, t3, read_len)
+    mov     rdi, 0
+    mov     rsi, qword [rbp - loc_3]
+    mov     rdx, [read_len]
+    mov     rax, 0
     syscall
+    mov     qword [rbp - loc_4], rax
 
-    mov     qword [rbp - loc_4], rax   ; t4 <- read count
+    ; t3 <- t3 + t4
+    mov     rax, qword [rbp - loc_4]
+    add     qword [rbp - loc_3], rax
+    mov     rax, qword [rbp - loc_3]
 
-    ; read until newline
-    mov     rax, qword [rbp - loc_4]   ; get t4
-    add     qword [rbp - loc_3], rax   ; t3 <- t3 + t4
-    mov     rax, qword [rbp - loc_3]   ; get t3
-    mov     al, byte [rax - 1]         ; get last byte
-    cmp     al, 10                     ; check if byte is newline
+    ; cmp *t3 - 1 != '\n'
+    mov     al, byte [rax - 1]
+    cmp     al, 10
     jne     .again
 
-    ; Compute the length of the string
-    mov     rax, qword [rbp - loc_3]   ; get t3 (end pointer)
-    sub     rax, qword [rbp - loc_2]   ; get t3 - t2
-    mov     qword [rbp - loc_4], rax   ; t4 <- t3 - t2
-    mov     rax, qword [rbp - loc_0]   ; get t0
-    add     rax, [int_slot]            ; get *t0.val
-    mov     rdi, qword [rbp - loc_4]   ; get t4
-    dec     rdi                        ; remove the newline
-    mov     qword [rax], rdi           ; *t0.val <- t4
+    ; t4 <- t3 - t2
+    mov     rax, qword [rbp - loc_3]
+    sub     rax, qword [rbp - loc_2]
+    mov     qword [rbp - loc_4], rax
 
-    ; Set the length of the string
-    mov     rax, qword [rbp - loc_1]   ; get t1
-    add     rax, [str_size]            ; get *t1.l
-    mov     rdi, qword [rbp - loc_0]   ; get t0
-    mov     qword [rax], rdi           ; *t1.l <- t0
+    ; t0.val <- t4 - 1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_4]
+    dec     rdi
+    mov     qword [rax], rdi
 
-    mov     rax, qword [rbp - loc_1]      ; get t1
+    ; t1.l <- t0
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_size]
+    mov     rdi, qword [rbp - loc_0]
+    mov     qword [rax], rdi
+
+    mov     rax, qword [rbp - loc_1]
 
     pop     rbx                        ; restore register
     add     rsp, 40                    ; deallocate local variables
@@ -486,6 +504,51 @@ String.concat:
 ;
 segment readable executable
 String.substr:
+
+;
+;
+; sizeof
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax contains the size of the object
+;
+sizeof:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, rbx                   ; get self
+    add     rax, [obj_size]            ; get *self.size
+    mov     rax, [rax]                 ; get self.size
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; malloc_64k
+;   INPUT: none
+;   STACK: empty
+;   OUTPUT: none
+;
+malloc_64k:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, 12                    ; brk
+    mov     rdi, 0x10000               ; 64K bytes (larger obj. will fail)
+    add     rdi, [heap_end]            ; new end of the heap
+    syscall
+    mov     [heap_end], rax            ; save the new end of the heap
+
+    mov     rax, rbx                   ; restore self
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
 
 ;
 ;
