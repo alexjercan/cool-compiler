@@ -11,15 +11,12 @@
 
 // Add support for the following:
 // - class_nameTable (done)
-// - class_objTable (done)
-//   - X_protObj (done)
-//     - X_dispTable (done)
-//       - X_methods (partially done, implement body)
-//     - attributes (done)
-//   - X_init (partially done, implement body)
+// - X_methods (done)
+// - X_init (done)
+// - expressions (wip)
 //
 // External things:
-// - implement external classes
+// - implement external features (done)
 // - implement equality
 // - abort for dispatch on void
 // - abort for case on void
@@ -27,8 +24,10 @@
 // - exception handling
 //
 // Future plans:
-// - extend external classes (e.g add graphics to IO)
+// - add graphics to IO
+// - implement a better main/build system
 
+// - extend external classes
 int main(int argc, char **argv) {
     int result = 0;
     int length = 0;
