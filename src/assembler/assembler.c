@@ -440,7 +440,7 @@ static void assembler_emit_load_variable(assembler_context *context,
         }
     }
 
-    DS_PANIC("unreachable");
+    assembler_emit(context, "TODO");
 }
 
 // ident <- rax
@@ -1012,6 +1012,8 @@ static void assembler_emit_tac(assembler_context *context,
     case TAC_ASSIGN_NEW:
         // TODO: 3. Implement the new operator
         // return assembler_emit_tac_assign_new(instr->assign_new);
+    case TAC_ASSIGN_DEFAULT:
+        // return assembler_emit_tac_assign_default(instr->assign_default);
     case TAC_ASSIGN_ISVOID:
         // TODO: 4. Implement the isvoid operator (just check if attr is zero)
         // return assembler_emit_tac_assign_unary(instr->assign_unary,

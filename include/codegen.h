@@ -13,6 +13,7 @@ enum tac_kind {
     TAC_ASSIGN_VALUE,
     TAC_DISPATCH_CALL,
     TAC_ASSIGN_NEW,
+    TAC_ASSIGN_DEFAULT,
     TAC_ASSIGN_ISVOID,
     TAC_ASSIGN_ADD,
     TAC_ASSIGN_SUB,
@@ -114,6 +115,7 @@ typedef struct tac_instr {
                 tac_assign_value assign_value;
                 tac_dispatch_call dispatch_call;
                 tac_assign_new assign_new;
+                tac_assign_new assign_default;
                 tac_assign_binary assign_binary;
                 tac_assign_unary assign_unary;
                 struct tac_instr *assign_paren;

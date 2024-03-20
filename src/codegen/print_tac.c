@@ -40,6 +40,10 @@ static void print_tac_assign_new(tac_assign_new assign_new) {
     printf("%s <- new %s\n", assign_new.ident, assign_new.type);
 }
 
+static void print_tac_assign_default(tac_assign_new assign_new) {
+    printf("%s <- default %s\n", assign_new.ident, assign_new.type);
+}
+
 static void print_tac_assign_binary(tac_assign_binary assign_binary,
                                     const char *op) {
     printf("%s <- %s %s %s\n", assign_binary.ident, assign_binary.lhs, op,
@@ -84,6 +88,8 @@ static void print_tac(tac_instr tac) {
         return print_tac_dispatch_call(tac.dispatch_call);
     case TAC_ASSIGN_NEW:
         return print_tac_assign_new(tac.assign_new);
+    case TAC_ASSIGN_DEFAULT:
+        return print_tac_assign_default(tac.assign_default);
     case TAC_ASSIGN_ISVOID:
         return print_tac_assign_unary(tac.assign_unary, "isvoid");
     case TAC_ASSIGN_ADD:

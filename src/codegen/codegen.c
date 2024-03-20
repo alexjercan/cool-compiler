@@ -324,11 +324,12 @@ static void tac_let(tac_context *context, let_node *let,
                 .ident = ident,
                 .type = let_init.type.value,
             };
-            expr.kind = TAC_ASSIGN_NEW;
-            expr.assign_new = assign;
+            expr.kind = TAC_ASSIGN_DEFAULT;
+            expr.assign_default = assign;
             ds_dynamic_array_append(instrs, &expr);
         }
 
+        // TODO: use a mapping, don't actually use the variable name
         tac_instr instr = {
             .kind = TAC_ASSIGN_VALUE,
             .assign_value =
