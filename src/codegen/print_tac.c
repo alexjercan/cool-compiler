@@ -62,7 +62,7 @@ static void print_tac_assign_int(tac_assign_int assign_int) {
 }
 
 static void print_tac_assign_string(tac_assign_string assign_string) {
-    printf("%s <- string %s\n", assign_string.ident, assign_string.value);
+    printf("%s <- string \"%s\"\n", assign_string.ident, assign_string.value);
 }
 
 static void print_tac_assign_bool(tac_assign_bool assign_bool) {

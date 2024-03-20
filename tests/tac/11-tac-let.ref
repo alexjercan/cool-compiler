@@ -1,5 +1,5 @@
 A.f
 t0 <- x + y
 t1 <- default Int
-t2 <- string hello
+t2 <- string "hello"
 t0

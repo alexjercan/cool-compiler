@@ -412,16 +412,25 @@ static void tac_case(tac_context *context, case_node *case_,
         branch_node branch;
         ds_dynamic_array_get(&case_->cases, i, &branch);
 
+        char *branch_ident = NULL;
+        tac_new_var(context, &branch_ident);
         tac_instr cast_instr = {
             .kind = TAC_CAST,
             .cast =
                 {
-                    .ident = branch.name.value,
+                    .ident = branch_ident,
                     .expr = expr.ident.name,
                     .type = branch.type.value,
                 },
         };
         ds_dynamic_array_append(instrs, &cast_instr);
+
+        tac_assign_value assign_value = {
+            .ident = branch.name.value,
+            .expr = branch_ident,
+        };
+
+        ds_dynamic_array_append(&context->mapping, &assign_value);
 
         tac_instr body;
         tac_expr(context, branch.body, instrs, &body);
@@ -460,6 +469,9 @@ static void tac_case(tac_context *context, case_node *case_,
     // result = IDENT
     result->kind = TAC_IDENT;
     result->ident.name = ident;
+
+    // remove the case variables from the mapping
+    context->mapping.count -= case_->cases.count;
 }
 
 static void tac_new(tac_context *context, new_node *new,

@@ -5,5 +5,5 @@ A.g
 t0 <- bool true
 t0
 A.h
-t0 <- string hello
+t0 <- string "hello"
 t0
