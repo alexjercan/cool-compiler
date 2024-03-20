@@ -226,7 +226,11 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
         char *str = NULL;
         ds_string_builder_build(&sb, &str);
 
-        assembler_emit_fmt(context, align, "string value", "db %s,0", str);
+        if (strlen(str) == 0) {
+            assembler_emit_fmt(context, align, "string value", "db 0");
+        } else {
+            assembler_emit_fmt(context, align, "string value", "db %s,0", str);
+        }
 
         break;
     }
@@ -626,6 +630,8 @@ static void assembler_emit_tac_jump_if_true(assembler_context *context,
 static void assembler_emit_tac_assign_isinstance(assembler_context *context,
                                                  tac_result tac,
                                                  tac_isinstance instr) {
+    const char *comment = NULL;
+
     asm_const *type_const = NULL;
     assembler_find_const(
         context,
@@ -646,30 +652,24 @@ static void assembler_emit_tac_assign_isinstance(assembler_context *context,
     // t0 <- expr@Object.type_name()
     assembler_emit_tac_dispatch_call(context, tac, type_name_call);
 
-    // self -> t0
-    assembler_emit_fmt(context, 4, NULL, "push    rbx");
     assembler_emit_load_variable(context, &tac, instr.ident);
-    assembler_emit_fmt(context, 4, NULL, "mov     rbx, rax");
 
-    // t0 <- type
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", type_const->name);
+    // check if address of t0 is equal to address of type
+    comment = comment_fmt("isinstance %s", instr.type);
+    assembler_emit_fmt(context, 4, NULL, "cmp     rax, %s", type_const->name);
+    assembler_emit_fmt(context, 4, NULL, "sete    al");
+    assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
+
+    assembler_emit_fmt(context, 4, NULL, "push    rax");
+
+    // t0 <- new Bool
+    assembler_emit_new_type(context, "Bool");
     assembler_emit_store_variable(context, &tac, instr.ident);
 
-    ds_dynamic_array_init(&args, sizeof(char *));
-    ds_dynamic_array_append(&args, &instr.ident);
+    assembler_emit_fmt(context, 4, NULL, "pop     rax");
 
-    tac_dispatch_call equals_call = {
-        .ident = instr.ident,
-        .expr = "self",
-        .type = "String",
-        .method = "equals",
-        .args = args,
-    };
-
-    // t0 <- type_name.equals(type)
-    assembler_emit_tac_dispatch_call(context, tac, equals_call);
-
-    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
+    // set t0.val to rax
+    assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
 }
 
 static void assembler_emit_tac_assign_cast(assembler_context *context,
