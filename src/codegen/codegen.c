@@ -617,6 +617,23 @@ static void tac_bool(tac_context *context, node_info *boolean,
     result->ident.name = ident;
 }
 
+static void tac_null(tac_context *context, expr_null *null,
+                     ds_dynamic_array *instrs, tac_instr *result) {
+    char *ident;
+    tac_new_var(context, &ident);
+    tac_assign_new assign = {
+        .ident = ident,
+        .type = null->type.value,
+    };
+    tac_instr expr;
+    expr.kind = TAC_ASSIGN_DEFAULT;
+    expr.assign_default = assign;
+    ds_dynamic_array_append(instrs, &expr);
+
+    result->kind = TAC_IDENT;
+    result->ident.name = ident;
+}
+
 static void tac_expr(tac_context *context, expr_node *expr,
                      ds_dynamic_array *instrs, tac_instr *result) {
     switch (expr->kind) {
@@ -671,7 +688,9 @@ static void tac_expr(tac_context *context, expr_node *expr,
         return tac_bool(context, &expr->boolean, instrs, result);
     case EXPR_EXTERN:
         DS_PANIC("extern expression not supported");
-    default:
+    case EXPR_NULL:
+        return tac_null(context, &expr->null, instrs, result);
+    case EXPR_NONE:
         break;
     }
 }

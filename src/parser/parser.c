@@ -981,6 +981,10 @@ static void build_attribute(struct parser *parser, attribute_node *attribute) {
         } else {
             build_expr(parser, &attribute->value);
         }
+    } else {
+        attribute->value.type = NULL;
+        attribute->value.kind = EXPR_NULL;
+        attribute->value.null.type.value = attribute->type.value;
     }
 }
 

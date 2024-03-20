@@ -682,7 +682,40 @@ static void assembler_emit_tac_assign_new(assembler_context *context,
 static void assembler_emit_tac_assign_default(assembler_context *context,
                                           tac_result tac,
                                           tac_assign_new instr) {
-    // t0 <- 0
+    // t0 <- default TYPE
+    if (strcmp(instr.type, "Int") == 0) {
+        asm_const *int_const = NULL;
+        assembler_new_const(context,
+                            (asm_const_value){.type = ASM_CONST_INT, .integer = 0},
+                            &int_const);
+
+        const char *comment = comment_fmt("default %s", instr.type);
+        assembler_emit_fmt(context, 4, comment, "mov     rax, %s", int_const->name);
+    } else if (strcmp(instr.type, "String") == 0) {
+        asm_const *int_const = NULL;
+        assembler_new_const(context,
+                            (asm_const_value){.type = ASM_CONST_INT, .integer = 0},
+                            &int_const);
+
+        asm_const *str_const = NULL;
+        assembler_new_const(context,
+                            (asm_const_value){.type = ASM_CONST_STR, .str = {int_const->name, ""}},
+                            &str_const);
+
+        const char *comment = comment_fmt("default %s", instr.type);
+        assembler_emit_fmt(context, 4, comment, "mov     rax, %s", str_const->name);
+    } else if (strcmp(instr.type, "Bool") == 0) {
+        asm_const *bool_const = NULL;
+        assembler_new_const(context,
+                            (asm_const_value){.type = ASM_CONST_BOOL, .boolean = 0},
+                            &bool_const);
+
+        const char *comment = comment_fmt("default %s", instr.type);
+        assembler_emit_fmt(context, 4, comment, "mov     rax, %s", bool_const->name);
+    } else {
+        // any other type is null
+        assembler_emit_fmt(context, 4, NULL, "mov     rax, 0");
+    }
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
 

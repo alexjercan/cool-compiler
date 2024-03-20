@@ -41,6 +41,7 @@ enum expr_kind {
     EXPR_STRING,
     EXPR_BOOL,
     EXPR_EXTERN,
+    EXPR_NULL,
 };
 
 typedef struct expr_unary_node {
@@ -117,6 +118,10 @@ typedef struct new_node {
         node_info type;
 } new_node;
 
+typedef struct expr_null {
+        node_info type;
+} expr_null;
+
 typedef struct expr_node {
         const char *type;
         enum expr_kind kind;
@@ -145,6 +150,7 @@ typedef struct expr_node {
                 node_info integer;
                 node_info string;
                 node_info boolean;
+                expr_null null;
         };
 } expr_node;
 
