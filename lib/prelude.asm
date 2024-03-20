@@ -371,8 +371,8 @@ IO.in_int:
 
     mov     rax, qword [rbp - loc_0]   ; get t0
 
-    add     rsp, 40                    ; deallocate local variables
     pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
