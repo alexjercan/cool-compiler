@@ -45,7 +45,8 @@ typedef struct assembler_context {
 } assembler_context;
 
 static int assembler_context_init(assembler_context *context,
-                                  const char *filename, semantic_mapping *mapping) {
+                                  const char *filename,
+                                  semantic_mapping *mapping) {
     int result = 0;
 
     if (filename == NULL) {
@@ -261,7 +262,8 @@ static void assembler_emit_class_name_table(assembler_context *context) {
 
     for (size_t i = 0; i < context->mapping->parents.classes.count; i++) {
         class_node *class = NULL;
-        ds_dynamic_array_get_ref(&context->mapping->parents.classes, i, (void **)&class);
+        ds_dynamic_array_get_ref(&context->mapping->parents.classes, i,
+                                 (void **)&class);
 
         const char *class_name = class->name.value;
         const int class_name_length = strlen(class_name);
@@ -351,9 +353,11 @@ static void assembler_emit_attribute_init(assembler_context *context,
     }
 }
 
-static void assembler_emit_object_prototype(assembler_context *context, size_t i) {
+static void assembler_emit_object_prototype(assembler_context *context,
+                                            size_t i) {
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&context->mapping->classes.items, i, (void **)&class);
+    ds_dynamic_array_get_ref(&context->mapping->classes.items, i,
+                             (void **)&class);
 
     const char *class_name = class->class_name;
 
@@ -593,6 +597,11 @@ static void assembler_emit_new_type(assembler_context *context, char *type) {
     assembler_emit_fmt(context, 4, comment, "call    %s_init", type);
 }
 
+// TAC => ASM
+static void assembler_emit_tac_dispatch_call(assembler_context *context,
+                                             tac_result tac,
+                                             tac_dispatch_call instr);
+
 static void assembler_emit_tac_label(assembler_context *context, tac_result tac,
                                      tac_label label) {
     assembler_emit_fmt(context, 0, NULL, ".%s:", label.label);
@@ -614,13 +623,68 @@ static void assembler_emit_tac_jump_if_true(assembler_context *context,
     assembler_emit_fmt(context, 4, NULL, "jnz     .%s", jump.label);
 }
 
+static void assembler_emit_tac_assign_isinstance(assembler_context *context,
+                                                 tac_result tac,
+                                                 tac_isinstance instr) {
+    asm_const *type_const = NULL;
+    assembler_find_const(
+        context,
+        (asm_const_value){.type = ASM_CONST_STR, .str = {NULL, instr.type}},
+        &type_const);
+
+    ds_dynamic_array args;
+    ds_dynamic_array_init(&args, sizeof(char *));
+
+    tac_dispatch_call type_name_call = {
+        .ident = instr.ident,
+        .expr = instr.expr,
+        .type = "Object",
+        .method = "type_name",
+        .args = args,
+    };
+
+    // t0 <- expr@Object.type_name()
+    assembler_emit_tac_dispatch_call(context, tac, type_name_call);
+
+    // self -> t0
+    assembler_emit_fmt(context, 4, NULL, "push    rbx");
+    assembler_emit_load_variable(context, &tac, instr.ident);
+    assembler_emit_fmt(context, 4, NULL, "mov     rbx, rax");
+
+    // t0 <- type
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", type_const->name);
+    assembler_emit_store_variable(context, &tac, instr.ident);
+
+    ds_dynamic_array_init(&args, sizeof(char *));
+    ds_dynamic_array_append(&args, &instr.ident);
+
+    tac_dispatch_call equals_call = {
+        .ident = instr.ident,
+        .expr = "self",
+        .type = "String",
+        .method = "equals",
+        .args = args,
+    };
+
+    // t0 <- type_name.equals(type)
+    assembler_emit_tac_dispatch_call(context, tac, equals_call);
+
+    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
+}
+
+static void assembler_emit_tac_assign_cast(assembler_context *context,
+                                           tac_result tac,
+                                           tac_cast isinstance) {
+    // t0 <- expr
+    assembler_emit_load_variable(context, &tac, isinstance.expr);
+    assembler_emit_store_variable(context, &tac, isinstance.ident);
+}
+
 static void assembler_emit_tac_assign_value(assembler_context *context,
                                             tac_result tac,
                                             tac_assign_value instr) {
-    const char *comment;
-
+    // t0 <- value
     assembler_emit_load_variable(context, &tac, instr.expr);
-
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
 
@@ -686,38 +750,42 @@ static void assembler_emit_tac_assign_new(assembler_context *context,
 }
 
 static void assembler_emit_tac_assign_default(assembler_context *context,
-                                          tac_result tac,
-                                          tac_assign_new instr) {
+                                              tac_result tac,
+                                              tac_assign_new instr) {
     // t0 <- default TYPE
     if (strcmp(instr.type, "Int") == 0) {
         asm_const *int_const = NULL;
-        assembler_new_const(context,
-                            (asm_const_value){.type = ASM_CONST_INT, .integer = 0},
-                            &int_const);
+        assembler_new_const(
+            context, (asm_const_value){.type = ASM_CONST_INT, .integer = 0},
+            &int_const);
 
         const char *comment = comment_fmt("default %s", instr.type);
-        assembler_emit_fmt(context, 4, comment, "mov     rax, %s", int_const->name);
+        assembler_emit_fmt(context, 4, comment, "mov     rax, %s",
+                           int_const->name);
     } else if (strcmp(instr.type, "String") == 0) {
         asm_const *int_const = NULL;
-        assembler_new_const(context,
-                            (asm_const_value){.type = ASM_CONST_INT, .integer = 0},
-                            &int_const);
+        assembler_new_const(
+            context, (asm_const_value){.type = ASM_CONST_INT, .integer = 0},
+            &int_const);
 
         asm_const *str_const = NULL;
         assembler_new_const(context,
-                            (asm_const_value){.type = ASM_CONST_STR, .str = {int_const->name, ""}},
+                            (asm_const_value){.type = ASM_CONST_STR,
+                                              .str = {int_const->name, ""}},
                             &str_const);
 
         const char *comment = comment_fmt("default %s", instr.type);
-        assembler_emit_fmt(context, 4, comment, "mov     rax, %s", str_const->name);
+        assembler_emit_fmt(context, 4, comment, "mov     rax, %s",
+                           str_const->name);
     } else if (strcmp(instr.type, "Bool") == 0) {
         asm_const *bool_const = NULL;
-        assembler_new_const(context,
-                            (asm_const_value){.type = ASM_CONST_BOOL, .boolean = 0},
-                            &bool_const);
+        assembler_new_const(
+            context, (asm_const_value){.type = ASM_CONST_BOOL, .boolean = 0},
+            &bool_const);
 
         const char *comment = comment_fmt("default %s", instr.type);
-        assembler_emit_fmt(context, 4, comment, "mov     rax, %s", bool_const->name);
+        assembler_emit_fmt(context, 4, comment, "mov     rax, %s",
+                           bool_const->name);
     } else {
         // any other type is null
         assembler_emit_fmt(context, 4, NULL, "mov     rax, 0");
@@ -726,8 +794,8 @@ static void assembler_emit_tac_assign_default(assembler_context *context,
 }
 
 static void assembler_emit_tac_assign_isvoid(assembler_context *context,
-                                          tac_result tac,
-                                          tac_assign_unary instr) {
+                                             tac_result tac,
+                                             tac_assign_unary instr) {
     // t0 <- new Bool
     assembler_emit_new_type(context, "Bool");
     assembler_emit_store_variable(context, &tac, instr.ident);
@@ -909,8 +977,7 @@ static void assembler_emit_tac_assign_le(assembler_context *context,
 }
 
 static void assembler_emit_tac_assign_eq(assembler_context *context,
-                                         tac_result tac,
-                                         tac_assign_eq instr) {
+                                         tac_result tac, tac_assign_eq instr) {
     ds_dynamic_array args;
     ds_dynamic_array_init(&args, sizeof(char *));
 
@@ -924,7 +991,7 @@ static void assembler_emit_tac_assign_eq(assembler_context *context,
         .args = args,
     };
 
-    // call to t0@type.equals(t1)
+    // t0 <- lhs@type.equals(rhs)
     assembler_emit_tac_dispatch_call(context, tac, dispatch_call);
 }
 
@@ -1012,11 +1079,10 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
         return assembler_emit_tac_jump_if_true(context, tac,
                                                instr->jump_if_true);
     case TAC_ASSIGN_ISINSTANCE:
-        // TODO: 1. Implement the isinstance operator
-        // return assembler_emit_tac_assign_isinstance(instr->isinstance);
+        return assembler_emit_tac_assign_isinstance(context, tac,
+                                                    instr->isinstance);
     case TAC_CAST:
-        // TODO: 2. Implement the cast operator
-        // return assembler_emit_tac_cast(instr->cast);
+        return assembler_emit_tac_assign_cast(context, tac, instr->cast);
     case TAC_ASSIGN_VALUE:
         return assembler_emit_tac_assign_value(context, tac,
                                                instr->assign_value);
@@ -1026,9 +1092,11 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
     case TAC_ASSIGN_NEW:
         return assembler_emit_tac_assign_new(context, tac, instr->assign_new);
     case TAC_ASSIGN_DEFAULT:
-        return assembler_emit_tac_assign_default(context, tac, instr->assign_new);
+        return assembler_emit_tac_assign_default(context, tac,
+                                                 instr->assign_new);
     case TAC_ASSIGN_ISVOID:
-        return assembler_emit_tac_assign_isvoid(context, tac, instr->assign_unary);
+        return assembler_emit_tac_assign_isvoid(context, tac,
+                                                instr->assign_unary);
     case TAC_ASSIGN_ADD:
         return assembler_emit_tac_assign_add(context, tac,
                                              instr->assign_binary);
@@ -1066,7 +1134,8 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
     }
 }
 
-static void assembler_emit_expr(assembler_context *context, const expr_node *expr) {
+static void assembler_emit_expr(assembler_context *context,
+                                const expr_node *expr) {
     tac_result tac;
     codegen_expr_to_tac(expr, &tac);
 
@@ -1085,7 +1154,8 @@ static void assembler_emit_expr(assembler_context *context, const expr_node *exp
                        8 * tac.locals.count);
 }
 
-static void assembler_emit_object_init_attribute(assembler_context *context, size_t attr_idx) {
+static void assembler_emit_object_init_attribute(assembler_context *context,
+                                                 size_t attr_idx) {
     class_mapping_item *class = context->current_class;
 
     class_mapping_attribute *attr = NULL;
@@ -1110,9 +1180,11 @@ static void assembler_emit_object_init_attributes(assembler_context *context) {
     }
 }
 
-static void assembler_emit_object_init(assembler_context *context, size_t class_idx) {
+static void assembler_emit_object_init(assembler_context *context,
+                                       size_t class_idx) {
     parent_mapping_item *classp = NULL;
-    ds_dynamic_array_get_ref(&context->mapping->parents.classes, class_idx, (void **)&classp);
+    ds_dynamic_array_get_ref(&context->mapping->parents.classes, class_idx,
+                             (void **)&classp);
 
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s_init:", classp->name);
@@ -1126,7 +1198,8 @@ static void assembler_emit_object_init(assembler_context *context, size_t class_
     }
 
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&context->mapping->classes.items, class_idx, (void **)&class);
+    ds_dynamic_array_get_ref(&context->mapping->classes.items, class_idx,
+                             (void **)&class);
 
     context->current_class = class;
     context->current_method = NULL;
@@ -1145,10 +1218,11 @@ static void assembler_emit_object_inits(assembler_context *context) {
     }
 }
 
-static void assembler_emit_method(assembler_context *context, size_t method_idx) {
+static void assembler_emit_method(assembler_context *context,
+                                  size_t method_idx) {
     implementation_mapping_item *method = NULL;
-    ds_dynamic_array_get_ref(&context->mapping->implementations.items, method_idx,
-                             (void **)&method);
+    ds_dynamic_array_get_ref(&context->mapping->implementations.items,
+                             method_idx, (void **)&method);
 
     if (strcmp(method->class_name, method->parent_name) != 0) {
         return;
@@ -1156,7 +1230,8 @@ static void assembler_emit_method(assembler_context *context, size_t method_idx)
 
     class_mapping_item *class = NULL;
     for (size_t j = 0; j < context->mapping->classes.items.count; j++) {
-        ds_dynamic_array_get_ref(&context->mapping->classes.items, j, (void **)&class);
+        ds_dynamic_array_get_ref(&context->mapping->classes.items, j,
+                                 (void **)&class);
 
         if (strcmp(class->class_name, method->class_name) == 0) {
             break;
@@ -1189,7 +1264,8 @@ static void assembler_emit_methods(assembler_context *context) {
     }
 }
 
-enum assembler_result assembler_run(const char *filename, semantic_mapping *mapping) {
+enum assembler_result assembler_run(const char *filename,
+                                    semantic_mapping *mapping) {
 
     int result = 0;
     assembler_context context;
