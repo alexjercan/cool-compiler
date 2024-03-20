@@ -39,6 +39,10 @@ typedef struct assembler_context {
         int str_tag;
         int bool_tag;
         ds_dynamic_array consts; // asm_const
+
+        // context
+        class_mapping_item *current_class;
+        implementation_mapping_item *current_method;
 } assembler_context;
 
 static int assembler_context_init(assembler_context *context,
@@ -386,41 +390,107 @@ static void assembler_emit_object_prototypes(assembler_context *context,
 
 // rax <- ident
 static void assembler_emit_load_variable(assembler_context *context,
-                                         size_t class_idx,
                                          program_node *program,
                                          semantic_mapping *mapping,
-                                         tac_result tac, char *ident) {
-    for (size_t i = 0; i < tac.locals.count; i++) {
-        char *local = NULL;
-        ds_dynamic_array_get_ref(&tac.locals, i, (void **)&local);
+                                         tac_result *tac, char *ident) {
+    if (tac != NULL) {
+        for (size_t i = 0; i < tac->locals.count; i++) {
+            char *local = NULL;
+            ds_dynamic_array_get_ref(&tac->locals, i, (void **)&local);
 
-        if (strcmp(local, ident) == 0) {
+            if (strcmp(local, ident) == 0) {
+                int offset = i;
+                const char *comment = comment_fmt("load %s", ident);
+                assembler_emit_fmt(context, 4, comment,
+                                   "mov     rax, qword [rbp-%d]", 8 + 8 * offset);
+                return;
+            }
+        }
+    }
+
+    implementation_mapping_item *method = context->current_method;
+    if (method != NULL) {
+        method_node *node = (method_node *)method->method;
+
+        for (size_t i = 0; i < node->formals.count; i++) {
+            formal_node *formal = NULL;
+            ds_dynamic_array_get_ref(&node->formals, i, (void **)&formal);
+
+            if (strcmp(formal->name.value, ident) == 0) {
+                int offset = i;
+                const char *comment = comment_fmt("load %s", ident);
+                assembler_emit_fmt(context, 4, comment,
+                                   "mov     rax, qword [rbp+%d]", 16 + 8 * offset);
+                return;
+            }
+        }
+    }
+
+    class_mapping_item *class = context->current_class;
+    for (size_t i = 0; i < class->attributes.count; i++) {
+        class_mapping_attribute *attribute = NULL;
+        ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attribute);
+
+        if (strcmp(attribute->name, ident) == 0) {
             int offset = i;
             const char *comment = comment_fmt("load %s", ident);
             assembler_emit_fmt(context, 4, comment,
-                               "mov     rax, qword [rbp-%d]", 8 + 8 * offset);
+                               "mov     rax, qword [rbx+%d]", 16 + 8 * offset);
             return;
         }
     }
 
-    assembler_emit(context, "TODO");
+    DS_PANIC("unreachable");
 }
 
 // ident <- rax
 static void assembler_emit_store_variable(assembler_context *context,
-                                          size_t class_idx,
                                           program_node *program,
                                           semantic_mapping *mapping,
-                                          tac_result tac, char *ident) {
-    for (size_t i = 0; i < tac.locals.count; i++) {
-        char *local = NULL;
-        ds_dynamic_array_get_ref(&tac.locals, i, (void **)&local);
+                                          tac_result *tac, const char *ident) {
+    if (tac != NULL) {
+        for (size_t i = 0; i < tac->locals.count; i++) {
+            char *local = NULL;
+            ds_dynamic_array_get_ref(&tac->locals, i, (void **)&local);
 
-        if (strcmp(local, ident) == 0) {
+            if (strcmp(local, ident) == 0) {
+                int offset = i;
+                const char *comment = comment_fmt("store %s", ident);
+                assembler_emit_fmt(context, 4, comment,
+                                   "mov     qword [rbp-%d], rax", 8 + 8 * offset);
+                return;
+            }
+        }
+    }
+
+    implementation_mapping_item *method = context->current_method;
+    if (method != NULL) {
+        method_node *node = (method_node *)method->method;
+
+        for (size_t i = 0; i < node->formals.count; i++) {
+            formal_node *formal = NULL;
+            ds_dynamic_array_get_ref(&node->formals, i, (void **)&formal);
+
+            if (strcmp(formal->name.value, ident) == 0) {
+                int offset = i;
+                const char *comment = comment_fmt("store %s", ident);
+                assembler_emit_fmt(context, 4, comment,
+                                   "mov     qword [rbp+%d], rax", 16 + 8 * offset);
+                return;
+            }
+        }
+    }
+
+    class_mapping_item *class = context->current_class;
+    for (size_t i = 0; i < class->attributes.count; i++) {
+        class_mapping_attribute *attribute = NULL;
+        ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attribute);
+
+        if (strcmp(attribute->name, ident) == 0) {
             int offset = i;
             const char *comment = comment_fmt("store %s", ident);
             assembler_emit_fmt(context, 4, comment,
-                               "mov     qword [rbp-%d], rax", 8 + 8 * offset);
+                               "mov     qword [rbx+%d], rax", 16 + 8 * offset);
             return;
         }
     }
@@ -430,7 +500,7 @@ static void assembler_emit_store_variable(assembler_context *context,
 
 // rax <- ident.attr
 static void assembler_emit_get_attr(assembler_context *context,
-                                    size_t class_idx, program_node *program,
+                                    program_node *program,
                                     semantic_mapping *mapping, tac_result tac,
                                     char *ident, char *type, char *attr) {
     const char *comment = NULL;
@@ -465,8 +535,7 @@ static void assembler_emit_get_attr(assembler_context *context,
         DS_PANIC("unreachable");
     }
 
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 ident);
+    assembler_emit_load_variable(context, program, mapping, &tac, ident);
 
     comment = comment_fmt("get %s.%s", ident, attr);
     assembler_emit_fmt(context, 4, NULL, "add     rax, %d", attribute_slot);
@@ -475,7 +544,7 @@ static void assembler_emit_get_attr(assembler_context *context,
 
 // ident.attr <- rax
 static void assembler_emit_set_attr(assembler_context *context,
-                                    size_t class_idx, program_node *program,
+                                    program_node *program,
                                     semantic_mapping *mapping, tac_result tac,
                                     char *ident, char *type, char *attr) {
     const char *comment = NULL;
@@ -512,8 +581,7 @@ static void assembler_emit_set_attr(assembler_context *context,
 
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 ident);
+    assembler_emit_load_variable(context, program, mapping, &tac, ident);
 
     assembler_emit_fmt(context, 4, NULL, "xchg    rdi, rax");
 
@@ -533,56 +601,57 @@ static void assembler_emit_new_type(assembler_context *context, char *type) {
 }
 
 static void assembler_emit_tac_label(assembler_context *context,
-                                     size_t class_idx, program_node *program,
+                                     program_node *program,
                                      semantic_mapping *mapping, tac_result tac,
                                      tac_label label) {
     assembler_emit_fmt(context, 0, NULL, ".%s:", label.label);
 }
 
 static void assembler_emit_tac_jump(assembler_context *context,
-                                    size_t class_idx, program_node *program,
+                                    program_node *program,
                                     semantic_mapping *mapping, tac_result tac,
                                     tac_jump jump) {
     assembler_emit_fmt(context, 4, NULL, "jmp     .%s", jump.label);
 }
 
-static void assembler_emit_tac_jump_if_true(
-    assembler_context *context, size_t class_idx, program_node *program,
-    semantic_mapping *mapping, tac_result tac, tac_jump_if_true jump) {
+static void assembler_emit_tac_jump_if_true(assembler_context *context,
+                                            program_node *program,
+                                            semantic_mapping *mapping,
+                                            tac_result tac,
+                                            tac_jump_if_true jump) {
     const char *comment;
 
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            jump.expr, "Bool", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, jump.expr, "Bool",
+                            "val");
 
     assembler_emit_fmt(context, 4, NULL, "test    rax, rax");
     assembler_emit_fmt(context, 4, NULL, "jnz     .%s", jump.label);
 }
 
-static void assembler_emit_tac_assign_value(
-    assembler_context *context, size_t class_idx, program_node *program,
-    semantic_mapping *mapping, tac_result tac, tac_assign_value instr) {
+static void assembler_emit_tac_assign_value(assembler_context *context,
+                                            program_node *program,
+                                            semantic_mapping *mapping,
+                                            tac_result tac,
+                                            tac_assign_value instr) {
     const char *comment;
 
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.expr);
+    assembler_emit_load_variable(context, program, mapping, &tac, instr.expr);
 
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 }
 
-static void assembler_emit_tac_dispatch_call(
-    assembler_context *context, size_t class_idx, program_node *program,
-    semantic_mapping *mapping, tac_result tac, tac_dispatch_call instr) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
-                             (void **)&class);
+static void assembler_emit_tac_dispatch_call(assembler_context *context,
+                                             program_node *program,
+                                             semantic_mapping *mapping,
+                                             tac_result tac,
+                                             tac_dispatch_call instr) {
+    class_mapping_item *class = context->current_class;
 
     for (size_t i = 0; i < instr.args.count; i++) {
         char *arg = NULL;
         ds_dynamic_array_get(&instr.args, instr.args.count - i - 1, &arg);
 
-        assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                     arg);
+        assembler_emit_load_variable(context, program, mapping, &tac, arg);
 
         const char *comment = comment_fmt("arg0: %s", arg);
         assembler_emit_fmt(context, 4, comment, "push    rax");
@@ -592,7 +661,7 @@ static void assembler_emit_tac_dispatch_call(
         const char *comment = comment_fmt("load self");
         assembler_emit_fmt(context, 4, comment, "mov     rax, rbx");
     } else {
-        assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+        assembler_emit_load_variable(context, program, mapping, &tac,
                                      instr.expr);
     }
 
@@ -620,167 +689,166 @@ static void assembler_emit_tac_dispatch_call(
         break;
     }
 
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     const char *comment = comment_fmt("free %d args", instr.args.count);
     assembler_emit_fmt(context, 4, comment, "add     rsp, %d",
                        8 * instr.args.count);
 }
 
-static void
-assembler_emit_tac_assign_add(assembler_context *context, size_t class_idx,
-                              program_node *program, semantic_mapping *mapping,
-                              tac_result tac, tac_assign_binary instr) {
+static void assembler_emit_tac_assign_add(assembler_context *context,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac,
+                                          tac_assign_binary instr) {
     const char *comment;
 
     // t0 <- new Int
     assembler_emit_new_type(context, "Int");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rdi to t1
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.lhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.lhs, "Int",
+                            "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rax to t2
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.rhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.rhs, "Int",
+                            "val");
 
     // set rax to t1 + t2
     assembler_emit_fmt(context, 4, NULL, "add     rax, rdi");
 
     // set t0.val to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Int", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Int",
+                            "val");
 }
 
-static void
-assembler_emit_tac_assign_sub(assembler_context *context, size_t class_idx,
-                              program_node *program, semantic_mapping *mapping,
-                              tac_result tac, tac_assign_binary instr) {
+static void assembler_emit_tac_assign_sub(assembler_context *context,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac,
+                                          tac_assign_binary instr) {
     const char *comment;
 
     // t0 <- new Int
     assembler_emit_new_type(context, "Int");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rax to t2
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.rhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.rhs, "Int",
+                            "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rdi to t1
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.lhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.lhs, "Int",
+                            "val");
 
     // set rax to t1 - t2
     assembler_emit_fmt(context, 4, NULL, "sub     rax, rdi");
 
     // set t0.val to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Int", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Int",
+                            "val");
 }
 
-static void
-assembler_emit_tac_assign_mul(assembler_context *context, size_t class_idx,
-                              program_node *program, semantic_mapping *mapping,
-                              tac_result tac, tac_assign_binary instr) {
+static void assembler_emit_tac_assign_mul(assembler_context *context,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac,
+                                          tac_assign_binary instr) {
     const char *comment;
 
     // t0 <- new Int
     assembler_emit_new_type(context, "Int");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rdi to t1
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.lhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.lhs, "Int",
+                            "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rax to t2
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.rhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.rhs, "Int",
+                            "val");
 
     // set rax to t1 * t2
     assembler_emit_fmt(context, 4, NULL, "mul     rdi");
 
     // set t0.val to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Int", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Int",
+                            "val");
 }
 
-static void
-assembler_emit_tac_assign_div(assembler_context *context, size_t class_idx,
-                              program_node *program, semantic_mapping *mapping,
-                              tac_result tac, tac_assign_binary instr) {
+static void assembler_emit_tac_assign_div(assembler_context *context,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac,
+                                          tac_assign_binary instr) {
     const char *comment;
 
     // t0 <- new Int
     assembler_emit_new_type(context, "Int");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rax to t2
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.rhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.rhs, "Int",
+                            "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rdi to t1
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.lhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.lhs, "Int",
+                            "val");
 
     // set rax to t1 / t2
     assembler_emit_fmt(context, 4, NULL, "xor     rdx, rdx");
     assembler_emit_fmt(context, 4, NULL, "div     rdi");
 
     // set t0.val to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Int", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Int",
+                            "val");
 }
 
-static void
-assembler_emit_tac_assign_neg(assembler_context *context, size_t class_idx,
-                              program_node *program, semantic_mapping *mapping,
-                              tac_result tac, tac_assign_unary instr) {
+static void assembler_emit_tac_assign_neg(assembler_context *context,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac,
+                                          tac_assign_unary instr) {
     const char *comment;
 
     // t0 <- new Int
     assembler_emit_new_type(context, "Int");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rax to ~t0.val
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.expr, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.expr, "Int",
+                            "val");
     assembler_emit_fmt(context, 4, comment, "neg     rax");
 
     // set t1 to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Bool", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Bool",
+                            "val");
 }
 
-static void
-assembler_emit_tac_assign_lt(assembler_context *context, size_t class_idx,
-                             program_node *program, semantic_mapping *mapping,
-                             tac_result tac, tac_assign_binary instr) {
+static void assembler_emit_tac_assign_lt(assembler_context *context,
+                                         program_node *program,
+                                         semantic_mapping *mapping,
+                                         tac_result tac,
+                                         tac_assign_binary instr) {
     const char *comment;
 
     // t2 <- new Bool
     assembler_emit_new_type(context, "Bool");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rdi to t0
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.lhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.lhs, "Int",
+                            "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rax to t1
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.rhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.rhs, "Int",
+                            "val");
 
     // set rax to t0 < t1
     assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
@@ -790,29 +858,29 @@ assembler_emit_tac_assign_lt(assembler_context *context, size_t class_idx,
     assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
 
     // set t2.val to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Bool", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Bool",
+                            "val");
 }
 
-static void
-assembler_emit_tac_assign_le(assembler_context *context, size_t class_idx,
-                             program_node *program, semantic_mapping *mapping,
-                             tac_result tac, tac_assign_binary instr) {
+static void assembler_emit_tac_assign_le(assembler_context *context,
+                                         program_node *program,
+                                         semantic_mapping *mapping,
+                                         tac_result tac,
+                                         tac_assign_binary instr) {
     const char *comment;
 
     // t2 <- new Bool
     assembler_emit_new_type(context, "Bool");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rdi to t0
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.lhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.lhs, "Int",
+                            "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rax to t1
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.rhs, "Int", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.rhs, "Int",
+                            "val");
 
     // set rax to t0 <= t1
     assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
@@ -822,50 +890,50 @@ assembler_emit_tac_assign_le(assembler_context *context, size_t class_idx,
     assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
 
     // set t2.val to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Bool", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Bool",
+                            "val");
 }
 
-static void
-assembler_emit_tac_assign_eq(assembler_context *context, size_t class_idx,
-                             program_node *program, semantic_mapping *mapping,
-                             tac_result tac, tac_assign_binary instr) {
-}
+static void assembler_emit_tac_assign_eq(assembler_context *context,
+                                         program_node *program,
+                                         semantic_mapping *mapping,
+                                         tac_result tac,
+                                         tac_assign_binary instr) {}
 
-static void
-assembler_emit_tac_assign_not(assembler_context *context, size_t class_idx,
-                              program_node *program, semantic_mapping *mapping,
-                              tac_result tac, tac_assign_unary instr) {
+static void assembler_emit_tac_assign_not(assembler_context *context,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac,
+                                          tac_assign_unary instr) {
     const char *comment;
     int offset;
 
     // t1 <- new Bool
     assembler_emit_new_type(context, "Bool");
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 
     // set rax to not t0.val
-    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
-                            instr.expr, "Bool", "val");
+    assembler_emit_get_attr(context, program, mapping, tac, instr.expr, "Bool",
+                            "val");
     assembler_emit_fmt(context, 4, NULL, "xor     rax, 1");
 
     // set t1.val to rax
-    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
-                            instr.ident, "Bool", "val");
+    assembler_emit_set_attr(context, program, mapping, tac, instr.ident, "Bool",
+                            "val");
 }
 
 static void assembler_emit_tac_ident(assembler_context *context,
-                                     size_t class_idx, program_node *program,
+                                     program_node *program,
                                      semantic_mapping *mapping, tac_result tac,
                                      tac_ident instr) {
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.name);
+    assembler_emit_load_variable(context, program, mapping, &tac, instr.name);
 }
 
-static void
-assembler_emit_tac_assign_int(assembler_context *context, size_t class_idx,
-                              program_node *program, semantic_mapping *mapping,
-                              tac_result tac, tac_assign_int instr) {
+static void assembler_emit_tac_assign_int(assembler_context *context,
+                                          program_node *program,
+                                          semantic_mapping *mapping,
+                                          tac_result tac,
+                                          tac_assign_int instr) {
     asm_const *int_const = NULL;
     assembler_new_const(
         context,
@@ -873,13 +941,14 @@ assembler_emit_tac_assign_int(assembler_context *context, size_t class_idx,
         &int_const);
 
     assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", int_const->name);
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 }
 
-static void assembler_emit_tac_assign_string(
-    assembler_context *context, size_t class_idx, program_node *program,
-    semantic_mapping *mapping, tac_result tac, tac_assign_string instr) {
+static void assembler_emit_tac_assign_string(assembler_context *context,
+                                             program_node *program,
+                                             semantic_mapping *mapping,
+                                             tac_result tac,
+                                             tac_assign_string instr) {
     asm_const *int_const = NULL;
     assembler_new_const(context,
                         (asm_const_value){.type = ASM_CONST_INT,
@@ -894,14 +963,14 @@ static void assembler_emit_tac_assign_string(
         &str_const);
 
     assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", str_const->name);
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 }
 
-static void
-assembler_emit_tac_assign_bool(assembler_context *context, size_t class_idx,
-                               program_node *program, semantic_mapping *mapping,
-                               tac_result tac, tac_assign_bool instr) {
+static void assembler_emit_tac_assign_bool(assembler_context *context,
+                                           program_node *program,
+                                           semantic_mapping *mapping,
+                                           tac_result tac,
+                                           tac_assign_bool instr) {
     asm_const *bool_const = NULL;
     assembler_new_const(
         context,
@@ -909,11 +978,10 @@ assembler_emit_tac_assign_bool(assembler_context *context, size_t class_idx,
         &bool_const);
 
     assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", bool_const->name);
-    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
-                                  instr.ident);
+    assembler_emit_store_variable(context, program, mapping, &tac, instr.ident);
 }
 
-static void assembler_emit_tac(assembler_context *context, size_t class_idx,
+static void assembler_emit_tac(assembler_context *context,
                                program_node *program, semantic_mapping *mapping,
                                tac_result tac, size_t instr_idx) {
     tac_instr *instr = NULL;
@@ -921,14 +989,14 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
 
     switch (instr->kind) {
     case TAC_LABEL:
-        return assembler_emit_tac_label(context, class_idx, program, mapping,
-                                        tac, instr->label);
+        return assembler_emit_tac_label(context, program, mapping, tac,
+                                        instr->label);
     case TAC_JUMP:
-        return assembler_emit_tac_jump(context, class_idx, program, mapping,
-                                       tac, instr->jump);
+        return assembler_emit_tac_jump(context, program, mapping, tac,
+                                       instr->jump);
     case TAC_JUMP_IF_TRUE:
-        return assembler_emit_tac_jump_if_true(
-            context, class_idx, program, mapping, tac, instr->jump_if_true);
+        return assembler_emit_tac_jump_if_true(context, program, mapping, tac,
+                                               instr->jump_if_true);
     case TAC_ASSIGN_ISINSTANCE:
         // TODO: 5. Implement the isinstance operator
         // return assembler_emit_tac_assign_isinstance(instr->isinstance);
@@ -936,11 +1004,11 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
         // TODO: 6. Implement the cast operator
         // return assembler_emit_tac_cast(instr->cast);
     case TAC_ASSIGN_VALUE:
-        return assembler_emit_tac_assign_value(
-            context, class_idx, program, mapping, tac, instr->assign_value);
+        return assembler_emit_tac_assign_value(context, program, mapping, tac,
+                                               instr->assign_value);
     case TAC_DISPATCH_CALL:
-        return assembler_emit_tac_dispatch_call(
-            context, class_idx, program, mapping, tac, instr->dispatch_call);
+        return assembler_emit_tac_dispatch_call(context, program, mapping, tac,
+                                                instr->dispatch_call);
     case TAC_ASSIGN_NEW:
         // TODO: 3. Implement the new operator
         // return assembler_emit_tac_assign_new(instr->assign_new);
@@ -949,51 +1017,51 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
         // return assembler_emit_tac_assign_unary(instr->assign_unary,
         // "isvoid");
     case TAC_ASSIGN_ADD:
-        return assembler_emit_tac_assign_add(context, class_idx, program,
-                                             mapping, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_add(context, program, mapping, tac,
+                                             instr->assign_binary);
     case TAC_ASSIGN_SUB:
-        return assembler_emit_tac_assign_sub(context, class_idx, program,
-                                             mapping, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_sub(context, program, mapping, tac,
+                                             instr->assign_binary);
     case TAC_ASSIGN_MUL:
-        return assembler_emit_tac_assign_mul(context, class_idx, program,
-                                             mapping, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_mul(context, program, mapping, tac,
+                                             instr->assign_binary);
     case TAC_ASSIGN_DIV:
-        return assembler_emit_tac_assign_div(context, class_idx, program,
-                                             mapping, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_div(context, program, mapping, tac,
+                                             instr->assign_binary);
     case TAC_ASSIGN_NEG:
-        return assembler_emit_tac_assign_neg(context, class_idx, program,
-                                             mapping, tac, instr->assign_unary);
+        return assembler_emit_tac_assign_neg(context, program, mapping, tac,
+                                             instr->assign_unary);
     case TAC_ASSIGN_LT:
-        return assembler_emit_tac_assign_lt(context, class_idx, program,
-                                            mapping, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_lt(context, program, mapping, tac,
+                                            instr->assign_binary);
     case TAC_ASSIGN_LE:
-        return assembler_emit_tac_assign_le(context, class_idx, program,
-                                            mapping, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_le(context, program, mapping, tac,
+                                            instr->assign_binary);
     case TAC_ASSIGN_EQ:
         // TODO: 7. implement this as a method on object and all classes and let
         // the user override it e.g strcmp, inteq, booleq.
-        return assembler_emit_tac_assign_eq(context, class_idx, program,
-                                            mapping, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_eq(context, program, mapping, tac,
+                                            instr->assign_binary);
     case TAC_ASSIGN_NOT:
-        return assembler_emit_tac_assign_not(context, class_idx, program,
-                                             mapping, tac, instr->assign_unary);
+        return assembler_emit_tac_assign_not(context, program, mapping, tac,
+                                             instr->assign_unary);
     case TAC_IDENT:
-        return assembler_emit_tac_ident(context, class_idx, program, mapping,
-                                        tac, instr->ident);
+        return assembler_emit_tac_ident(context, program, mapping, tac,
+                                        instr->ident);
     case TAC_ASSIGN_INT:
-        return assembler_emit_tac_assign_int(context, class_idx, program,
-                                             mapping, tac, instr->assign_int);
+        return assembler_emit_tac_assign_int(context, program, mapping, tac,
+                                             instr->assign_int);
     case TAC_ASSIGN_STRING:
-        return assembler_emit_tac_assign_string(
-            context, class_idx, program, mapping, tac, instr->assign_string);
+        return assembler_emit_tac_assign_string(context, program, mapping, tac,
+                                                instr->assign_string);
     case TAC_ASSIGN_BOOL:
-        return assembler_emit_tac_assign_bool(context, class_idx, program,
-                                              mapping, tac, instr->assign_bool);
+        return assembler_emit_tac_assign_bool(context, program, mapping, tac,
+                                              instr->assign_bool);
         break;
     }
 }
 
-static void assembler_emit_expr(assembler_context *context, size_t class_idx,
+static void assembler_emit_expr(assembler_context *context,
                                 program_node *program,
                                 semantic_mapping *mapping,
                                 const expr_node *expr) {
@@ -1007,7 +1075,7 @@ static void assembler_emit_expr(assembler_context *context, size_t class_idx,
     assembler_emit_fmt(context, 4, NULL, "mov     rbx, rax");
 
     for (size_t j = 0; j < tac.instrs.count; j++) {
-        assembler_emit_tac(context, class_idx, program, mapping, tac, j);
+        assembler_emit_tac(context, program, mapping, tac, j);
     }
 
     assembler_emit_fmt(context, 4, NULL, "pop     rbx");
@@ -1016,54 +1084,60 @@ static void assembler_emit_expr(assembler_context *context, size_t class_idx,
 }
 
 static void assembler_emit_object_init_attribute(assembler_context *context,
-                                                 size_t class_idx,
                                                  size_t attr_idx,
                                                  program_node *program,
                                                  semantic_mapping *mapping) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
-                             (void **)&class);
+    class_mapping_item *class = context->current_class;
 
     class_mapping_attribute *attr = NULL;
     ds_dynamic_array_get_ref(&class->attributes, attr_idx, (void **)&attr);
 
-    assembler_emit_expr(context, class_idx, program, mapping,
-                        &attr->attribute->value);
+    if (attr->attribute->value.kind == EXPR_EXTERN) {
+        return;
+    }
+
+    assembler_emit_expr(context, program, mapping, &attr->attribute->value);
+
+    const char *comment = comment_fmt("init %s", attr->name);
+    assembler_emit_store_variable(context, program, mapping, NULL, attr->name);
 }
 
 static void assembler_emit_object_init_attributes(assembler_context *context,
-                                                  size_t class_idx,
                                                   program_node *program,
                                                   semantic_mapping *mapping) {
-    class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
-                             (void **)&class);
+    class_mapping_item *class = context->current_class;
 
     for (size_t j = 0; j < class->attributes.count; j++) {
-        assembler_emit_object_init_attribute(context, class_idx, j, program,
-                                             mapping);
+        assembler_emit_object_init_attribute(context, j, program, mapping);
     }
 }
 
 static void assembler_emit_object_init(assembler_context *context,
                                        size_t class_idx, program_node *program,
                                        semantic_mapping *mapping) {
-    parent_mapping_item *class = NULL;
+    parent_mapping_item *classp = NULL;
     ds_dynamic_array_get_ref(&mapping->parents.classes, class_idx,
-                             (void **)&class);
+                             (void **)&classp);
 
     assembler_emit(context, "segment readable executable");
-    assembler_emit_fmt(context, 0, NULL, "%s_init:", class->name);
+    assembler_emit_fmt(context, 0, NULL, "%s_init:", classp->name);
     assembler_emit_fmt(context, 4, NULL, "push    rbp");
     assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
     assembler_emit_fmt(context, 4, NULL, "push    rbx");
     assembler_emit_fmt(context, 4, "save self", "mov     rbx, rax");
-    if (class->parent != NULL) {
+    if (classp->parent != NULL) {
         assembler_emit_fmt(context, 4, NULL, "call    %s_init",
-                           class->parent->name);
+                           classp->parent->name);
     }
 
-    assembler_emit_object_init_attributes(context, class_idx, program, mapping);
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
+                             (void **)&class);
+
+    context->current_class = class;
+    context->current_method = NULL;
+    assembler_emit_object_init_attributes(context, program, mapping);
+    context->current_class = NULL;
 
     assembler_emit_fmt(context, 4, "restore self", "mov     rax, rbx");
     assembler_emit_fmt(context, 4, NULL, "pop     rbx");
@@ -1090,12 +1164,11 @@ static void assembler_emit_method(assembler_context *context, size_t method_idx,
         return;
     }
 
-    size_t j = 0;
-    for (j = 0; j < mapping->parents.classes.count; j++) {
-        parent_mapping_item *class = NULL;
-        ds_dynamic_array_get_ref(&mapping->parents.classes, j, (void **)&class);
+    class_mapping_item *class = NULL;
+    for (size_t j = 0; j < mapping->classes.items.count; j++) {
+        ds_dynamic_array_get_ref(&mapping->classes.items, j, (void **)&class);
 
-        if (strcmp(class->name, method->class_name) == 0) {
+        if (strcmp(class->class_name, method->class_name) == 0) {
             break;
         }
     }
@@ -1110,7 +1183,11 @@ static void assembler_emit_method(assembler_context *context, size_t method_idx,
     assembler_emit_fmt(context, 4, NULL, "push    rbp");
     assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
 
-    assembler_emit_expr(context, j, program, mapping, &method->method->body);
+    context->current_class = class;
+    context->current_method = method;
+    assembler_emit_expr(context, program, mapping, &method->method->body);
+    context->current_method = NULL;
+    context->current_class = NULL;
 
     assembler_emit_fmt(context, 4, NULL, "pop     rbp");
     assembler_emit_fmt(context, 4, NULL, "ret");
