@@ -435,7 +435,7 @@ static void assembler_emit_load_variable(assembler_context *context,
         }
     }
 
-    DS_PANIC("TODO: %s", ident);
+    DS_PANIC("not implemented: rax <- %s", ident);
 }
 
 // ident <- rax
@@ -490,7 +490,7 @@ static void assembler_emit_store_variable(assembler_context *context,
         }
     }
 
-    DS_PANIC("TODO: %s", ident);
+    DS_PANIC("not implemented: %s <- rax", ident);
 }
 
 // rax <- ident.attr
@@ -725,6 +725,24 @@ static void assembler_emit_tac_assign_default(assembler_context *context,
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
 
+static void assembler_emit_tac_assign_isvoid(assembler_context *context,
+                                          tac_result tac,
+                                          tac_assign_unary instr) {
+    // t0 <- new Bool
+    assembler_emit_new_type(context, "Bool");
+    assembler_emit_store_variable(context, &tac, instr.ident);
+
+    // compare expr to 0
+    assembler_emit_load_variable(context, &tac, instr.expr);
+    assembler_emit_fmt(context, 4, NULL, "test    rax, rax");
+
+    // set rax to 1 if rax == 0
+    assembler_emit_fmt(context, 4, NULL, "setz    al");
+    assembler_emit_fmt(context, 4, NULL, "movzx   rax, al");
+
+    // set t0.val to rax
+    assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
+}
 
 static void assembler_emit_tac_assign_add(assembler_context *context,
                                           tac_result tac,
@@ -978,10 +996,10 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
         return assembler_emit_tac_jump_if_true(context, tac,
                                                instr->jump_if_true);
     case TAC_ASSIGN_ISINSTANCE:
-        // TODO: 5. Implement the isinstance operator
+        // TODO: 1. Implement the isinstance operator
         // return assembler_emit_tac_assign_isinstance(instr->isinstance);
     case TAC_CAST:
-        // TODO: 6. Implement the cast operator
+        // TODO: 2. Implement the cast operator
         // return assembler_emit_tac_cast(instr->cast);
     case TAC_ASSIGN_VALUE:
         return assembler_emit_tac_assign_value(context, tac,
@@ -994,9 +1012,7 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
     case TAC_ASSIGN_DEFAULT:
         return assembler_emit_tac_assign_default(context, tac, instr->assign_new);
     case TAC_ASSIGN_ISVOID:
-        // TODO: 4. Implement the isvoid operator (just check if attr is zero)
-        // return assembler_emit_tac_assign_unary(instr->assign_unary,
-        // "isvoid");
+        return assembler_emit_tac_assign_isvoid(context, tac, instr->assign_unary);
     case TAC_ASSIGN_ADD:
         return assembler_emit_tac_assign_add(context, tac,
                                              instr->assign_binary);
@@ -1016,7 +1032,7 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
     case TAC_ASSIGN_LE:
         return assembler_emit_tac_assign_le(context, tac, instr->assign_binary);
     case TAC_ASSIGN_EQ:
-        // TODO: 7. implement this as a method on object and all classes and let
+        // TODO: 3. implement this as a method on object and all classes and let
         // the user override it e.g strcmp, inteq, booleq.
         return assembler_emit_tac_assign_eq(context, tac, instr->assign_binary);
     case TAC_ASSIGN_NOT:
