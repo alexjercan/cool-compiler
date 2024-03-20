@@ -644,6 +644,8 @@ static void tac_expr(tac_context *context, expr_node *expr,
         return tac_string(context, &expr->string, instrs, result);
     case EXPR_BOOL:
         return tac_bool(context, &expr->boolean, instrs, result);
+    case EXPR_EXTERN:
+        DS_PANIC("extern expression not supported");
     default:
         break;
     }
