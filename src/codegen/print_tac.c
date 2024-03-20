@@ -50,6 +50,11 @@ static void print_tac_assign_binary(tac_assign_binary assign_binary,
            assign_binary.rhs);
 }
 
+static void print_tac_assign_eq(tac_assign_eq assign_binary) {
+    printf("%s <- %s = %s\n", assign_binary.ident, assign_binary.lhs,
+           assign_binary.rhs);
+}
+
 static void print_tac_assign_unary(tac_assign_unary assign_unary,
                                    const char *op) {
     printf("%s <- %s %s\n", assign_unary.ident, op, assign_unary.expr);
@@ -107,7 +112,7 @@ static void print_tac(tac_instr tac) {
     case TAC_ASSIGN_LE:
         return print_tac_assign_binary(tac.assign_binary, "<=");
     case TAC_ASSIGN_EQ:
-        return print_tac_assign_binary(tac.assign_binary, "=");
+        return print_tac_assign_eq(tac.assign_eq);
     case TAC_ASSIGN_NOT:
         return print_tac_assign_unary(tac.assign_unary, "not");
     case TAC_IDENT:

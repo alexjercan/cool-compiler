@@ -910,7 +910,23 @@ static void assembler_emit_tac_assign_le(assembler_context *context,
 
 static void assembler_emit_tac_assign_eq(assembler_context *context,
                                          tac_result tac,
-                                         tac_assign_binary instr) {}
+                                         tac_assign_eq instr) {
+    ds_dynamic_array args;
+    ds_dynamic_array_init(&args, sizeof(char *));
+
+    ds_dynamic_array_append(&args, &instr.rhs);
+
+    tac_dispatch_call dispatch_call = {
+        .ident = instr.ident,
+        .expr = instr.lhs,
+        .type = instr.type,
+        .method = "equals",
+        .args = args,
+    };
+
+    // call to t0@type.equals(t1)
+    assembler_emit_tac_dispatch_call(context, tac, dispatch_call);
+}
 
 static void assembler_emit_tac_assign_not(assembler_context *context,
                                           tac_result tac,
@@ -1034,7 +1050,7 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
     case TAC_ASSIGN_EQ:
         // TODO: 3. implement this as a method on object and all classes and let
         // the user override it e.g strcmp, inteq, booleq.
-        return assembler_emit_tac_assign_eq(context, tac, instr->assign_binary);
+        return assembler_emit_tac_assign_eq(context, tac, instr->assign_eq);
     case TAC_ASSIGN_NOT:
         return assembler_emit_tac_assign_not(context, tac, instr->assign_unary);
     case TAC_IDENT:

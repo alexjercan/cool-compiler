@@ -13,7 +13,7 @@
 // - class_nameTable (done)
 // - X_methods (done)
 // - X_init (done)
-// - expressions (wip)
+// - case
 //
 // External things:
 // - implement external features (done)
@@ -144,7 +144,9 @@ int main(int argc, char **argv) {
     // codegen
     {
         if (argparse_get_flag(parser, ARG_TACGEN) == 1) {
-            codegen_tac_print(&program);
+            program_node *program = NULL;
+            ds_dynamic_array_get_ref(&programs, index, (void **)&program);
+            codegen_tac_print(program);
             return_defer(0);
         }
 

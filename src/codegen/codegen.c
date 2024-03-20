@@ -495,7 +495,6 @@ static void tac_new(tac_context *context, new_node *new,
 static void tac_binary(tac_context *context, expr_binary_node *binary,
                        enum tac_kind kind, ds_dynamic_array *instrs,
                        tac_instr *result) {
-
     tac_instr lhs;
     tac_expr(context, binary->lhs, instrs, &lhs);
 
@@ -508,6 +507,32 @@ static void tac_binary(tac_context *context, expr_binary_node *binary,
         .kind = kind,
         .assign_binary =
             {
+                .ident = ident,
+                .lhs = lhs.ident.name,
+                .rhs = rhs.ident.name,
+            },
+    };
+    ds_dynamic_array_append(instrs, &instr);
+
+    result->kind = TAC_IDENT;
+    result->ident.name = ident;
+}
+
+static void tac_eq(tac_context *context, expr_binary_node *binary,
+                       ds_dynamic_array *instrs, tac_instr *result) {
+    tac_instr lhs;
+    tac_expr(context, binary->lhs, instrs, &lhs);
+
+    tac_instr rhs;
+    tac_expr(context, binary->rhs, instrs, &rhs);
+
+    char *ident;
+    tac_new_var(context, &ident);
+    tac_instr instr = {
+        .kind = TAC_ASSIGN_EQ,
+        .assign_eq =
+            {
+                .type = (char *)binary->lhs->type,
                 .ident = ident,
                 .lhs = lhs.ident.name,
                 .rhs = rhs.ident.name,
@@ -673,7 +698,7 @@ static void tac_expr(tac_context *context, expr_node *expr,
     case EXPR_LE:
         return tac_binary(context, &expr->le, TAC_ASSIGN_LE, instrs, result);
     case EXPR_EQ:
-        return tac_binary(context, &expr->eq, TAC_ASSIGN_EQ, instrs, result);
+        return tac_eq(context, &expr->eq, instrs, result);
     case EXPR_NOT:
         return tac_unary(context, &expr->not_, TAC_ASSIGN_NOT, instrs, result);
     case EXPR_PAREN:

@@ -147,4 +147,36 @@ class Bool inherits Object {
         Returns: Bool
     *)
     equals(x: Object): Bool extern;
+
+    (*
+        The and method returns true if the object on which it is called and the
+        object passed as an argument are both true.
+
+        x: Bool - The boolean to compare with the boolean on which the method is
+                  called.
+
+        Returns: Bool
+    *)
+    and(x: Bool): Bool {
+        case self of
+            me: Bool => if me then x else false fi;
+            me: Object => false;
+        esac
+    };
+
+    (*
+        The or method returns true if the object on which it is called or the object
+        passed as an argument are true.
+
+        x: Bool - The boolean to compare with the boolean on which the method is
+                  called.
+
+        Returns: Bool
+    *)
+    or(x: Bool): Bool {
+        case self of
+            me: Bool => if me then true else x fi;
+            me: Object => false;
+        esac
+    };
 };

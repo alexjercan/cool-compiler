@@ -56,6 +56,13 @@ typedef struct tac_assign_binary {
         char *rhs;
 } tac_assign_binary;
 
+typedef struct tac_assign_eq {
+        char *type;
+        char *ident;
+        char *lhs;
+        char *rhs;
+} tac_assign_eq;
+
 typedef struct tac_assign_unary {
         char *ident;
         char *expr;
@@ -117,6 +124,7 @@ typedef struct tac_instr {
                 tac_assign_new assign_new;
                 tac_assign_new assign_default;
                 tac_assign_binary assign_binary;
+                tac_assign_eq assign_eq;
                 tac_assign_unary assign_unary;
                 struct tac_instr *assign_paren;
                 tac_ident ident;
