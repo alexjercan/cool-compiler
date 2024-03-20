@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
         }
 
         // assembler
-        if (assembler_run(output, &program, &mapping) != ASSEMBLER_OK) {
+        if (assembler_run(output, &mapping) != ASSEMBLER_OK) {
             printf("Compilation halted\n");
             return_defer(1);
         }

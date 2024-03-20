@@ -32,7 +32,6 @@ typedef struct asm_const {
 
 typedef struct assembler_context {
         FILE *file;
-        program_node *program;
         semantic_mapping *mapping;
         int result;
         int int_tag;
@@ -46,8 +45,7 @@ typedef struct assembler_context {
 } assembler_context;
 
 static int assembler_context_init(assembler_context *context,
-                                  const char *filename, program_node *program,
-                                  semantic_mapping *mapping) {
+                                  const char *filename, semantic_mapping *mapping) {
     int result = 0;
 
     if (filename == NULL) {
@@ -59,7 +57,6 @@ static int assembler_context_init(assembler_context *context,
         }
     }
 
-    context->program = program;
     context->mapping = mapping;
     context->result = 0;
 
@@ -247,9 +244,7 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
     }
 }
 
-static void assembler_emit_consts(assembler_context *context,
-                                  program_node *program,
-                                  semantic_mapping *mapping) {
+static void assembler_emit_consts(assembler_context *context) {
     assembler_emit(context, "segment readable");
 
     for (size_t i = 0; i < context->consts.count; i++) {
@@ -260,15 +255,13 @@ static void assembler_emit_consts(assembler_context *context,
     }
 }
 
-static void assembler_emit_class_name_table(assembler_context *context,
-                                            program_node *program,
-                                            semantic_mapping *mapping) {
+static void assembler_emit_class_name_table(assembler_context *context) {
     assembler_emit(context, "segment readable");
     assembler_emit(context, "class_nameTab:");
 
-    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
+    for (size_t i = 0; i < context->mapping->parents.classes.count; i++) {
         class_node *class = NULL;
-        ds_dynamic_array_get_ref(&mapping->parents.classes, i, (void **)&class);
+        ds_dynamic_array_get_ref(&context->mapping->parents.classes, i, (void **)&class);
 
         const char *class_name = class->name.value;
         const int class_name_length = strlen(class_name);
@@ -358,11 +351,9 @@ static void assembler_emit_attribute_init(assembler_context *context,
     }
 }
 
-static void assembler_emit_object_prototype(assembler_context *context,
-                                            size_t i, program_node *program,
-                                            semantic_mapping *mapping) {
+static void assembler_emit_object_prototype(assembler_context *context, size_t i) {
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, i, (void **)&class);
+    ds_dynamic_array_get_ref(&context->mapping->classes.items, i, (void **)&class);
 
     const char *class_name = class->class_name;
 
@@ -380,11 +371,9 @@ static void assembler_emit_object_prototype(assembler_context *context,
     }
 }
 
-static void assembler_emit_object_prototypes(assembler_context *context,
-                                             program_node *program,
-                                             semantic_mapping *mapping) {
-    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
-        assembler_emit_object_prototype(context, i, program, mapping);
+static void assembler_emit_object_prototypes(assembler_context *context) {
+    for (size_t i = 0; i < context->mapping->parents.classes.count; i++) {
+        assembler_emit_object_prototype(context, i);
     }
 }
 
@@ -682,6 +671,22 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
                        8 * instr.args.count);
 }
 
+static void assembler_emit_tac_assign_new(assembler_context *context,
+                                          tac_result tac,
+                                          tac_assign_new instr) {
+    // t0 <- new TYPE
+    assembler_emit_new_type(context, instr.type);
+    assembler_emit_store_variable(context, &tac, instr.ident);
+}
+
+static void assembler_emit_tac_assign_default(assembler_context *context,
+                                          tac_result tac,
+                                          tac_assign_new instr) {
+    // t0 <- 0
+    assembler_emit_store_variable(context, &tac, instr.ident);
+}
+
+
 static void assembler_emit_tac_assign_add(assembler_context *context,
                                           tac_result tac,
                                           tac_assign_binary instr) {
@@ -882,7 +887,8 @@ static void assembler_emit_tac_assign_int(assembler_context *context,
         (asm_const_value){.type = ASM_CONST_INT, .integer = instr.value},
         &int_const);
 
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", int_const->name);
+    const char *comment = comment_fmt("load %d", instr.value);
+    assembler_emit_fmt(context, 4, comment, "mov     rax, %s", int_const->name);
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
 
@@ -945,10 +951,9 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
         return assembler_emit_tac_dispatch_call(context, tac,
                                                 instr->dispatch_call);
     case TAC_ASSIGN_NEW:
-        // TODO: 3. Implement the new operator
-        // return assembler_emit_tac_assign_new(instr->assign_new);
+        return assembler_emit_tac_assign_new(context, tac, instr->assign_new);
     case TAC_ASSIGN_DEFAULT:
-        // return assembler_emit_tac_assign_default(instr->assign_default);
+        return assembler_emit_tac_assign_default(context, tac, instr->assign_new);
     case TAC_ASSIGN_ISVOID:
         // TODO: 4. Implement the isvoid operator (just check if attr is zero)
         // return assembler_emit_tac_assign_unary(instr->assign_unary,
@@ -990,10 +995,7 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
     }
 }
 
-static void assembler_emit_expr(assembler_context *context,
-                                program_node *program,
-                                semantic_mapping *mapping,
-                                const expr_node *expr) {
+static void assembler_emit_expr(assembler_context *context, const expr_node *expr) {
     tac_result tac;
     codegen_expr_to_tac(expr, &tac);
 
@@ -1012,10 +1014,7 @@ static void assembler_emit_expr(assembler_context *context,
                        8 * tac.locals.count);
 }
 
-static void assembler_emit_object_init_attribute(assembler_context *context,
-                                                 size_t attr_idx,
-                                                 program_node *program,
-                                                 semantic_mapping *mapping) {
+static void assembler_emit_object_init_attribute(assembler_context *context, size_t attr_idx) {
     class_mapping_item *class = context->current_class;
 
     class_mapping_attribute *attr = NULL;
@@ -1025,28 +1024,24 @@ static void assembler_emit_object_init_attribute(assembler_context *context,
         return;
     }
 
-    assembler_emit_expr(context, program, mapping, &attr->attribute->value);
+    assembler_emit_fmt(context, 4, NULL, "mov     rax, rbx");
+    assembler_emit_expr(context, &attr->attribute->value);
 
     const char *comment = comment_fmt("init %s", attr->name);
     assembler_emit_store_variable(context, NULL, attr->name);
 }
 
-static void assembler_emit_object_init_attributes(assembler_context *context,
-                                                  program_node *program,
-                                                  semantic_mapping *mapping) {
+static void assembler_emit_object_init_attributes(assembler_context *context) {
     class_mapping_item *class = context->current_class;
 
     for (size_t j = 0; j < class->attributes.count; j++) {
-        assembler_emit_object_init_attribute(context, j, program, mapping);
+        assembler_emit_object_init_attribute(context, j);
     }
 }
 
-static void assembler_emit_object_init(assembler_context *context,
-                                       size_t class_idx, program_node *program,
-                                       semantic_mapping *mapping) {
+static void assembler_emit_object_init(assembler_context *context, size_t class_idx) {
     parent_mapping_item *classp = NULL;
-    ds_dynamic_array_get_ref(&mapping->parents.classes, class_idx,
-                             (void **)&classp);
+    ds_dynamic_array_get_ref(&context->mapping->parents.classes, class_idx, (void **)&classp);
 
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s_init:", classp->name);
@@ -1060,12 +1055,11 @@ static void assembler_emit_object_init(assembler_context *context,
     }
 
     class_mapping_item *class = NULL;
-    ds_dynamic_array_get_ref(&mapping->classes.items, class_idx,
-                             (void **)&class);
+    ds_dynamic_array_get_ref(&context->mapping->classes.items, class_idx, (void **)&class);
 
     context->current_class = class;
     context->current_method = NULL;
-    assembler_emit_object_init_attributes(context, program, mapping);
+    assembler_emit_object_init_attributes(context);
     context->current_class = NULL;
 
     assembler_emit_fmt(context, 4, "restore self", "mov     rax, rbx");
@@ -1074,19 +1068,15 @@ static void assembler_emit_object_init(assembler_context *context,
     assembler_emit_fmt(context, 4, NULL, "ret");
 }
 
-static void assembler_emit_object_inits(assembler_context *context,
-                                        program_node *program,
-                                        semantic_mapping *mapping) {
-    for (size_t i = 0; i < mapping->parents.classes.count; i++) {
-        assembler_emit_object_init(context, i, program, mapping);
+static void assembler_emit_object_inits(assembler_context *context) {
+    for (size_t i = 0; i < context->mapping->parents.classes.count; i++) {
+        assembler_emit_object_init(context, i);
     }
 }
 
-static void assembler_emit_method(assembler_context *context, size_t method_idx,
-                                  program_node *program,
-                                  semantic_mapping *mapping) {
+static void assembler_emit_method(assembler_context *context, size_t method_idx) {
     implementation_mapping_item *method = NULL;
-    ds_dynamic_array_get_ref(&mapping->implementations.items, method_idx,
+    ds_dynamic_array_get_ref(&context->mapping->implementations.items, method_idx,
                              (void **)&method);
 
     if (strcmp(method->class_name, method->parent_name) != 0) {
@@ -1094,8 +1084,8 @@ static void assembler_emit_method(assembler_context *context, size_t method_idx,
     }
 
     class_mapping_item *class = NULL;
-    for (size_t j = 0; j < mapping->classes.items.count; j++) {
-        ds_dynamic_array_get_ref(&mapping->classes.items, j, (void **)&class);
+    for (size_t j = 0; j < context->mapping->classes.items.count; j++) {
+        ds_dynamic_array_get_ref(&context->mapping->classes.items, j, (void **)&class);
 
         if (strcmp(class->class_name, method->class_name) == 0) {
             break;
@@ -1114,7 +1104,7 @@ static void assembler_emit_method(assembler_context *context, size_t method_idx,
 
     context->current_class = class;
     context->current_method = method;
-    assembler_emit_expr(context, program, mapping, &method->method->body);
+    assembler_emit_expr(context, &method->method->body);
     context->current_method = NULL;
     context->current_class = NULL;
 
@@ -1122,20 +1112,17 @@ static void assembler_emit_method(assembler_context *context, size_t method_idx,
     assembler_emit_fmt(context, 4, NULL, "ret");
 }
 
-static void assembler_emit_methods(assembler_context *context,
-                                   program_node *program,
-                                   semantic_mapping *mapping) {
-    for (size_t i = 0; i < mapping->implementations.items.count; i++) {
-        assembler_emit_method(context, i, program, mapping);
+static void assembler_emit_methods(assembler_context *context) {
+    for (size_t i = 0; i < context->mapping->implementations.items.count; i++) {
+        assembler_emit_method(context, i);
     }
 }
 
-enum assembler_result assembler_run(const char *filename, program_node *program,
-                                    semantic_mapping *mapping) {
+enum assembler_result assembler_run(const char *filename, semantic_mapping *mapping) {
 
     int result = 0;
     assembler_context context;
-    if (assembler_context_init(&context, filename, program, mapping) != 0) {
+    if (assembler_context_init(&context, filename, mapping) != 0) {
         return_defer(1);
     }
 
@@ -1156,11 +1143,11 @@ enum assembler_result assembler_run(const char *filename, program_node *program,
     context.str_tag = str_tag;
     context.bool_tag = bool_tag;
 
-    assembler_emit_class_name_table(&context, program, mapping);
-    assembler_emit_object_prototypes(&context, program, mapping);
-    assembler_emit_object_inits(&context, program, mapping);
-    assembler_emit_methods(&context, program, mapping);
-    assembler_emit_consts(&context, program, mapping);
+    assembler_emit_class_name_table(&context);
+    assembler_emit_object_prototypes(&context);
+    assembler_emit_object_inits(&context);
+    assembler_emit_methods(&context);
+    assembler_emit_consts(&context);
 
 defer:
     result = context.result;
