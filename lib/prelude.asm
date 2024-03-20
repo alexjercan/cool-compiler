@@ -518,6 +518,7 @@ sizeof:
     mov     rax, rbx                   ; get self
     add     rax, [obj_size]            ; get *self.size
     mov     rax, [rax]                 ; get self.size
+    shl     rax, 3                     ; size = size * 8
 
     pop     rbx                        ; restore register
     pop     rbp                        ; restore return address
