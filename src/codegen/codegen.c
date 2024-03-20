@@ -7,6 +7,8 @@ typedef struct tac_context {
         int temp_count;
         int label_count;
         ds_dynamic_array locals; // char *
+
+        ds_dynamic_array mapping; // tac_assign_value
 } tac_context;
 
 static void tac_new_var(tac_context *context, char **ident) {
@@ -329,19 +331,18 @@ static void tac_let(tac_context *context, let_node *let,
             ds_dynamic_array_append(instrs, &expr);
         }
 
-        // TODO: use a mapping, don't actually use the variable name
-        tac_instr instr = {
-            .kind = TAC_ASSIGN_VALUE,
-            .assign_value =
-                {
-                    .ident = let_init.name.value,
-                    .expr = expr.ident.name,
-                },
+        tac_assign_value assign_value = {
+            .ident = let_init.name.value,
+            .expr = expr.ident.name,
         };
-        ds_dynamic_array_append(instrs, &instr);
+
+        ds_dynamic_array_append(&context->mapping, &assign_value);
     }
 
     tac_expr(context, let->body, instrs, result);
+
+    // remove the let variables from the mapping
+    context->mapping.count -= let->inits.count;
 }
 
 static void tac_case(tac_context *context, case_node *case_,
@@ -536,6 +537,17 @@ static void tac_paren(tac_context *context, expr_node *paren,
 static void tac_identifier(tac_context *context, node_info *ident,
                            ds_dynamic_array *instrs, tac_instr *result) {
     result->kind = TAC_IDENT;
+
+    for (unsigned int i = 0; i < context->mapping.count; i++) {
+        tac_assign_value assign_value;
+        ds_dynamic_array_get(&context->mapping, i, &assign_value);
+
+        if (strcmp(assign_value.ident, ident->value) == 0) {
+            result->ident.name = assign_value.expr;
+            return;
+        }
+    }
+
     result->ident.name = ident->value;
 }
 
@@ -655,6 +667,7 @@ static void tac_expr(tac_context *context, expr_node *expr,
 int codegen_expr_to_tac(const expr_node *expr, tac_result *tac) {
     tac_context context = {.result = 0, .temp_count = 0, .label_count = 0};
     ds_dynamic_array_init(&context.locals, sizeof(char *));
+    ds_dynamic_array_init(&context.mapping, sizeof(tac_assign_value));
 
     ds_dynamic_array_init(&tac->instrs, sizeof(tac_instr));
     tac_instr result;

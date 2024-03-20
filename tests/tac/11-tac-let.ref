@@ -1,8 +1,5 @@
 A.f
 t0 <- x + y
-z <- t0
 t1 <- default Int
-x <- t1
 t2 <- string hello
-y <- t2
-z
+t0

@@ -1,9 +1,7 @@
 A.f
 t0 <- new B
-b <- t0
 t1 <- x + y
-s <- t1
-t2 <- b@B.f(s, y)
+t2 <- t0@B.f(t1, y)
 t2
 A.g
 t0 <- new A
