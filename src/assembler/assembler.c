@@ -630,6 +630,8 @@ static void assembler_emit_tac_jump_if_true(assembler_context *context,
 static void assembler_emit_tac_assign_isinstance(assembler_context *context,
                                                  tac_result tac,
                                                  tac_isinstance instr) {
+    // TODO: does not feel right
+    // we might actually need the dispatch table after all
     const char *comment = NULL;
 
     asm_const *type_const = NULL;
