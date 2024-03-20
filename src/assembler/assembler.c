@@ -380,6 +380,12 @@ static void assembler_emit_object_prototypes(assembler_context *context) {
 // rax <- ident
 static void assembler_emit_load_variable(assembler_context *context,
                                          tac_result *tac, char *ident) {
+    if (strcmp(ident, "self") == 0) {
+        const char *comment = comment_fmt("load self");
+        assembler_emit_fmt(context, 4, comment, "mov     rax, rbx");
+        return;
+    }
+
     if (tac != NULL) {
         for (size_t i = 0; i < tac->locals.count; i++) {
             char *local = NULL;
@@ -429,7 +435,7 @@ static void assembler_emit_load_variable(assembler_context *context,
         }
     }
 
-    assembler_emit(context, "TODO");
+    DS_PANIC("TODO: %s", ident);
 }
 
 // ident <- rax
@@ -484,7 +490,7 @@ static void assembler_emit_store_variable(assembler_context *context,
         }
     }
 
-    assembler_emit(context, "TODO");
+    DS_PANIC("TODO: %s", ident);
 }
 
 // rax <- ident.attr
