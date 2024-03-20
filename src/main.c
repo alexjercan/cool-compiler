@@ -17,7 +17,7 @@
 //
 // External things:
 // - implement external features (done)
-// - implement equality
+// - implement equality (as a method)
 // - abort for dispatch on void
 // - abort for case on void
 // - abort for case on no match
@@ -26,8 +26,9 @@
 // Future plans:
 // - add graphics to IO
 // - implement a better main/build system
-
 // - extend external classes
+// - maybe with some kind of macros (being able to do syscalls and pointers)
+
 int main(int argc, char **argv) {
     int result = 0;
     int length = 0;
@@ -49,7 +50,6 @@ int main(int argc, char **argv) {
     const char *basename = util_filepath_to_basename(filename);
     char *output = argparse_get_value(parser, ARG_OUTPUT);
 
-    // TODO: take this file from ENV/PATH
     const char *prelude_cl = "lib/prelude.cl";
     const char *prelude_asm = "lib/prelude.asm";
 

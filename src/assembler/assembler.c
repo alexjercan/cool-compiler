@@ -465,6 +465,9 @@ static void assembler_emit_get_attr(assembler_context *context,
         DS_PANIC("unreachable");
     }
 
+    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
+                                 ident);
+
     comment = comment_fmt("get %s.%s", ident, attr);
     assembler_emit_fmt(context, 4, NULL, "add     rax, %d", attribute_slot);
     assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
@@ -548,8 +551,6 @@ static void assembler_emit_tac_jump_if_true(
     semantic_mapping *mapping, tac_result tac, tac_jump_if_true jump) {
     const char *comment;
 
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 jump.expr);
     assembler_emit_get_attr(context, class_idx, program, mapping, tac,
                             jump.expr, "Bool", "val");
 
@@ -628,6 +629,140 @@ static void assembler_emit_tac_dispatch_call(
 }
 
 static void
+assembler_emit_tac_assign_add(assembler_context *context, size_t class_idx,
+                              program_node *program, semantic_mapping *mapping,
+                              tac_result tac, tac_assign_binary instr) {
+    const char *comment;
+
+    // t0 <- new Int
+    assembler_emit_new_type(context, "Int");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    // set rdi to t1
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.lhs, "Int", "val");
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+
+    // set rax to t2
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.rhs, "Int", "val");
+
+    // set rax to t1 + t2
+    assembler_emit_fmt(context, 4, NULL, "add     rax, rdi");
+
+    // set t0.val to rax
+    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
+                            instr.ident, "Int", "val");
+}
+
+static void
+assembler_emit_tac_assign_sub(assembler_context *context, size_t class_idx,
+                              program_node *program, semantic_mapping *mapping,
+                              tac_result tac, tac_assign_binary instr) {
+    const char *comment;
+
+    // t0 <- new Int
+    assembler_emit_new_type(context, "Int");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    // set rax to t2
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.rhs, "Int", "val");
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+
+    // set rdi to t1
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.lhs, "Int", "val");
+
+    // set rax to t1 - t2
+    assembler_emit_fmt(context, 4, NULL, "sub     rax, rdi");
+
+    // set t0.val to rax
+    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
+                            instr.ident, "Int", "val");
+}
+
+static void
+assembler_emit_tac_assign_mul(assembler_context *context, size_t class_idx,
+                              program_node *program, semantic_mapping *mapping,
+                              tac_result tac, tac_assign_binary instr) {
+    const char *comment;
+
+    // t0 <- new Int
+    assembler_emit_new_type(context, "Int");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    // set rdi to t1
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.lhs, "Int", "val");
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+
+    // set rax to t2
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.rhs, "Int", "val");
+
+    // set rax to t1 * t2
+    assembler_emit_fmt(context, 4, NULL, "mul     rdi");
+
+    // set t0.val to rax
+    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
+                            instr.ident, "Int", "val");
+}
+
+static void
+assembler_emit_tac_assign_div(assembler_context *context, size_t class_idx,
+                              program_node *program, semantic_mapping *mapping,
+                              tac_result tac, tac_assign_binary instr) {
+    const char *comment;
+
+    // t0 <- new Int
+    assembler_emit_new_type(context, "Int");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    // set rax to t2
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.rhs, "Int", "val");
+    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+
+    // set rdi to t1
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.lhs, "Int", "val");
+
+    // set rax to t1 / t2
+    assembler_emit_fmt(context, 4, NULL, "xor     rdx, rdx");
+    assembler_emit_fmt(context, 4, NULL, "div     rdi");
+
+    // set t0.val to rax
+    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
+                            instr.ident, "Int", "val");
+}
+
+static void
+assembler_emit_tac_assign_neg(assembler_context *context, size_t class_idx,
+                              program_node *program, semantic_mapping *mapping,
+                              tac_result tac, tac_assign_unary instr) {
+    const char *comment;
+
+    // t0 <- new Int
+    assembler_emit_new_type(context, "Int");
+    assembler_emit_store_variable(context, class_idx, program, mapping, tac,
+                                  instr.ident);
+
+    // set rax to ~t0.val
+    assembler_emit_get_attr(context, class_idx, program, mapping, tac,
+                            instr.expr, "Int", "val");
+    assembler_emit_fmt(context, 4, comment, "neg     rax");
+
+    // set t1 to rax
+    assembler_emit_set_attr(context, class_idx, program, mapping, tac,
+                            instr.ident, "Bool", "val");
+}
+
+static void
 assembler_emit_tac_assign_lt(assembler_context *context, size_t class_idx,
                              program_node *program, semantic_mapping *mapping,
                              tac_result tac, tac_assign_binary instr) {
@@ -639,15 +774,11 @@ assembler_emit_tac_assign_lt(assembler_context *context, size_t class_idx,
                                   instr.ident);
 
     // set rdi to t0
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.lhs);
     assembler_emit_get_attr(context, class_idx, program, mapping, tac,
                             instr.lhs, "Int", "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rax to t1
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.rhs);
     assembler_emit_get_attr(context, class_idx, program, mapping, tac,
                             instr.rhs, "Int", "val");
 
@@ -675,15 +806,11 @@ assembler_emit_tac_assign_le(assembler_context *context, size_t class_idx,
                                   instr.ident);
 
     // set rdi to t0
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.lhs);
     assembler_emit_get_attr(context, class_idx, program, mapping, tac,
                             instr.lhs, "Int", "val");
     assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
 
     // set rax to t1
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.rhs);
     assembler_emit_get_attr(context, class_idx, program, mapping, tac,
                             instr.rhs, "Int", "val");
 
@@ -703,7 +830,6 @@ static void
 assembler_emit_tac_assign_eq(assembler_context *context, size_t class_idx,
                              program_node *program, semantic_mapping *mapping,
                              tac_result tac, tac_assign_binary instr) {
-    // TODO: this one can work on objects aswell
 }
 
 static void
@@ -719,8 +845,6 @@ assembler_emit_tac_assign_not(assembler_context *context, size_t class_idx,
                                   instr.ident);
 
     // set rax to not t0.val
-    assembler_emit_load_variable(context, class_idx, program, mapping, tac,
-                                 instr.expr);
     assembler_emit_get_attr(context, class_idx, program, mapping, tac,
                             instr.expr, "Bool", "val");
     assembler_emit_fmt(context, 4, NULL, "xor     rax, 1");
@@ -795,7 +919,6 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
     tac_instr *instr = NULL;
     ds_dynamic_array_get_ref(&tac.instrs, instr_idx, (void **)&instr);
 
-    // TODO: implement
     switch (instr->kind) {
     case TAC_LABEL:
         return assembler_emit_tac_label(context, class_idx, program, mapping,
@@ -807,8 +930,10 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
         return assembler_emit_tac_jump_if_true(
             context, class_idx, program, mapping, tac, instr->jump_if_true);
     case TAC_ASSIGN_ISINSTANCE:
+        // TODO: 5. Implement the isinstance operator
         // return assembler_emit_tac_assign_isinstance(instr->isinstance);
     case TAC_CAST:
+        // TODO: 6. Implement the cast operator
         // return assembler_emit_tac_cast(instr->cast);
     case TAC_ASSIGN_VALUE:
         return assembler_emit_tac_assign_value(
@@ -817,20 +942,27 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
         return assembler_emit_tac_dispatch_call(
             context, class_idx, program, mapping, tac, instr->dispatch_call);
     case TAC_ASSIGN_NEW:
+        // TODO: 3. Implement the new operator
         // return assembler_emit_tac_assign_new(instr->assign_new);
     case TAC_ASSIGN_ISVOID:
+        // TODO: 4. Implement the isvoid operator (just check if attr is zero)
         // return assembler_emit_tac_assign_unary(instr->assign_unary,
         // "isvoid");
     case TAC_ASSIGN_ADD:
-        // return assembler_emit_tac_assign_binary(instr->assign_binary, "+");
+        return assembler_emit_tac_assign_add(context, class_idx, program,
+                                             mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_SUB:
-        // return assembler_emit_tac_assign_binary(instr->assign_binary, "-");
+        return assembler_emit_tac_assign_sub(context, class_idx, program,
+                                             mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_MUL:
-        // return assembler_emit_tac_assign_binary(instr->assign_binary, "*");
+        return assembler_emit_tac_assign_mul(context, class_idx, program,
+                                             mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_DIV:
-        // return assembler_emit_tac_assign_binary(instr->assign_binary, "/");
+        return assembler_emit_tac_assign_div(context, class_idx, program,
+                                             mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_NEG:
-        // return assembler_emit_tac_assign_unary(instr->assign_unary, "~");
+        return assembler_emit_tac_assign_neg(context, class_idx, program,
+                                             mapping, tac, instr->assign_unary);
     case TAC_ASSIGN_LT:
         return assembler_emit_tac_assign_lt(context, class_idx, program,
                                             mapping, tac, instr->assign_binary);
@@ -838,6 +970,8 @@ static void assembler_emit_tac(assembler_context *context, size_t class_idx,
         return assembler_emit_tac_assign_le(context, class_idx, program,
                                             mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_EQ:
+        // TODO: 7. implement this as a method on object and all classes and let
+        // the user override it e.g strcmp, inteq, booleq.
         return assembler_emit_tac_assign_eq(context, class_idx, program,
                                             mapping, tac, instr->assign_binary);
     case TAC_ASSIGN_NOT:

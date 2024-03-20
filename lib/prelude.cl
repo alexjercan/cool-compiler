@@ -24,6 +24,17 @@ class Object {
         Returns: SELF_TYPE
     *)
     copy(): SELF_TYPE extern;
+
+    (*
+        The equals method returns true if the object on which it is called is equal
+        to the object passed as an argument.
+
+        x: Object - The object to compare with the object on which the method is
+                    called.
+
+        Returns: Bool
+    *)
+    equals(x: Object): Bool extern;
 };
 
 (* The IO class provides basic input and output operations. *)
@@ -93,14 +104,47 @@ class String inherits Object {
         Returns: String
     *)
     substr(i: Int, l: Int): String extern;
+
+    (*
+        The equals method returns true if the object on which it is called is equal
+        to the object passed as an argument.
+
+        x: Object - The object to compare with the object on which the method is
+                    called.
+
+        Returns: Bool
+    *)
+    equals(x: Object): Bool extern;
 };
 
 (* The Int class provides methods for manipulating integers. *)
 class Int inherits Object {
     val: Int <- extern; -- The default value of an Int object.
+
+    (*
+        The equals method returns true if the object on which it is called is equal
+        to the object passed as an argument.
+
+        x: Object - The object to compare with the object on which the method is
+                    called.
+
+        Returns: Bool
+    *)
+    equals(x: Object): Bool extern;
 };
 
 (* The Bool class provides methods for manipulating booleans. *)
 class Bool inherits Object {
     val: Bool <- extern; -- The default value of a Bool object.
+
+    (*
+        The equals method returns true if the object on which it is called is equal
+        to the object passed as an argument.
+
+        x: Object - The object to compare with the object on which the method is
+                    called.
+
+        Returns: Bool
+    *)
+    equals(x: Object): Bool extern;
 };

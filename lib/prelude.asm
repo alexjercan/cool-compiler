@@ -200,6 +200,30 @@ Object.type_name:
 
 ;
 ;
+; Object.equals
+;
+;   Compares two objects for equality.
+;   This represents the default implementation of the equals method.
+;
+;   INPUT: rax contains self
+;   STACK:
+;        x object
+;   OUTPUT: rax contains a boolean object
+Object.equals:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
+
+
+;
+;
 ; IO.out_string
 ;
 ;   Prints out the contents of a string object argument
@@ -501,6 +525,71 @@ String.concat:
 ;
 segment readable executable
 String.substr:
+
+;
+;
+; String.equals
+;
+;   Compares two strings for equality.
+;
+;   INPUT: rax contains self
+;   STACK:
+;        x object
+;   OUTPUT: rax contains a boolean object
+String.equals:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Int.equals
+;
+;   Compares two ints for equality.
+;
+;   INPUT: rax contains self
+;   STACK:
+;        x object
+;   OUTPUT: rax contains a boolean object
+Int.equals:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
+;
+;
+; Bool.equals
+;
+;   Compares two bools for equality.
+;
+;   INPUT: rax contains self
+;   STACK:
+;        x object
+;   OUTPUT: rax contains a boolean object
+Bool.equals:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO
+
+    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
 
 ;
 ;
