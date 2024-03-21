@@ -11,6 +11,7 @@
 #define WORD_SIZE 8
 #define LOCALS_OFFSET 8
 #define ARGUMENTS_OFFSET 16
+#define DISPTABLE_OFFSET 16
 #define ATTRIBUTE_OFFSET 24
 
 enum asm_const_type {
@@ -725,8 +726,6 @@ static void assembler_emit_tac_assign_value(assembler_context *context,
 static void assembler_emit_tac_dispatch_call(assembler_context *context,
                                              tac_result tac,
                                              tac_dispatch_call instr) {
-    class_mapping_item *class = context->current_class;
-
     for (size_t i = 0; i < instr.args.count; i++) {
         char *arg = NULL;
         ds_dynamic_array_get(&instr.args, instr.args.count - i - 1, &arg);
@@ -737,36 +736,58 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
         assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "push    rax");
     }
 
-    if (strcmp(instr.expr, "self") == 0) {
-        const char *comment = comment_fmt("load self");
-        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
-                           "mov     rax, rbx");
+    if (instr.expr == NULL) {
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, rbx");
     } else {
         assembler_emit_load_variable(context, &tac, instr.expr);
     }
 
-    for (size_t i = 0; i < context->mapping->implementations.items.count; i++) {
-        implementation_mapping_item *method = NULL;
-        ds_dynamic_array_get_ref(&context->mapping->implementations.items, i,
-                                 (void **)&method);
+    if (instr.type == NULL) {
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, qword [rax+%d]", DISPTABLE_OFFSET);
 
-        const char *class_name = instr.type;
-        if (strcmp(class_name, "SELF_TYPE") == 0) {
-            class_name = class->class_name;
+        size_t method_index = 0;
+        const char *class_name = NULL;
+        for (size_t i = 0; i < context->mapping->implementations.items.count; i++) {
+            implementation_mapping_item *method = NULL;
+            ds_dynamic_array_get_ref(&context->mapping->implementations.items, i,
+                                     (void **)&method);
+
+            if (class_name == NULL || strcmp(method->class_name, class_name) != 0) {
+                class_name = method->class_name;
+                method_index = 0;
+            }
+
+            if (strcmp(method->method_name, instr.method) == 0) {
+                break;
+            }
+
+            method_index++;
         }
 
-        if (strcmp(method->class_name, class_name) != 0) {
-            continue;
+        size_t method_offset = method_index * WORD_SIZE;
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, qword [rdi+%d]", method_offset);
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    rdi");
+    } else {
+        for (size_t i = 0; i < context->mapping->implementations.items.count; i++) {
+            implementation_mapping_item *method = NULL;
+            ds_dynamic_array_get_ref(&context->mapping->implementations.items, i,
+                                     (void **)&method);
+
+            const char *class_name = instr.type;
+
+            if (strcmp(method->class_name, class_name) != 0) {
+                continue;
+            }
+
+            if (strcmp(method->method_name, instr.method) != 0) {
+                continue;
+            }
+
+            assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    %s.%s",
+                               method->parent_name, method->method_name);
+
+            break;
         }
-
-        if (strcmp(method->method_name, instr.method) != 0) {
-            continue;
-        }
-
-        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    %s.%s",
-                           method->parent_name, method->method_name);
-
-        break;
     }
 
     assembler_emit_store_variable(context, &tac, instr.ident);
