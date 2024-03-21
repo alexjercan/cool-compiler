@@ -1,6 +1,8 @@
 #!/bin/bash
 
 TESTS_DIR=tests
+TOTAL_TESTS=0
+PASSED_TESTS=0
 
 analyzer() {
     if [ "$#" -ne 2 ]; then
@@ -32,6 +34,9 @@ analyzer() {
 
     total=$(ls $tests_dir/*.cl | wc -l)
     echo "Passed $passed/$total tests"
+
+    TOTAL_TESTS=$((TOTAL_TESTS + total))
+    PASSED_TESTS=$((PASSED_TESTS + passed))
 }
 
 runner() {
@@ -76,6 +81,9 @@ runner() {
 
     total=$(ls $tests_dir/*.cl | wc -l)
     echo "Passed $passed/$total tests"
+
+    TOTAL_TESTS=$((TOTAL_TESTS + total))
+    PASSED_TESTS=$((PASSED_TESTS + passed))
 }
 
 
@@ -126,5 +134,13 @@ elif [ -z "$ARG1" ]; then
     asm_generator
 else
     echo "Usage: $0 [--lex | --syn | --sem | --tac | --asm]"
+    exit 1
+fi
+
+if [ $PASSED_TESTS -eq $TOTAL_TESTS ]; then
+    echo -e "\e[32mAll tests passed\e[0m"
+    exit 0
+else
+    echo -e "\e[31mSome tests failed\e[0m"
     exit 1
 fi
