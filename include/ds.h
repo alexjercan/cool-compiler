@@ -1142,6 +1142,7 @@ defer:
 // Returns 0 if the item was popped successfully, 1 if the list is empty.
 // The item is stored in the item parameter.
 DSHDEF int ds_linked_list_pop_back(ds_linked_list *ll, void *item) {
+    ds_linked_list_node *node = NULL;
     int result = 0;
 
     if (ll->tail == NULL) {
@@ -1149,7 +1150,7 @@ DSHDEF int ds_linked_list_pop_back(ds_linked_list *ll, void *item) {
         return_defer(1);
     }
 
-    ds_linked_list_node *node = ll->tail;
+    node = ll->tail;
     DS_MEMCPY(item, node->item, ll->item_size);
 
     ll->tail = node->prev;
@@ -1176,6 +1177,7 @@ defer:
 // Returns 0 if the item was popped successfully, 1 if the list is empty.
 // The item is stored in the item parameter.
 DSHDEF int ds_linked_list_pop_front(ds_linked_list *ll, void *item) {
+    ds_linked_list_node *node = NULL;
     int result = 0;
 
     if (ll->head == NULL) {
@@ -1183,7 +1185,7 @@ DSHDEF int ds_linked_list_pop_front(ds_linked_list *ll, void *item) {
         return_defer(1);
     }
 
-    ds_linked_list_node *node = ll->head;
+    node = ll->head;
     DS_MEMCPY(item, node->item, ll->item_size);
 
     ll->head = node->next;

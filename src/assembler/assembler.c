@@ -630,8 +630,8 @@ static void assembler_emit_tac_jump_if_true(assembler_context *context,
 static void assembler_emit_tac_assign_isinstance(assembler_context *context,
                                                  tac_result tac,
                                                  tac_isinstance instr) {
-    // TODO: does not feel right
-    // we might actually need the dispatch table after all
+    // TODO: does not feel right we might actually need the dispatch table after all
+
     const char *comment = NULL;
 
     asm_const *type_const = NULL;
@@ -677,6 +677,8 @@ static void assembler_emit_tac_assign_isinstance(assembler_context *context,
 static void assembler_emit_tac_assign_cast(assembler_context *context,
                                            tac_result tac,
                                            tac_cast isinstance) {
+    // TODO: might need to change the tag of the object
+
     // t0 <- expr
     assembler_emit_load_variable(context, &tac, isinstance.expr);
     assembler_emit_store_variable(context, &tac, isinstance.ident);
@@ -1118,8 +1120,6 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
     case TAC_ASSIGN_LE:
         return assembler_emit_tac_assign_le(context, tac, instr->assign_binary);
     case TAC_ASSIGN_EQ:
-        // TODO: 3. implement this as a method on object and all classes and let
-        // the user override it e.g strcmp, inteq, booleq.
         return assembler_emit_tac_assign_eq(context, tac, instr->assign_eq);
     case TAC_ASSIGN_NOT:
         return assembler_emit_tac_assign_not(context, tac, instr->assign_unary);
@@ -1266,6 +1266,36 @@ static void assembler_emit_methods(assembler_context *context) {
     }
 }
 
+static void assembler_emit_dispatch_table(assembler_context *context, size_t class_idx) {
+    class_mapping_item *class = NULL;
+    ds_dynamic_array_get_ref(&context->mapping->classes.items, class_idx,
+                             (void **)&class);
+
+    const char *class_name = class->class_name;
+
+    assembler_emit(context, "segment readable");
+    assembler_emit_fmt(context, 0, NULL, "%s_dispTab:", class_name);
+
+    for (size_t j = 0; j < context->mapping->implementations.items.count; j++) {
+        implementation_mapping_item *method = NULL;
+        ds_dynamic_array_get_ref(&context->mapping->implementations.items, j,
+                                 (void **)&method);
+
+        if (strcmp(method->class_name, class_name) != 0) {
+            continue;
+        }
+
+        assembler_emit_fmt(context, 4, NULL, "dq %s.%s", method->parent_name,
+                           method->method_name);
+    }
+}
+
+static void assembler_emit_dispatch_tables(assembler_context *context) {
+    for (size_t i = 0; i < context->mapping->parents.classes.count; i++) {
+        assembler_emit_dispatch_table(context, i);
+    }
+}
+
 enum assembler_result assembler_run(const char *filename,
                                     semantic_mapping *mapping) {
 
@@ -1293,6 +1323,7 @@ enum assembler_result assembler_run(const char *filename,
     context.bool_tag = bool_tag;
 
     assembler_emit_class_name_table(&context);
+    assembler_emit_dispatch_tables(&context);
     assembler_emit_object_prototypes(&context);
     assembler_emit_object_inits(&context);
     assembler_emit_methods(&context);

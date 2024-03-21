@@ -2095,6 +2095,92 @@ static void show_semantic_class_mapping(class_mapping *classes) {
     }
 }
 
+static void build_implementations_mapping_class(
+    semantic_context *context, program_node *program, parent_mapping *parents,
+    implementation_mapping *implementations, unsigned int class_idx) {
+    class_context *class_ctx = NULL;
+    ds_dynamic_array_get_ref(&context->classes, class_idx, (void **)&class_ctx);
+
+    if (strcmp(class_ctx->name, SELF_TYPE) == 0) {
+        return;
+    }
+
+    const char *class_name = class_ctx->name;
+
+    class_context *current_ctx = NULL;
+    find_class_ctx(context, class_name, &current_ctx);
+
+    ds_linked_list class_stack;
+    ds_linked_list_init(&class_stack, sizeof(class_context *));
+
+    while (current_ctx != NULL) {
+        ds_linked_list_push_front(&class_stack, &current_ctx);
+
+        current_ctx = current_ctx->parent;
+    }
+
+    ds_dynamic_array methods;
+    ds_dynamic_array_init(&methods, sizeof(implementation_mapping_item));
+
+    while (ds_linked_list_empty(&class_stack) == 0)  {
+        class_context *current_ctx = NULL;
+
+        ds_linked_list_pop_front(&class_stack, &current_ctx);
+
+        const char *parent_name = current_ctx->name;
+
+        for (unsigned int i = 0; i < current_ctx->methods.count; i++) {
+            method_context *method_ctx = NULL;
+            ds_dynamic_array_get_ref(&current_ctx->methods, i, (void **)&method_ctx);
+
+            const char *method_name = method_ctx->name;
+
+            int found = 0;
+            unsigned int j = 0;
+            for (j = 0; j < methods.count; j++) {
+                implementation_mapping_item *it = NULL;
+                ds_dynamic_array_get_ref(&methods, j, (void **)&it);
+
+                if (strcmp(it->class_name, class_name) == 0 &&
+                    strcmp(it->method_name, method_name) == 0) {
+                    found = 1;
+                    break;
+                }
+            }
+
+            class_node *class = NULL;
+            find_class_node(program, parent_name, &class);
+
+            method_node *method = NULL;
+            if (class != NULL) {
+                find_method_node(class, method_name, &method);
+            }
+
+            if (!found) {
+                implementation_mapping_item item = {.class_name = class_name,
+                                                    .parent_name = parent_name,
+                                                    .method_name = method_name,
+                                                    .method = method};
+
+                ds_dynamic_array_append(&methods, &item);
+            } else {
+                implementation_mapping_item *item = NULL;
+                ds_dynamic_array_get_ref(&methods, j, (void **)&item);
+
+                item->parent_name = parent_name;
+                item->method = method;
+            }
+        }
+    }
+
+    for (unsigned int j = 0; j < methods.count; j++) {
+        implementation_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&methods, j, (void **)&item);
+
+        ds_dynamic_array_append(&implementations->items, item);
+    }
+}
+
 static void
 build_implementations_mapping(semantic_context *context, program_node *program,
                               parent_mapping *parents,
@@ -2103,75 +2189,8 @@ build_implementations_mapping(semantic_context *context, program_node *program,
                           sizeof(implementation_mapping_item));
 
     for (unsigned int i = 0; i < context->classes.count; i++) {
-        class_context *class_ctx = NULL;
-        ds_dynamic_array_get_ref(&context->classes, i, (void **)&class_ctx);
-
-        if (strcmp(class_ctx->name, SELF_TYPE) == 0) {
-            continue;
-        }
-
-        const char *class_name = class_ctx->name;
-
-        class_context *current_ctx = NULL;
-        find_class_ctx(context, class_name, &current_ctx);
-
-        ds_dynamic_array methods;
-        ds_dynamic_array_init(&methods, sizeof(implementation_mapping_item));
-
-        while (current_ctx != NULL) {
-            const char *parent_name = current_ctx->name;
-
-            for (unsigned int k = 0; k < current_ctx->methods.count; k++) {
-                method_context *method_ctx = NULL;
-                ds_dynamic_array_get_ref(&current_ctx->methods,
-                                         current_ctx->methods.count - k - 1,
-                                         (void **)&method_ctx);
-
-                const char *method_name = method_ctx->name;
-
-                implementation_mapping_item item = {.class_name = class_name,
-                                                    .parent_name = parent_name,
-                                                    .method_name = method_name};
-
-                int found = 0;
-                for (unsigned int l = 0; l < methods.count; l++) {
-                    implementation_mapping_item *it = NULL;
-                    ds_dynamic_array_get_ref(&methods, l, (void **)&it);
-
-                    if (strcmp(it->class_name, item.class_name) == 0 &&
-                        strcmp(it->method_name, item.method_name) == 0) {
-                        found = 1;
-                        break;
-                    }
-                }
-
-                if (found) {
-                    continue;
-                }
-
-                class_node *class = NULL;
-                find_class_node(program, parent_name, &class);
-
-                method_node *method = NULL;
-                if (class != NULL) {
-                    find_method_node(class, method_name, &method);
-                }
-
-                item.method = method;
-
-                ds_dynamic_array_append(&methods, &item);
-            }
-
-            current_ctx = current_ctx->parent;
-        }
-
-        for (unsigned int k = 0; k < methods.count; k++) {
-            implementation_mapping_item *item = NULL;
-            ds_dynamic_array_get_ref(&methods, methods.count - k - 1,
-                                     (void **)&item);
-
-            ds_dynamic_array_append(&implementations->items, item);
-        }
+        build_implementations_mapping_class(context, program, parents,
+                                            implementations, i);
     }
 }
 
