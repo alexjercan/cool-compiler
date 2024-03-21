@@ -1911,13 +1911,13 @@ static void semantic_check_attribute_init(semantic_context *context,
     }
 }
 
-static void find_parent_mapping(parent_mapping *parents, const char *name,
-                                parent_mapping_item **item) {
-    for (unsigned int i = 0; i < parents->classes.count; i++) {
-        parent_mapping_item *it = NULL;
-        ds_dynamic_array_get_ref(&parents->classes, i, (void **)&it);
+static void find_class_mapping(semantic_mapping *mapping, const char *name,
+                               semantic_mapping_item **item) {
+    for (unsigned int i = 0; i < mapping->classes.count; i++) {
+        semantic_mapping_item *it = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&it);
 
-        if (strcmp(it->name, name) == 0) {
+        if (strcmp(it->class_name, name) == 0) {
             *item = it;
             return;
         }
@@ -1971,11 +1971,52 @@ static void find_method_node(class_node *class, const char *name,
     *method = NULL;
 }
 
-static void build_semantic_parent_mapping(semantic_context *context,
-                                          program_node *program,
-                                          parent_mapping *parents) {
-    ds_dynamic_array_init(&parents->classes, sizeof(parent_mapping_item));
+void semantic_print_mapping(semantic_mapping *mapping) {
+    printf("parent_mapping\n");
+    for (unsigned int i = 0; i < mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
 
+        if (item->parent != NULL) {
+            printf("%s -> %s\n", item->class_name, item->parent->class_name);
+        }
+    }
+
+    printf("class_mapping\n");
+    for (unsigned int i = 0; i < mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
+
+        printf("%s\n", item->class_name);
+        for (unsigned int j = 0; j < item->attributes.count; j++) {
+            class_mapping_attribute *attribute = NULL;
+            ds_dynamic_array_get_ref(&item->attributes, j, (void **)&attribute);
+
+            printf("  %s\n", attribute->attribute_name);
+        }
+    }
+
+    printf("implementations_mapping\n");
+    for (unsigned int i = 0; i < mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
+
+
+        for (unsigned int j = 0; j < item->methods.count; j++) {
+            implementation_mapping_item *method = NULL;
+            ds_dynamic_array_get_ref(&item->methods, i, (void **)&method);
+
+            printf("%s@%s.%s\n", item->class_name, method->from_class, method->method_name);
+        }
+    }
+}
+
+static void build_semantic_mapping(semantic_context *context,
+                                   program_node *program,
+                                   semantic_mapping *mapping) {
+    ds_dynamic_array_init(&mapping->classes, sizeof(semantic_mapping_item));
+
+    // Initialize each class
     for (unsigned int i = 0; i < context->classes.count; i++) {
         class_context *class_ctx = NULL;
         ds_dynamic_array_get_ref(&context->classes, i, (void **)&class_ctx);
@@ -1984,52 +2025,48 @@ static void build_semantic_parent_mapping(semantic_context *context,
             continue;
         }
 
-        parent_mapping_item item = {.name = class_ctx->name, .parent = NULL};
+        ds_dynamic_array attributes;
+        ds_dynamic_array_init(&attributes, sizeof(class_mapping_attribute));
 
-        ds_dynamic_array_append(&parents->classes, &item);
+        ds_dynamic_array methods;
+        ds_dynamic_array_init(&methods, sizeof(implementation_mapping_item));
+
+        semantic_mapping_item item = {.class_name = class_ctx->name,
+                                      .parent = NULL,
+                                      .attributes = attributes,
+                                      .methods = methods};
+
+        ds_dynamic_array_append(&mapping->classes, &item);
     }
 
-    for (unsigned int i = 0; i < parents->classes.count; i++) {
-        parent_mapping_item *item = NULL;
-        ds_dynamic_array_get_ref(&parents->classes, i, (void **)&item);
+    // Set the parents
+    for (unsigned int i = 0; i < mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
 
         class_context *class_ctx = NULL;
-        find_class_ctx(context, item->name, &class_ctx);
+        find_class_ctx(context, item->class_name, &class_ctx);
 
         class_context *parent_ctx = class_ctx->parent;
         if (parent_ctx == NULL) {
             continue;
         }
 
-        parent_mapping_item *parent_item = NULL;
-        find_parent_mapping(parents, parent_ctx->name, &parent_item);
+        semantic_mapping_item *parent_item = NULL;
+        find_class_mapping(mapping, parent_ctx->name, &parent_item);
 
         if (parent_item != NULL) {
             item->parent = parent_item;
         }
     }
-}
 
-static void show_semantic_parent_mapping(parent_mapping *parents) {
-    for (unsigned int i = 0; i < parents->classes.count; i++) {
-        parent_mapping_item *item = NULL;
-        ds_dynamic_array_get_ref(&parents->classes, i, (void **)&item);
+    // set the attributes
+    for (unsigned int i = 0; i < mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
 
-        if (item->parent != NULL) {
-            printf("%s -> %s\n", item->name, item->parent->name);
-        }
-    }
-}
-
-static void build_semantic_class_mapping(semantic_context *context,
-                                         program_node *program,
-                                         parent_mapping *parents,
-                                         class_mapping *classes) {
-    ds_dynamic_array_init(&classes->items, sizeof(class_mapping_item));
-
-    for (unsigned int i = 0; i < context->classes.count; i++) {
         class_context *class_ctx = NULL;
-        ds_dynamic_array_get_ref(&context->classes, i, (void **)&class_ctx);
+        find_class_ctx(context, item->class_name, &class_ctx);
 
         if (strcmp(class_ctx->name, SELF_TYPE) == 0) {
             continue;
@@ -2037,16 +2074,12 @@ static void build_semantic_class_mapping(semantic_context *context,
 
         const char *class_name = class_ctx->name;
 
-        class_mapping_item item = {.class_name = class_name};
-        ds_dynamic_array_init(&item.attributes,
-                              sizeof(class_mapping_attribute));
-
-        parent_mapping_item *parent_item = NULL;
-        find_parent_mapping(parents, class_name, &parent_item);
+        semantic_mapping_item *parent_item = NULL;
+        find_class_mapping(mapping, class_ctx->name, &parent_item);
 
         while (parent_item != NULL) {
             class_context *current_ctx = NULL;
-            find_class_ctx(context, parent_item->name, &current_ctx);
+            find_class_ctx(context, parent_item->class_name, &current_ctx);
 
             for (unsigned int k = 0; k < current_ctx->objects.count; k++) {
                 object_context *object = NULL;
@@ -2056,10 +2089,10 @@ static void build_semantic_class_mapping(semantic_context *context,
 
                 const char *attribute_name = object->name;
 
-                class_mapping_attribute attr = {.name = attribute_name};
+                class_mapping_attribute attr = {.attribute_name = attribute_name};
 
                 class_node *class = NULL;
-                find_class_node(program, parent_item->name, &class);
+                find_class_node(program, parent_item->class_name, &class);
 
                 attribute_node *attribute = NULL;
                 if (class != NULL) {
@@ -2068,160 +2101,89 @@ static void build_semantic_class_mapping(semantic_context *context,
 
                 attr.attribute = attribute;
 
-                ds_dynamic_array_append(&item.attributes, &attr);
+                ds_dynamic_array_append(&item->attributes, &attr);
             }
 
             parent_item = parent_item->parent;
         }
 
-        ds_dynamic_array_reverse(&item.attributes);
-
-        ds_dynamic_array_append(&classes->items, &item);
+        ds_dynamic_array_reverse(&item->attributes);
     }
-}
 
-static void show_semantic_class_mapping(class_mapping *classes) {
-    for (unsigned int i = 0; i < classes->items.count; i++) {
-        class_mapping_item *item = NULL;
-        ds_dynamic_array_get_ref(&classes->items, i, (void **)&item);
+    // set the methods
+    for (unsigned int i = 0; i < mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
 
-        printf("%s\n", item->class_name);
-        for (unsigned int j = 0; j < item->attributes.count; j++) {
-            class_mapping_attribute *attribute = NULL;
-            ds_dynamic_array_get_ref(&item->attributes, j, (void **)&attribute);
+        class_context *class_ctx = NULL;
+        find_class_ctx(context, item->class_name, &class_ctx);
 
-            printf("  %s\n", attribute->name);
+        if (strcmp(class_ctx->name, SELF_TYPE) == 0) {
+            continue;
         }
-    }
-}
 
-static void build_implementations_mapping_class(
-    semantic_context *context, program_node *program, parent_mapping *parents,
-    implementation_mapping *implementations, unsigned int class_idx) {
-    class_context *class_ctx = NULL;
-    ds_dynamic_array_get_ref(&context->classes, class_idx, (void **)&class_ctx);
+        const char *class_name = class_ctx->name;
 
-    if (strcmp(class_ctx->name, SELF_TYPE) == 0) {
-        return;
-    }
 
-    const char *class_name = class_ctx->name;
+        ds_linked_list class_stack;
+        ds_linked_list_init(&class_stack, sizeof(class_context *));
 
-    class_context *current_ctx = NULL;
-    find_class_ctx(context, class_name, &current_ctx);
+        class_context *current_ctx = class_ctx;
+        while (current_ctx != NULL) {
+            ds_linked_list_push_front(&class_stack, &current_ctx);
 
-    ds_linked_list class_stack;
-    ds_linked_list_init(&class_stack, sizeof(class_context *));
+            current_ctx = current_ctx->parent;
+        }
 
-    while (current_ctx != NULL) {
-        ds_linked_list_push_front(&class_stack, &current_ctx);
+        while (ds_linked_list_empty(&class_stack) == 0)  {
+            class_context *current_ctx = NULL;
 
-        current_ctx = current_ctx->parent;
-    }
+            ds_linked_list_pop_front(&class_stack, &current_ctx);
 
-    ds_dynamic_array methods;
-    ds_dynamic_array_init(&methods, sizeof(implementation_mapping_item));
+            const char *parent_name = current_ctx->name;
 
-    while (ds_linked_list_empty(&class_stack) == 0)  {
-        class_context *current_ctx = NULL;
+            for (unsigned int i = 0; i < current_ctx->methods.count; i++) {
+                method_context *method_ctx = NULL;
+                ds_dynamic_array_get_ref(&current_ctx->methods, i, (void **)&method_ctx);
 
-        ds_linked_list_pop_front(&class_stack, &current_ctx);
+                const char *method_name = method_ctx->name;
 
-        const char *parent_name = current_ctx->name;
+                int found = 0;
+                unsigned int j = 0;
+                for (j = 0; j < item->methods.count; j++) {
+                    implementation_mapping_item *it = NULL;
+                    ds_dynamic_array_get_ref(&item->methods, j, (void **)&it);
 
-        for (unsigned int i = 0; i < current_ctx->methods.count; i++) {
-            method_context *method_ctx = NULL;
-            ds_dynamic_array_get_ref(&current_ctx->methods, i, (void **)&method_ctx);
+                    if (strcmp(it->method_name, method_name) == 0) {
+                        found = 1;
+                        break;
+                    }
+                }
 
-            const char *method_name = method_ctx->name;
+                class_node *class = NULL;
+                find_class_node(program, parent_name, &class);
 
-            int found = 0;
-            unsigned int j = 0;
-            for (j = 0; j < methods.count; j++) {
-                implementation_mapping_item *it = NULL;
-                ds_dynamic_array_get_ref(&methods, j, (void **)&it);
+                method_node *method = NULL;
+                if (class != NULL) {
+                    find_method_node(class, method_name, &method);
+                }
 
-                if (strcmp(it->class_name, class_name) == 0 &&
-                    strcmp(it->method_name, method_name) == 0) {
-                    found = 1;
-                    break;
+                if (!found) {
+                    implementation_mapping_item m = {.from_class = parent_name,
+                                                        .method_name = method_name,
+                                                        .method = method};
+
+                    ds_dynamic_array_append(&item->methods, &m);
+                } else {
+                    implementation_mapping_item *m = NULL;
+                    ds_dynamic_array_get_ref(&item->methods, j, (void **)&m);
+
+                    m->from_class = parent_name;
+                    m->method = method;
                 }
             }
-
-            class_node *class = NULL;
-            find_class_node(program, parent_name, &class);
-
-            method_node *method = NULL;
-            if (class != NULL) {
-                find_method_node(class, method_name, &method);
-            }
-
-            if (!found) {
-                implementation_mapping_item item = {.class_name = class_name,
-                                                    .parent_name = parent_name,
-                                                    .method_name = method_name,
-                                                    .method = method};
-
-                ds_dynamic_array_append(&methods, &item);
-            } else {
-                implementation_mapping_item *item = NULL;
-                ds_dynamic_array_get_ref(&methods, j, (void **)&item);
-
-                item->parent_name = parent_name;
-                item->method = method;
-            }
         }
     }
-
-    for (unsigned int j = 0; j < methods.count; j++) {
-        implementation_mapping_item *item = NULL;
-        ds_dynamic_array_get_ref(&methods, j, (void **)&item);
-
-        ds_dynamic_array_append(&implementations->items, item);
-    }
-}
-
-static void
-build_implementations_mapping(semantic_context *context, program_node *program,
-                              parent_mapping *parents,
-                              implementation_mapping *implementations) {
-    ds_dynamic_array_init(&implementations->items,
-                          sizeof(implementation_mapping_item));
-
-    for (unsigned int i = 0; i < context->classes.count; i++) {
-        build_implementations_mapping_class(context, program, parents,
-                                            implementations, i);
-    }
-}
-
-static void
-show_semantic_implementations_mapping(implementation_mapping *implementations) {
-    for (unsigned int i = 0; i < implementations->items.count; i++) {
-        implementation_mapping_item *item = NULL;
-        ds_dynamic_array_get_ref(&implementations->items, i, (void **)&item);
-
-        printf("%s@%s.%s\n", item->class_name, item->parent_name,
-               item->method_name);
-    }
-}
-
-void semantic_print_mapping(semantic_mapping *mapping) {
-    printf("parent_mapping\n");
-    show_semantic_parent_mapping(&mapping->parents);
-    printf("class_mapping\n");
-    show_semantic_class_mapping(&mapping->classes);
-    printf("implementations_mapping\n");
-    show_semantic_implementations_mapping(&mapping->implementations);
-}
-
-static void build_semantic_mapping(semantic_context *context,
-                                   program_node *program,
-                                   semantic_mapping *mapping) {
-    build_semantic_parent_mapping(context, program, &mapping->parents);
-    build_semantic_class_mapping(context, program, &mapping->parents,
-                                 &mapping->classes);
-    build_implementations_mapping(context, program, &mapping->parents,
-                                  &mapping->implementations);
 }
 
 enum semantic_result semantic_check(const char *filename, program_node *program,

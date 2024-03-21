@@ -17,45 +17,26 @@ enum semantic_result {
 };
 
 typedef struct class_mapping_attribute {
-        const char *name;
+        const char *attribute_name;
         const attribute_node *attribute;
 } class_mapping_attribute;
 
-typedef struct class_mapping_item {
-        const char *class_name;
-        ds_dynamic_array attributes; // class_mapping_attribute
-} class_mapping_item;
-
-typedef struct class_mapping {
-        ds_dynamic_array items; // class_mapping_item
-} class_mapping;
-
 typedef struct implementation_mapping_item {
-        const char *class_name;
-        const char *parent_name;
+        const char *from_class;
         const char *method_name;
         const method_node *method;
 } implementation_mapping_item;
 
-typedef struct implementation_mapping {
-        ds_dynamic_array items; // implementation_mapping_item
-} implementation_mapping;
+typedef struct semantic_mapping_item {
+        const char *class_name;
+        struct semantic_mapping_item *parent;
+        ds_dynamic_array attributes; // class_mapping_attribute
+        ds_dynamic_array methods; // implementation_mapping_item
+} semantic_mapping_item;
 
-typedef struct parent_mapping_item {
-        const char *name;
-        struct parent_mapping_item *parent;
-} parent_mapping_item;
-
-typedef struct parent_mapping {
-        ds_dynamic_array classes; // parent_mapping_item
-} parent_mapping;
-
-// TODO: Turn this inside out (only one array with a tuple of 3 elements)
 // TODO: do dfs search based on inheritance chain
 typedef struct semantic_mapping {
-        class_mapping classes;
-        implementation_mapping implementations;
-        parent_mapping parents;
+        ds_dynamic_array classes; // semantic_mapping_item
 } semantic_mapping;
 
 enum semantic_result semantic_check(const char *filename, program_node *program,
