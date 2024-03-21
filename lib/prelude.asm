@@ -40,10 +40,11 @@ _nl_len dq $ - _nl
 segment readable
 obj_tag dq 0
 obj_size dq 8
-int_slot dq 16
-bool_slot dq 16
-str_size dq 16
-str_field dq 24
+disp_tab dq 16
+int_slot dq 24
+bool_slot dq 24
+str_size dq 24
+str_field dq 32
 read_len dq 1024
 
 loc_0 = 8

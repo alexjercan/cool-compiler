@@ -209,7 +209,8 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
 
     switch (c.value.type) {
     case ASM_CONST_STR: {
-        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
+        assembler_emit_fmt(context, align, "object size", "dq %d", 5);
+        assembler_emit_fmt(context, align, "dispatch table", "dq String_dispTab");
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
                            c.value.str.len_label);
         ds_string_builder sb;
@@ -235,13 +236,15 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
         break;
     }
     case ASM_CONST_INT: {
-        assembler_emit_fmt(context, align, "object size", "dq %d", 3);
+        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
+        assembler_emit_fmt(context, align, "dispatch table", "dq Int_dispTab");
         assembler_emit_fmt(context, align, "integer value", "dq %d",
                            c.value.integer);
         break;
     }
     case ASM_CONST_BOOL: {
-        assembler_emit_fmt(context, align, "object size", "dq %d", 3);
+        assembler_emit_fmt(context, align, "object size", "dq %d", 4);
+        assembler_emit_fmt(context, align, "dispatch table", "dq Bool_dispTab");
         assembler_emit_fmt(context, align, "boolean value", "dq %d",
                            c.value.boolean);
         break;
@@ -369,7 +372,8 @@ static void assembler_emit_object_prototype(assembler_context *context,
     assembler_emit_fmt(context, 0, NULL, "%s_protObj:", class_name);
     assembler_emit_fmt(context, 4, "object tag", "dq %d", i);
     assembler_emit_fmt(context, 4, "object size", "dq %d",
-                       class->attributes.count + 2);
+                       class->attributes.count + 3);
+    assembler_emit_fmt(context, 4, NULL, "dq %s_dispTab", class_name);
 
     for (size_t j = 0; j < class->attributes.count; j++) {
         class_mapping_attribute *attr = NULL;
@@ -438,7 +442,7 @@ static void assembler_emit_load_variable(assembler_context *context,
             int offset = i;
             const char *comment = comment_fmt("load %s", ident);
             assembler_emit_fmt(context, 4, comment,
-                               "mov     rax, qword [rbx+%d]", 16 + 8 * offset);
+                               "mov     rax, qword [rbx+%d]", 24 + 8 * offset);
             return;
         }
     }
@@ -493,7 +497,7 @@ static void assembler_emit_store_variable(assembler_context *context,
             int offset = i;
             const char *comment = comment_fmt("store %s", ident);
             assembler_emit_fmt(context, 4, comment,
-                               "mov     qword [rbx+%d], rax", 16 + 8 * offset);
+                               "mov     qword [rbx+%d], rax", 24 + 8 * offset);
             return;
         }
     }
@@ -528,7 +532,7 @@ static void assembler_emit_get_attr(assembler_context *context, tac_result tac,
         ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attribute);
 
         if (strcmp(attribute->name, attr) == 0) {
-            attribute_slot = 16 + 8 * i;
+            attribute_slot = 24 + 8 * i;
             break;
         }
     }
@@ -571,7 +575,7 @@ static void assembler_emit_set_attr(assembler_context *context, tac_result tac,
         ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attribute);
 
         if (strcmp(attribute->name, attr) == 0) {
-            attribute_slot = 16 + 8 * i;
+            attribute_slot = 24 + 8 * i;
             break;
         }
     }
