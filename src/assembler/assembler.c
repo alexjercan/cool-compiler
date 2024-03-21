@@ -6,6 +6,13 @@
 #include "stdio.h"
 #include <stdarg.h>
 
+#define ASM_INDENT_SIZE 4
+
+#define WORD_SIZE 8
+#define LOCALS_OFFSET 8
+#define ARGUMENTS_OFFSET 16
+#define ATTRIBUTE_OFFSET 24
+
 enum asm_const_type {
     ASM_CONST_INT,
     ASM_CONST_STR,
@@ -210,7 +217,8 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
     switch (c.value.type) {
     case ASM_CONST_STR: {
         assembler_emit_fmt(context, align, "object size", "dq %d", 5);
-        assembler_emit_fmt(context, align, "dispatch table", "dq String_dispTab");
+        assembler_emit_fmt(context, align, "dispatch table",
+                           "dq String_dispTab");
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
                            c.value.str.len_label);
         ds_string_builder sb;
@@ -290,7 +298,8 @@ static void assembler_emit_class_name_table(assembler_context *context) {
 
         const char *comment =
             comment_fmt("pointer to class name %s", class_name);
-        assembler_emit_fmt(context, 4, comment, "dq %s", str_const->name);
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %s",
+                           str_const->name);
     }
 }
 
@@ -308,7 +317,8 @@ static void assembler_emit_attribute_init(assembler_context *context,
                               .integer = atoi(node->value.integer.value)},
             &int_const);
 
-        assembler_emit_fmt(context, 4, comment, "dq %s", int_const->name);
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %s",
+                           int_const->name);
         break;
     }
     case EXPR_BOOL: {
@@ -320,7 +330,8 @@ static void assembler_emit_attribute_init(assembler_context *context,
                 .boolean = strcmp(node->value.boolean.value, "true") ? 1 : 0},
             &bool_const);
 
-        assembler_emit_fmt(context, 4, comment, "dq %s", bool_const->name);
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %s",
+                           bool_const->name);
         break;
     }
     case EXPR_STRING: {
@@ -339,23 +350,24 @@ static void assembler_emit_attribute_init(assembler_context *context,
                 .str = {int_const->name, node->value.string.value}},
             &str_const);
 
-        assembler_emit_fmt(context, 4, comment, "dq %s", str_const->name);
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %s",
+                           str_const->name);
         break;
     }
     case EXPR_EXTERN: {
         if (strcmp(node->type.value, STRING_TYPE) == 0) {
-            assembler_emit_fmt(context, 4, comment, "dq \"\"");
+            assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq \"\"");
         } else if (strcmp(node->type.value, INT_TYPE) == 0) {
-            assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+            assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %d", 0);
         } else if (strcmp(node->type.value, BOOL_TYPE) == 0) {
-            assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+            assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %d", 0);
         } else {
-            assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+            assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %d", 0);
         }
         break;
     }
     default:
-        assembler_emit_fmt(context, 4, comment, "dq %d", 0);
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "dq %d", 0);
         break;
     }
 }
@@ -370,10 +382,11 @@ static void assembler_emit_object_prototype(assembler_context *context,
 
     assembler_emit(context, "segment readable");
     assembler_emit_fmt(context, 0, NULL, "%s_protObj:", class_name);
-    assembler_emit_fmt(context, 4, "object tag", "dq %d", i);
-    assembler_emit_fmt(context, 4, "object size", "dq %d",
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, "object tag", "dq %d", i);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, "object size", "dq %d",
                        class->attributes.count + 3);
-    assembler_emit_fmt(context, 4, NULL, "dq %s_dispTab", class_name);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "dq %s_dispTab",
+                       class_name);
 
     for (size_t j = 0; j < class->attributes.count; j++) {
         class_mapping_attribute *attr = NULL;
@@ -394,7 +407,8 @@ static void assembler_emit_load_variable(assembler_context *context,
                                          tac_result *tac, char *ident) {
     if (strcmp(ident, "self") == 0) {
         const char *comment = comment_fmt("load self");
-        assembler_emit_fmt(context, 4, comment, "mov     rax, rbx");
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
+                           "mov     rax, rbx");
         return;
     }
 
@@ -406,9 +420,9 @@ static void assembler_emit_load_variable(assembler_context *context,
             if (strcmp(local, ident) == 0) {
                 int offset = i;
                 const char *comment = comment_fmt("load %s", ident);
-                assembler_emit_fmt(context, 4, comment,
+                assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
                                    "mov     rax, qword [rbp-%d]",
-                                   8 + 8 * offset);
+                                   LOCALS_OFFSET + WORD_SIZE * offset);
                 return;
             }
         }
@@ -425,9 +439,9 @@ static void assembler_emit_load_variable(assembler_context *context,
             if (strcmp(formal->name.value, ident) == 0) {
                 int offset = i;
                 const char *comment = comment_fmt("load %s", ident);
-                assembler_emit_fmt(context, 4, comment,
+                assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
                                    "mov     rax, qword [rbp+%d]",
-                                   16 + 8 * offset);
+                                   ARGUMENTS_OFFSET + WORD_SIZE * offset);
                 return;
             }
         }
@@ -441,8 +455,9 @@ static void assembler_emit_load_variable(assembler_context *context,
         if (strcmp(attribute->name, ident) == 0) {
             int offset = i;
             const char *comment = comment_fmt("load %s", ident);
-            assembler_emit_fmt(context, 4, comment,
-                               "mov     rax, qword [rbx+%d]", 24 + 8 * offset);
+            assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
+                               "mov     rax, qword [rbx+%d]",
+                               ATTRIBUTE_OFFSET + WORD_SIZE * offset);
             return;
         }
     }
@@ -461,9 +476,9 @@ static void assembler_emit_store_variable(assembler_context *context,
             if (strcmp(local, ident) == 0) {
                 int offset = i;
                 const char *comment = comment_fmt("store %s", ident);
-                assembler_emit_fmt(context, 4, comment,
+                assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
                                    "mov     qword [rbp-%d], rax",
-                                   8 + 8 * offset);
+                                   LOCALS_OFFSET + WORD_SIZE * offset);
                 return;
             }
         }
@@ -480,9 +495,9 @@ static void assembler_emit_store_variable(assembler_context *context,
             if (strcmp(formal->name.value, ident) == 0) {
                 int offset = i;
                 const char *comment = comment_fmt("store %s", ident);
-                assembler_emit_fmt(context, 4, comment,
+                assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
                                    "mov     qword [rbp+%d], rax",
-                                   16 + 8 * offset);
+                                   ARGUMENTS_OFFSET + WORD_SIZE * offset);
                 return;
             }
         }
@@ -496,8 +511,9 @@ static void assembler_emit_store_variable(assembler_context *context,
         if (strcmp(attribute->name, ident) == 0) {
             int offset = i;
             const char *comment = comment_fmt("store %s", ident);
-            assembler_emit_fmt(context, 4, comment,
-                               "mov     qword [rbx+%d], rax", 24 + 8 * offset);
+            assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
+                               "mov     qword [rbx+%d], rax",
+                               ATTRIBUTE_OFFSET + WORD_SIZE * offset);
             return;
         }
     }
@@ -532,7 +548,7 @@ static void assembler_emit_get_attr(assembler_context *context, tac_result tac,
         ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attribute);
 
         if (strcmp(attribute->name, attr) == 0) {
-            attribute_slot = 24 + 8 * i;
+            attribute_slot = ATTRIBUTE_OFFSET + WORD_SIZE * i;
             break;
         }
     }
@@ -544,8 +560,10 @@ static void assembler_emit_get_attr(assembler_context *context, tac_result tac,
     assembler_emit_load_variable(context, &tac, ident);
 
     comment = comment_fmt("get %s.%s", ident, attr);
-    assembler_emit_fmt(context, 4, NULL, "add     rax, %d", attribute_slot);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, qword [rax]");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rax, %d",
+                       attribute_slot);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
+                       "mov     rax, qword [rax]");
 }
 
 // ident.attr <- rax
@@ -575,7 +593,7 @@ static void assembler_emit_set_attr(assembler_context *context, tac_result tac,
         ds_dynamic_array_get_ref(&class->attributes, i, (void **)&attribute);
 
         if (strcmp(attribute->name, attr) == 0) {
-            attribute_slot = 24 + 8 * i;
+            attribute_slot = ATTRIBUTE_OFFSET + WORD_SIZE * i;
             break;
         }
     }
@@ -584,25 +602,29 @@ static void assembler_emit_set_attr(assembler_context *context, tac_result tac,
         DS_PANIC("unreachable");
     }
 
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
     assembler_emit_load_variable(context, &tac, ident);
 
-    assembler_emit_fmt(context, 4, NULL, "xchg    rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "xchg    rdi, rax");
 
     comment = comment_fmt("set %s.%s", ident, attr);
-    assembler_emit_fmt(context, 4, NULL, "add     rdi, %d", attribute_slot);
-    assembler_emit_fmt(context, 4, comment, "mov     qword [rdi], rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rdi, %d",
+                       attribute_slot);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
+                       "mov     qword [rdi], rax");
 }
 
 // rax <- new TYPE
 static void assembler_emit_new_type(assembler_context *context, char *type) {
     const char *comment = NULL;
 
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s_protObj", type);
-    assembler_emit_fmt(context, 4, NULL, "call    Object.copy");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL,
+                       "mov     rax, %s_protObj", type);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    Object.copy");
     comment = comment_fmt("new %s", type);
-    assembler_emit_fmt(context, 4, comment, "call    %s_init", type);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "call    %s_init",
+                       type);
 }
 
 // TAC => ASM
@@ -617,7 +639,8 @@ static void assembler_emit_tac_label(assembler_context *context, tac_result tac,
 
 static void assembler_emit_tac_jump(assembler_context *context, tac_result tac,
                                     tac_jump jump) {
-    assembler_emit_fmt(context, 4, NULL, "jmp     .%s", jump.label);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "jmp     .%s",
+                       jump.label);
 }
 
 static void assembler_emit_tac_jump_if_true(assembler_context *context,
@@ -627,14 +650,16 @@ static void assembler_emit_tac_jump_if_true(assembler_context *context,
 
     assembler_emit_get_attr(context, tac, jump.expr, "Bool", "val");
 
-    assembler_emit_fmt(context, 4, NULL, "test    rax, rax");
-    assembler_emit_fmt(context, 4, NULL, "jnz     .%s", jump.label);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "test    rax, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "jnz     .%s",
+                       jump.label);
 }
 
 static void assembler_emit_tac_assign_isinstance(assembler_context *context,
                                                  tac_result tac,
                                                  tac_isinstance instr) {
-    // TODO: does not feel right we might actually need the dispatch table after all
+    // TODO: does not feel right we might actually need the dispatch table after
+    // all
 
     const char *comment = NULL;
 
@@ -662,17 +687,18 @@ static void assembler_emit_tac_assign_isinstance(assembler_context *context,
 
     // check if address of t0 is equal to address of type
     comment = comment_fmt("isinstance %s", instr.type);
-    assembler_emit_fmt(context, 4, NULL, "cmp     rax, %s", type_const->name);
-    assembler_emit_fmt(context, 4, NULL, "sete    al");
-    assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "cmp     rax, %s",
+                       type_const->name);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "sete    al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "movzx   rax, al");
 
-    assembler_emit_fmt(context, 4, NULL, "push    rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rax");
 
     // t0 <- new Bool
     assembler_emit_new_type(context, "Bool");
     assembler_emit_store_variable(context, &tac, instr.ident);
 
-    assembler_emit_fmt(context, 4, NULL, "pop     rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rax");
 
     // set t0.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
@@ -708,12 +734,13 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
         assembler_emit_load_variable(context, &tac, arg);
 
         const char *comment = comment_fmt("arg0: %s", arg);
-        assembler_emit_fmt(context, 4, comment, "push    rax");
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "push    rax");
     }
 
     if (strcmp(instr.expr, "self") == 0) {
         const char *comment = comment_fmt("load self");
-        assembler_emit_fmt(context, 4, comment, "mov     rax, rbx");
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment,
+                           "mov     rax, rbx");
     } else {
         assembler_emit_load_variable(context, &tac, instr.expr);
     }
@@ -736,7 +763,7 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
             continue;
         }
 
-        assembler_emit_fmt(context, 4, NULL, "call    %s.%s",
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    %s.%s",
                            method->parent_name, method->method_name);
 
         break;
@@ -745,8 +772,8 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
     assembler_emit_store_variable(context, &tac, instr.ident);
 
     const char *comment = comment_fmt("free %d args", instr.args.count);
-    assembler_emit_fmt(context, 4, comment, "add     rsp, %d",
-                       8 * instr.args.count);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "add     rsp, %d",
+                       WORD_SIZE * instr.args.count);
 }
 
 static void assembler_emit_tac_assign_new(assembler_context *context,
@@ -768,7 +795,7 @@ static void assembler_emit_tac_assign_default(assembler_context *context,
             &int_const);
 
         const char *comment = comment_fmt("default %s", instr.type);
-        assembler_emit_fmt(context, 4, comment, "mov     rax, %s",
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "mov     rax, %s",
                            int_const->name);
     } else if (strcmp(instr.type, "String") == 0) {
         asm_const *int_const = NULL;
@@ -783,7 +810,7 @@ static void assembler_emit_tac_assign_default(assembler_context *context,
                             &str_const);
 
         const char *comment = comment_fmt("default %s", instr.type);
-        assembler_emit_fmt(context, 4, comment, "mov     rax, %s",
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "mov     rax, %s",
                            str_const->name);
     } else if (strcmp(instr.type, "Bool") == 0) {
         asm_const *bool_const = NULL;
@@ -792,11 +819,11 @@ static void assembler_emit_tac_assign_default(assembler_context *context,
             &bool_const);
 
         const char *comment = comment_fmt("default %s", instr.type);
-        assembler_emit_fmt(context, 4, comment, "mov     rax, %s",
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "mov     rax, %s",
                            bool_const->name);
     } else {
         // any other type is null
-        assembler_emit_fmt(context, 4, NULL, "mov     rax, 0");
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, 0");
     }
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
@@ -810,11 +837,11 @@ static void assembler_emit_tac_assign_isvoid(assembler_context *context,
 
     // compare expr to 0
     assembler_emit_load_variable(context, &tac, instr.expr);
-    assembler_emit_fmt(context, 4, NULL, "test    rax, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "test    rax, rax");
 
     // set rax to 1 if rax == 0
-    assembler_emit_fmt(context, 4, NULL, "setz    al");
-    assembler_emit_fmt(context, 4, NULL, "movzx   rax, al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "setz    al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "movzx   rax, al");
 
     // set t0.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
@@ -831,13 +858,13 @@ static void assembler_emit_tac_assign_add(assembler_context *context,
 
     // set rdi to t1
     assembler_emit_get_attr(context, tac, instr.lhs, "Int", "val");
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
     // set rax to t2
     assembler_emit_get_attr(context, tac, instr.rhs, "Int", "val");
 
     // set rax to t1 + t2
-    assembler_emit_fmt(context, 4, NULL, "add     rax, rdi");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rax, rdi");
 
     // set t0.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Int", "val");
@@ -854,13 +881,13 @@ static void assembler_emit_tac_assign_sub(assembler_context *context,
 
     // set rax to t2
     assembler_emit_get_attr(context, tac, instr.rhs, "Int", "val");
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
     // set rdi to t1
     assembler_emit_get_attr(context, tac, instr.lhs, "Int", "val");
 
     // set rax to t1 - t2
-    assembler_emit_fmt(context, 4, NULL, "sub     rax, rdi");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "sub     rax, rdi");
 
     // set t0.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Int", "val");
@@ -877,13 +904,13 @@ static void assembler_emit_tac_assign_mul(assembler_context *context,
 
     // set rdi to t1
     assembler_emit_get_attr(context, tac, instr.lhs, "Int", "val");
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
     // set rax to t2
     assembler_emit_get_attr(context, tac, instr.rhs, "Int", "val");
 
     // set rax to t1 * t2
-    assembler_emit_fmt(context, 4, NULL, "mul     rdi");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mul     rdi");
 
     // set t0.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Int", "val");
@@ -900,14 +927,14 @@ static void assembler_emit_tac_assign_div(assembler_context *context,
 
     // set rax to t2
     assembler_emit_get_attr(context, tac, instr.rhs, "Int", "val");
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
     // set rdi to t1
     assembler_emit_get_attr(context, tac, instr.lhs, "Int", "val");
 
     // set rax to t1 / t2
-    assembler_emit_fmt(context, 4, NULL, "xor     rdx, rdx");
-    assembler_emit_fmt(context, 4, NULL, "div     rdi");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "xor     rdx, rdx");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "div     rdi");
 
     // set t0.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Int", "val");
@@ -924,7 +951,7 @@ static void assembler_emit_tac_assign_neg(assembler_context *context,
 
     // set rax to ~t0.val
     assembler_emit_get_attr(context, tac, instr.expr, "Int", "val");
-    assembler_emit_fmt(context, 4, comment, "neg     rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "neg     rax");
 
     // set t1 to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
@@ -941,17 +968,17 @@ static void assembler_emit_tac_assign_lt(assembler_context *context,
 
     // set rdi to t0
     assembler_emit_get_attr(context, tac, instr.lhs, "Int", "val");
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
     // set rax to t1
     assembler_emit_get_attr(context, tac, instr.rhs, "Int", "val");
 
     // set rax to t0 < t1
-    assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
-    assembler_emit_fmt(context, 4, NULL, "setl    al");
-    assembler_emit_fmt(context, 4, NULL, "and     al, 1");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "cmp     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "setl    al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "and     al, 1");
     comment = comment_fmt("%s.val < %s.val", instr.lhs, instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "movzx   rax, al");
 
     // set t2.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
@@ -968,17 +995,17 @@ static void assembler_emit_tac_assign_le(assembler_context *context,
 
     // set rdi to t0
     assembler_emit_get_attr(context, tac, instr.lhs, "Int", "val");
-    assembler_emit_fmt(context, 4, NULL, "mov     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
     // set rax to t1
     assembler_emit_get_attr(context, tac, instr.rhs, "Int", "val");
 
     // set rax to t0 <= t1
-    assembler_emit_fmt(context, 4, NULL, "cmp     rdi, rax");
-    assembler_emit_fmt(context, 4, NULL, "setle   al");
-    assembler_emit_fmt(context, 4, NULL, "and     al, 1");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "cmp     rdi, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "setle   al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "and     al, 1");
     comment = comment_fmt("%s.val < %s.val", instr.lhs, instr.rhs);
-    assembler_emit_fmt(context, 4, comment, "movzx   rax, al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "movzx   rax, al");
 
     // set t2.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
@@ -1015,7 +1042,7 @@ static void assembler_emit_tac_assign_not(assembler_context *context,
 
     // set rax to not t0.val
     assembler_emit_get_attr(context, tac, instr.expr, "Bool", "val");
-    assembler_emit_fmt(context, 4, NULL, "xor     rax, 1");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "xor     rax, 1");
 
     // set t1.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
@@ -1036,7 +1063,8 @@ static void assembler_emit_tac_assign_int(assembler_context *context,
         &int_const);
 
     const char *comment = comment_fmt("load %d", instr.value);
-    assembler_emit_fmt(context, 4, comment, "mov     rax, %s", int_const->name);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "mov     rax, %s",
+                       int_const->name);
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
 
@@ -1056,7 +1084,8 @@ static void assembler_emit_tac_assign_string(assembler_context *context,
                           .str = {int_const->name, instr.value}},
         &str_const);
 
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", str_const->name);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, %s",
+                       str_const->name);
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
 
@@ -1069,7 +1098,8 @@ static void assembler_emit_tac_assign_bool(assembler_context *context,
         (asm_const_value){.type = ASM_CONST_BOOL, .boolean = instr.value},
         &bool_const);
 
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, %s", bool_const->name);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, %s",
+                       bool_const->name);
     assembler_emit_store_variable(context, &tac, instr.ident);
 }
 
@@ -1146,18 +1176,18 @@ static void assembler_emit_expr(assembler_context *context,
     codegen_expr_to_tac(expr, &tac);
 
     const char *comment = comment_fmt("allocate %d locals", tac.locals.count);
-    assembler_emit_fmt(context, 4, comment, "sub     rsp, %d",
-                       8 * tac.locals.count);
-    assembler_emit_fmt(context, 4, NULL, "push    rbx");
-    assembler_emit_fmt(context, 4, NULL, "mov     rbx, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "sub     rsp, %d",
+                       WORD_SIZE * tac.locals.count);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbx");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbx, rax");
 
     for (size_t j = 0; j < tac.instrs.count; j++) {
         assembler_emit_tac(context, tac, j);
     }
 
-    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
-    assembler_emit_fmt(context, 4, NULL, "add     rsp, %d",
-                       8 * tac.locals.count);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbx");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rsp, %d",
+                       WORD_SIZE * tac.locals.count);
 }
 
 static void assembler_emit_object_init_attribute(assembler_context *context,
@@ -1171,7 +1201,7 @@ static void assembler_emit_object_init_attribute(assembler_context *context,
         return;
     }
 
-    assembler_emit_fmt(context, 4, NULL, "mov     rax, rbx");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, rbx");
     assembler_emit_expr(context, &attr->attribute->value);
 
     const char *comment = comment_fmt("init %s", attr->name);
@@ -1194,12 +1224,13 @@ static void assembler_emit_object_init(assembler_context *context,
 
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s_init:", classp->name);
-    assembler_emit_fmt(context, 4, NULL, "push    rbp");
-    assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
-    assembler_emit_fmt(context, 4, NULL, "push    rbx");
-    assembler_emit_fmt(context, 4, "save self", "mov     rbx, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbp");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbp, rsp");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbx");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, "save self",
+                       "mov     rbx, rax");
     if (classp->parent != NULL) {
-        assembler_emit_fmt(context, 4, NULL, "call    %s_init",
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    %s_init",
                            classp->parent->name);
     }
 
@@ -1212,10 +1243,11 @@ static void assembler_emit_object_init(assembler_context *context,
     assembler_emit_object_init_attributes(context);
     context->current_class = NULL;
 
-    assembler_emit_fmt(context, 4, "restore self", "mov     rax, rbx");
-    assembler_emit_fmt(context, 4, NULL, "pop     rbx");
-    assembler_emit_fmt(context, 4, NULL, "pop     rbp");
-    assembler_emit_fmt(context, 4, NULL, "ret");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, "restore self",
+                       "mov     rax, rbx");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbx");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbp");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "ret");
 }
 
 static void assembler_emit_object_inits(assembler_context *context) {
@@ -1251,8 +1283,8 @@ static void assembler_emit_method(assembler_context *context,
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s.%s:", method->parent_name,
                        method->method_name);
-    assembler_emit_fmt(context, 4, NULL, "push    rbp");
-    assembler_emit_fmt(context, 4, NULL, "mov     rbp, rsp");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbp");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbp, rsp");
 
     context->current_class = class;
     context->current_method = method;
@@ -1260,8 +1292,8 @@ static void assembler_emit_method(assembler_context *context,
     context->current_method = NULL;
     context->current_class = NULL;
 
-    assembler_emit_fmt(context, 4, NULL, "pop     rbp");
-    assembler_emit_fmt(context, 4, NULL, "ret");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbp");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "ret");
 }
 
 static void assembler_emit_methods(assembler_context *context) {
@@ -1270,7 +1302,8 @@ static void assembler_emit_methods(assembler_context *context) {
     }
 }
 
-static void assembler_emit_dispatch_table(assembler_context *context, size_t class_idx) {
+static void assembler_emit_dispatch_table(assembler_context *context,
+                                          size_t class_idx) {
     class_mapping_item *class = NULL;
     ds_dynamic_array_get_ref(&context->mapping->classes.items, class_idx,
                              (void **)&class);
@@ -1289,8 +1322,8 @@ static void assembler_emit_dispatch_table(assembler_context *context, size_t cla
             continue;
         }
 
-        assembler_emit_fmt(context, 4, NULL, "dq %s.%s", method->parent_name,
-                           method->method_name);
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "dq %s.%s",
+                           method->parent_name, method->method_name);
     }
 }
 
