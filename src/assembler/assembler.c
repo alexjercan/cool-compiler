@@ -659,7 +659,7 @@ static void assembler_emit_tac_jump_if_true(assembler_context *context,
 static void assembler_emit_tac_assign_isinstance(assembler_context *context,
                                                  tac_result tac,
                                                  tac_isinstance instr) {
-    // TODO: does not feel right
+    // TODO: compare tags, but first todo semantic mapping
     const char *comment = NULL;
 
     asm_const *type_const = NULL;
@@ -706,8 +706,6 @@ static void assembler_emit_tac_assign_isinstance(assembler_context *context,
 static void assembler_emit_tac_assign_cast(assembler_context *context,
                                            tac_result tac,
                                            tac_cast isinstance) {
-    // TODO: might need to change the tag of the object
-
     // t0 <- expr
     assembler_emit_load_variable(context, &tac, isinstance.expr);
     assembler_emit_store_variable(context, &tac, isinstance.ident);

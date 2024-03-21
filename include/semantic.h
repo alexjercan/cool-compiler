@@ -50,6 +50,8 @@ typedef struct parent_mapping {
         ds_dynamic_array classes; // parent_mapping_item
 } parent_mapping;
 
+// TODO: Turn this inside out (only one array with a tuple of 3 elements)
+// TODO: do dfs search based on inheritance chain
 typedef struct semantic_mapping {
         class_mapping classes;
         implementation_mapping implementations;
