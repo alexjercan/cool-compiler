@@ -10,9 +10,6 @@
 #include "semantic.h"
 
 // Add support for the following:
-// - class_nameTable (done)
-// - X_methods (done)
-// - X_init (done)
 // - case
 //
 // External things:
@@ -22,6 +19,7 @@
 // - abort for case on void
 // - abort for case on no match
 // - exception handling
+// - copy more test cases from older project
 //
 // Future plans:
 // - add graphics to IO
