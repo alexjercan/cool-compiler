@@ -74,13 +74,6 @@ static void tac_dispatch_full(tac_context *context,
     tac_instr expr;
     tac_expr(context, dispatch_full->expr, instrs, &expr);
 
-    char *type;
-    if (dispatch_full->type.value != NULL) {
-        type = dispatch_full->type.value;
-    } else {
-        type = (char *)dispatch_full->expr->type;
-    }
-
     char *ident;
     tac_new_var(context, &ident);
     tac_instr instr = {
@@ -88,7 +81,7 @@ static void tac_dispatch_full(tac_context *context,
         .dispatch_call =
             {
                 .ident = ident,
-                .type = type,
+                .type = (char *)dispatch_full->type.value,
                 .expr = expr.ident.name,
                 .method = dispatch_full->dispatch->method.value,
                 .args = args,
@@ -112,8 +105,8 @@ static void tac_dispatch(tac_context *context, dispatch_node *dispatch,
         .dispatch_call =
             {
                 .ident = ident,
-                .type = "SELF_TYPE",
-                .expr = "self",
+                .type = NULL,
+                .expr = NULL,
                 .method = dispatch->method.value,
                 .args = args,
             },

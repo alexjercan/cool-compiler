@@ -23,8 +23,18 @@ static void print_tac_assign_value(tac_assign_value assign_value) {
 }
 
 static void print_tac_dispatch_call(tac_dispatch_call dispatch_call) {
-    printf("%s <- %s@%s.%s(", dispatch_call.ident, dispatch_call.expr,
-           dispatch_call.type, dispatch_call.method);
+    printf("%s <- ", dispatch_call.ident);
+
+    if (dispatch_call.expr != NULL) {
+        printf("%s", dispatch_call.expr);
+        if (dispatch_call.type != NULL) {
+            printf("@%s", dispatch_call.type);
+        }
+        printf(".");
+    }
+
+    printf("%s(", dispatch_call.method);
+
     for (unsigned int i = 0; i < dispatch_call.args.count; i++) {
         char *arg;
         ds_dynamic_array_get(&dispatch_call.args, i, &arg);
