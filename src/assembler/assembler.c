@@ -1194,6 +1194,9 @@ static void assembler_emit_expr(assembler_context *context,
     tac_result tac;
     codegen_expr_to_tac(expr, &tac);
 
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbp");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbp, rsp");
+
     const char *comment = comment_fmt("allocate %d locals", tac.locals.count);
     assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "sub     rsp, %d",
                        WORD_SIZE * tac.locals.count);
@@ -1207,6 +1210,7 @@ static void assembler_emit_expr(assembler_context *context,
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbx");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rsp, %d",
                        WORD_SIZE * tac.locals.count);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbp");
 }
 
 static void assembler_emit_object_init_attribute(assembler_context *context,
@@ -1246,8 +1250,7 @@ static void assembler_emit_object_init(assembler_context *context,
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbp");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbp, rsp");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbx");
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, "save self",
-                       "mov     rbx, rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbx, rax");
     if (classp->parent != NULL) {
         assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    %s_init",
                            classp->parent->name);
@@ -1302,16 +1305,12 @@ static void assembler_emit_method(assembler_context *context,
     assembler_emit(context, "segment readable executable");
     assembler_emit_fmt(context, 0, NULL, "%s.%s:", method->parent_name,
                        method->method_name);
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbp");
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbp, rsp");
-
     context->current_class = class;
     context->current_method = method;
     assembler_emit_expr(context, &method->method->body);
     context->current_method = NULL;
     context->current_class = NULL;
 
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbp");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "ret");
 }
 
