@@ -115,6 +115,7 @@ DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
 DSHDEF void ds_dynamic_array_get_ref(ds_dynamic_array *da, unsigned int index,
                                      void **item);
 DSHDEF int ds_dynamic_array_copy(ds_dynamic_array *da, ds_dynamic_array *copy);
+DSHDEF void ds_dynamic_array_sort(ds_dynamic_array *da, int (*compare)(const void *, const void *));
 DSHDEF int ds_dynamic_array_reverse(ds_dynamic_array *da);
 DSHDEF int ds_dynamic_array_swap(ds_dynamic_array *da, unsigned int index1,
                                  unsigned int index2);
@@ -954,6 +955,10 @@ DSHDEF int ds_dynamic_array_copy(ds_dynamic_array *da, ds_dynamic_array *copy) {
 
 defer:
     return result;
+}
+
+DSHDEF void ds_dynamic_array_sort(ds_dynamic_array *da, int (*compare)(const void *, const void *)) {
+    qsort(da->items, da->count, da->item_size, compare);
 }
 
 // Reverse the dynamic array
