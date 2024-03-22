@@ -418,7 +418,7 @@ static void tac_case(tac_context *context, case_node *case_,
         ds_dynamic_array_get(&indices, j, &i);
 
         char *case_label;
-        ds_dynamic_array_get(&case_labels, i, &case_label);
+        ds_dynamic_array_get(&case_labels, j, &case_label);
 
         // CASE_LABEL:
         tac_instr label_case_instr = {
@@ -599,7 +599,7 @@ static void tac_identifier(tac_context *context, node_info *ident,
 
     for (unsigned int i = 0; i < context->mapping.count; i++) {
         tac_assign_value assign_value;
-        ds_dynamic_array_get(&context->mapping, i, &assign_value);
+        ds_dynamic_array_get(&context->mapping, context->mapping.count - i - 1, &assign_value);
 
         if (strcmp(assign_value.ident, ident->value) == 0) {
             result->ident.name = assign_value.expr;

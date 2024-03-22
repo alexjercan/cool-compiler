@@ -11,6 +11,8 @@
 #define WORD_SIZE 8
 #define LOCALS_OFFSET 8
 #define ARGUMENTS_OFFSET 16
+#define OBJTAG_OFFSET 0
+#define OBJSIZE_OFFSET 8
 #define DISPTABLE_OFFSET 16
 #define ATTRIBUTE_OFFSET 24
 
@@ -654,54 +656,76 @@ static void assembler_emit_tac_jump_if_true(assembler_context *context,
 static void assembler_emit_tac_assign_isinstance(assembler_context *context,
                                                  tac_result tac,
                                                  tac_isinstance instr) {
-    // TODO: compare tags, but first todo semantic mapping
     const char *comment = NULL;
 
-    asm_const *type_const = NULL;
-    assembler_find_const(
-        context,
-        (asm_const_value){.type = ASM_CONST_STR, .str = {NULL, instr.type}},
-        &type_const);
+    size_t start_index = 0;
+    for (size_t i = 0; i < context->mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&context->mapping->classes, i, (void **)&item);
 
-    ds_dynamic_array args;
-    ds_dynamic_array_init(&args, sizeof(char *));
+        if (strcmp(item->class_name, instr.type) == 0) {
+            start_index = i;
+            break;
+        }
+    }
 
-    tac_dispatch_call type_name_call = {
-        .ident = instr.ident,
-        .expr = instr.expr,
-        .type = "Object",
-        .method = "type_name",
-        .args = args,
-    };
+    semantic_mapping_item *item = NULL;
+    ds_dynamic_array_get_ref(&context->mapping->classes, start_index, (void **)&item);
 
-    // t0 <- expr@Object.type_name()
-    assembler_emit_tac_dispatch_call(context, tac, type_name_call);
+    semantic_mapping_item *parent = item->parent;
+    size_t end_index = start_index;
 
-    assembler_emit_load_variable(context, &tac, instr.ident);
+    for (size_t i = start_index + 1; i < context->mapping->classes.count; i++) {
+        semantic_mapping_item *current = NULL;
+        ds_dynamic_array_get_ref(&context->mapping->classes, i, (void **)&current);
 
-    // check if address of t0 is equal to address of type
-    comment = comment_fmt("isinstance %s", instr.type);
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "cmp     rax, %s",
-                       type_const->name);
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "sete    al");
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "movzx   rax, al");
+        int found = 0;
+        while (current != NULL) {
+            if (strcmp(current->class_name, instr.type) == 0) {
+                found = 1;
+                break;
+            }
 
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rax");
+            current = current->parent;
+        }
+
+        if (found == 0) {
+            break;
+        }
+
+        end_index = i;
+    }
 
     // t0 <- new Bool
     assembler_emit_new_type(context, "Bool");
     assembler_emit_store_variable(context, &tac, instr.ident);
 
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rax");
+    // get tag of expr in rdi
+    comment = comment_fmt("get tag(%s)", instr.expr);
+    assembler_emit_load_variable(context, &tac, instr.expr);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rax, %d", OBJTAG_OFFSET);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "mov     rax, qword [rax]");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
-    // set t0.val to rax
+    // start_index <= tag
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "cmp     rdi, %d", start_index);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "setge   al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "movzx   rsi, al");
+
+    // tag <= end_index
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "cmp     rdi, %d", end_index);
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "setle   al");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "movzx   rax, al");
+
+    // t0.val <- start_index <= tag && tag <= end_index
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "and     rax, rsi");
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");
 }
 
 static void assembler_emit_tac_assign_cast(assembler_context *context,
                                            tac_result tac,
                                            tac_cast isinstance) {
-    // t0 <- expr
+    // t0 <- expr; not needed
     assembler_emit_load_variable(context, &tac, isinstance.expr);
     assembler_emit_store_variable(context, &tac, isinstance.ident);
 }
