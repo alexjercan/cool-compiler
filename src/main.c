@@ -10,10 +10,6 @@
 #include "semantic.h"
 
 // Add support for the following:
-// - case using dfs (need to have each chain of inheritance in a contiguous block)
-//
-// External things:
-// - implement external features (done)
 // - implement equality (as a method)
 // - abort for dispatch on void
 // - abort for case on void
