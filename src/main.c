@@ -22,10 +22,9 @@
 // - copy more test cases from older project
 //
 // Future plans:
-// - add graphics to IO
+// - add a new class Linux for the syscalls and implement a prelude for it
 // - implement a better main/build system
-// - extend external classes
-// - maybe with some kind of macros (being able to do syscalls and pointers)
+// - add graphics to IO
 
 int main(int argc, char **argv) {
     int result = 0;
