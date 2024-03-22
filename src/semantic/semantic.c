@@ -2011,15 +2011,40 @@ void semantic_print_mapping(semantic_mapping *mapping) {
     }
 }
 
+static void search_dfs_class_tree(semantic_context *context,
+                                  program_node *program,
+                                  class_context *current_ctx,
+                                  ds_linked_list *class_queue) {
+    // TODO: maybe do it iteratively
+    ds_linked_list_push_back(class_queue, &current_ctx);
+
+    for (unsigned int i = 0; i < context->classes.count; i++) {
+        class_context *child_ctx = NULL;
+        ds_dynamic_array_get_ref(&context->classes, i, (void **)&child_ctx);
+
+        if (child_ctx->parent == current_ctx) {
+            search_dfs_class_tree(context, program, child_ctx, class_queue);
+        }
+    }
+}
+
 static void build_semantic_mapping(semantic_context *context,
                                    program_node *program,
                                    semantic_mapping *mapping) {
+    ds_linked_list class_queue;
+    ds_linked_list_init(&class_queue, sizeof(class_context *));
+
+    class_context *root = NULL;
+    find_class_ctx(context, OBJECT_TYPE, &root);
+
+    search_dfs_class_tree(context, program, root, &class_queue);
+
     ds_dynamic_array_init(&mapping->classes, sizeof(semantic_mapping_item));
 
     // Initialize each class
-    for (unsigned int i = 0; i < context->classes.count; i++) {
+    while (ds_linked_list_empty(&class_queue) == 0) {
         class_context *class_ctx = NULL;
-        ds_dynamic_array_get_ref(&context->classes, i, (void **)&class_ctx);
+        ds_linked_list_pop_front(&class_queue, &class_ctx);
 
         if (strcmp(class_ctx->name, SELF_TYPE) == 0) {
             continue;

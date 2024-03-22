@@ -34,7 +34,6 @@ typedef struct semantic_mapping_item {
         ds_dynamic_array methods; // implementation_mapping_item
 } semantic_mapping_item;
 
-// TODO: do dfs search based on inheritance chain
 typedef struct semantic_mapping {
         ds_dynamic_array classes; // semantic_mapping_item
 } semantic_mapping;
