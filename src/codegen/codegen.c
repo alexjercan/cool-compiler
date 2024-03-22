@@ -379,8 +379,6 @@ static void tac_case(tac_context *context, case_node *case_,
         int i = 0;
         ds_dynamic_array_get(&indices, j, &i);
 
-        printf("case %d\n", i);
-
         char *ident;
         tac_new_var(context, &ident);
 
