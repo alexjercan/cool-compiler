@@ -133,6 +133,8 @@ static void print_tac(tac_instr tac) {
         return print_tac_assign_string(tac.assign_string);
     case TAC_ASSIGN_BOOL:
         return print_tac_assign_bool(tac.assign_bool);
+    default:
+        DS_PANIC("Unknown tac kind");
     }
 }
 

@@ -80,7 +80,9 @@ Object.copy:
 
     ; t1 <- sizeof(self)
     mov     rax, rbx
-    call    sizeof
+    add     rax, [obj_size]            ; get *self.size
+    mov     rax, [rax]                 ; get self.size
+    shl     rax, 3                     ; size = size * 8
     mov     qword [rbp - loc_1], rax
 
     ; t2 <- t0 + t1
@@ -213,15 +215,36 @@ Object.type_name:
 Object.equals:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 16                    ; allocate 2 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; TODO
+    ; t0 <- new Bool
+    mov     rax, Bool_protObj
+    call    Object.copy
+    call    Bool_init
+    mov     qword [rbp - loc_0], rax
+
+    ; cmp address of self == address of x
+    mov     rdi, rbx
+    mov     rsi, [rbp + arg_0]
+    cmp     rdi, rsi
+    setz    al
+    movzx   rax, al
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [bool_slot]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    mov     rax, qword [rbp - loc_0]
 
     pop     rbx                        ; restore register
+    add     rsp, 16                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
-
 
 ;
 ;
@@ -362,7 +385,7 @@ IO.in_int:
 
     mov     rdi, qword [rbp - loc_2]   ; get *t1.s
     mov     rsi, qword [rbp - loc_3]   ; get t1.l.val
-    call    parseInt                   ; convert string to int
+    call    parse_uint                   ; convert string to int
     mov     qword [rbp - loc_4], rax   ; t4 <- int value
 
     mov     rax, qword [rbp - loc_0]   ; get t0
@@ -540,12 +563,48 @@ String.substr:
 String.equals:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; TODO
+    ; t0 <- new Bool
+    mov     rax, Bool_protObj
+    call    Object.copy
+    call    Bool_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- get self.l.val
+    mov     rax, rbx
+    add     rax, [str_size]
+    mov     rax, [rax]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; arg0 = self.str, arg1 = x.str, arg2 = t1
+    mov     rdi, rbx
+    add     rdi, [str_field]
+    mov     rsi, [rbp + arg_0]
+    add     rsi, [str_field]
+    mov     rdx, qword [rbp - loc_1]
+    call    memcmp
+
+    ; t2 <- 1 if equal, 0 otherwise
+    test    rax, rax
+    setz    al
+    movzx   rax, al
+    mov     qword [rbp - loc_2], rax
+
+    ; t0.val <- t2
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [bool_slot]
+    mov     rdi, qword [rbp - loc_2]
+    mov     [rax], rdi
+
+    mov     rax, qword [rbp - loc_0]   ; get t0
 
     pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -562,12 +621,42 @@ String.equals:
 Int.equals:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 16                    ; allocate 2 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; TODO
+    ; t0 <- new Bool
+    mov     rax, Bool_protObj
+    call    Object.copy
+    call    Bool_init
+    mov     qword [rbp - loc_0], rax
+
+    ; get self.val
+    mov     rdi, rbx
+    add     rdi, [int_slot]
+    mov     rdi, [rdi]
+
+    ; get x.val
+    mov     rsi, [rbp + arg_0]
+    add     rsi, [int_slot]
+    mov     rsi, [rsi]
+
+    ; t1 <- 1 if equal, 0 otherwise
+    cmp     rdi, rsi
+    setz    al
+    movzx   rax, al
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [bool_slot]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    mov     rax, qword [rbp - loc_0]   ; get t0
 
     pop     rbx                        ; restore register
+    add     rsp, 16                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 ;
@@ -583,34 +672,42 @@ Int.equals:
 Bool.equals:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 16                    ; allocate 2 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; TODO
+    ; t0 <- new Bool
+    mov     rax, Bool_protObj
+    call    Object.copy
+    call    Bool_init
+    mov     qword [rbp - loc_0], rax
+
+    ; get self.val
+    mov     rdi, rbx
+    add     rdi, [bool_slot]
+    mov     rdi, [rdi]
+
+    ; get x.val
+    mov     rsi, [rbp + arg_0]
+    add     rsi, [bool_slot]
+    mov     rsi, [rsi]
+
+    ; t1 <- 1 if equal, 0 otherwise
+    cmp     rdi, rsi
+    setz    al
+    movzx   rax, al
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [bool_slot]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    mov     rax, qword [rbp - loc_0]   ; get t0
 
     pop     rbx                        ; restore register
-    pop     rbp                        ; restore return address
-    ret
-
-;
-;
-; sizeof
-;   INPUT: rax contains self
-;   STACK: empty
-;   OUTPUT: rax contains the size of the object
-;
-sizeof:
-    push    rbp                        ; save return address
-    mov     rbp, rsp                   ; set up stack frame
-    push    rbx                        ; save register
-    mov     rbx, rax                   ; save self
-
-    mov     rax, rbx                   ; get self
-    add     rax, [obj_size]            ; get *self.size
-    mov     rax, [rax]                 ; get self.size
-    shl     rax, 3                     ; size = size * 8
-
-    pop     rbx                        ; restore register
+    add     rsp, 16                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -651,8 +748,6 @@ malloc_64k:
 memcpy:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    push    rbx                        ; save register
-    mov     rbx, rax                   ; save self
 
 .next_byte:
     cmp     rdx, 0                     ; check if done
@@ -668,24 +763,56 @@ memcpy:
     jmp .next_byte
 .done:
 
-    pop     rbx                        ; restore register
+    pop     rbp                        ; restore return address
+    ret
+;
+;
+; memcmp
+;   INPUT:
+;       rdi points to s1
+;       rsi points to s2
+;       rdx contains the number of bytes to compare
+;   STACK: empty
+;   OUTPUT: rax contains 0 if equal, difference between first different byte otherwise
+;
+memcmp:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+
+.next_byte:
+    xor     rax, rax                   ; clear rax
+    test    rdx, rdx                   ; check if done
+    jle     .done
+
+    mov     al, byte [rdi]             ; get byte from destination
+    sub     al, byte [rsi]             ; subtract byte from source
+
+    test    rax, rax                   ; check if equal
+    jnz     .done
+
+    inc     rdi                        ; increment destination
+    inc     rsi                        ; increment source
+    dec     rdx                        ; decrement count
+
+    jmp     .next_byte
+
+.done:
+
     pop     rbp                        ; restore return address
     ret
 
 ;
 ;
-; parseInt
+; parse_uint
 ;   INPUT:
 ;       rdi points to the string
 ;       rsi contains the length of the string
 ;   STACK: empty
 ;   OUTPUT: rax contains the integer value of the string
-parseInt:
+parse_uint:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
     sub     rsp, 16                    ; allocate 2 local variables
-    push    rbx                        ; save register
-    mov     rbx, rax                   ; save self
 
     mov     rcx, 10                    ; base = 10
     mov     rax, 0                     ; result = 0
@@ -717,7 +844,6 @@ parseInt:
 
     mov     rax, qword [rbp - loc_0]      ; get t0
 
-    pop     rbx                        ; restore register
     add     rsp, 16                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret

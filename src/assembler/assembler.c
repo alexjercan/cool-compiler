@@ -130,6 +130,160 @@ static inline const char *comment_fmt(const char *format, ...) {
     return comment;
 }
 
+static void print_tac_label(assembler_context *context, tac_label label) { assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s:", label.label); }
+
+static void print_tac_jump(assembler_context *context, tac_jump jump) { assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; jump %s", jump.label); }
+
+static void print_tac_jump_if_true(assembler_context *context, tac_jump_if_true jump_if_true) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; bt %s %s", jump_if_true.expr, jump_if_true.label);
+}
+
+static void print_tac_assign_isinstance(assembler_context *context, tac_isinstance isinstance) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- %s instanceof %s", isinstance.ident, isinstance.expr, isinstance.type);
+}
+
+static void print_tac_cast(assembler_context *context, tac_cast cast) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- %s as %s", cast.ident, cast.expr, cast.type);
+}
+
+static void print_tac_assign_value(assembler_context *context, tac_assign_value assign_value) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- %s", assign_value.ident, assign_value.expr);
+}
+
+static void print_tac_dispatch_call(assembler_context *context, tac_dispatch_call dispatch_call) {
+    char *buffer = NULL;
+    ds_string_builder sb;
+
+    ds_string_builder_init(&sb);
+
+    if (dispatch_call.expr != NULL) {
+        ds_string_builder_append(&sb, "%s", dispatch_call.expr);
+        if (dispatch_call.type != NULL) {
+            ds_string_builder_append(&sb, "@%s", dispatch_call.type);
+        }
+        ds_string_builder_appendc(&sb, '.');
+    }
+
+    ds_string_builder_append(&sb, "%s(", dispatch_call.method);
+
+    for (unsigned int i = 0; i < dispatch_call.args.count; i++) {
+        char *arg;
+        ds_dynamic_array_get(&dispatch_call.args, i, &arg);
+        ds_string_builder_append(&sb, "%s", arg);
+        if (i < dispatch_call.args.count - 1) {
+            ds_string_builder_appendc(&sb, ',');
+        }
+    }
+
+    ds_string_builder_appendc(&sb, ')');
+    ds_string_builder_build(&sb, &buffer);
+
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- %s", dispatch_call.ident, buffer);
+}
+
+static void print_tac_assign_new(assembler_context *context, tac_assign_new assign_new) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- new %s", assign_new.ident, assign_new.type);
+}
+
+static void print_tac_assign_default(assembler_context *context, tac_assign_new assign_new) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- default %s", assign_new.ident, assign_new.type);
+}
+
+static void print_tac_assign_binary(assembler_context *context, tac_assign_binary assign_binary, const char *op) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- %s %s %s", assign_binary.ident, assign_binary.lhs, op, assign_binary.rhs);
+}
+
+static void print_tac_assign_eq(assembler_context *context, tac_assign_eq assign_binary) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- %s = %s", assign_binary.ident, assign_binary.lhs, assign_binary.rhs);
+}
+
+static void print_tac_assign_unary(assembler_context *context, tac_assign_unary assign_unary, const char *op) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- %s %s", assign_unary.ident, op, assign_unary.expr);
+}
+
+static void print_tac_ident(assembler_context *context, tac_ident ident) { assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s", ident.name); }
+
+static void print_tac_assign_int(assembler_context *context, tac_assign_int assign_int) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- int %d", assign_int.ident, assign_int.value);
+}
+
+static void print_tac_assign_string(assembler_context *context, tac_assign_string assign_string) {
+    // use bytes like I did
+    // assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- string \"%s\"", assign_string.ident, assign_string.value);
+
+    ds_string_builder sb;
+    ds_string_builder_init(&sb);
+
+    char *str = assign_string.value;
+
+    size_t length = strlen(str);
+    for (size_t i = 0; i < length; i++) {
+        ds_string_builder_append(&sb, "%d", str[i]);
+        if (i < length - 1) {
+            ds_string_builder_appendc(&sb, ',');
+        }
+    }
+
+    ds_string_builder_build(&sb, &str);
+
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- string %s", assign_string.ident, str);
+}
+
+static void print_tac_assign_bool(assembler_context *context, tac_assign_bool assign_bool) {
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- bool %s", assign_bool.ident, assign_bool.value ? "true" : "false");
+}
+
+static void assembler_emit_tac_comment(assembler_context *context, tac_instr tac) {
+    switch (tac.kind) {
+    case TAC_LABEL:
+        return print_tac_label(context, tac.label);
+    case TAC_JUMP:
+        return print_tac_jump(context, tac.jump);
+    case TAC_JUMP_IF_TRUE:
+        return print_tac_jump_if_true(context, tac.jump_if_true);
+    case TAC_ASSIGN_ISINSTANCE:
+        return print_tac_assign_isinstance(context, tac.isinstance);
+    case TAC_CAST:
+        return print_tac_cast(context, tac.cast);
+    case TAC_ASSIGN_VALUE:
+        return print_tac_assign_value(context, tac.assign_value);
+    case TAC_DISPATCH_CALL:
+        return print_tac_dispatch_call(context, tac.dispatch_call);
+    case TAC_ASSIGN_NEW:
+        return print_tac_assign_new(context, tac.assign_new);
+    case TAC_ASSIGN_DEFAULT:
+        return print_tac_assign_default(context, tac.assign_default);
+    case TAC_ASSIGN_ISVOID:
+        return print_tac_assign_unary(context, tac.assign_unary, "isvoid");
+    case TAC_ASSIGN_ADD:
+        return print_tac_assign_binary(context, tac.assign_binary, "+");
+    case TAC_ASSIGN_SUB:
+        return print_tac_assign_binary(context, tac.assign_binary, "-");
+    case TAC_ASSIGN_MUL:
+        return print_tac_assign_binary(context, tac.assign_binary, "*");
+    case TAC_ASSIGN_DIV:
+        return print_tac_assign_binary(context, tac.assign_binary, "/");
+    case TAC_ASSIGN_NEG:
+        return print_tac_assign_unary(context, tac.assign_unary, "~");
+    case TAC_ASSIGN_LT:
+        return print_tac_assign_binary(context, tac.assign_binary, "<");
+    case TAC_ASSIGN_LE:
+        return print_tac_assign_binary(context, tac.assign_binary, "<=");
+    case TAC_ASSIGN_EQ:
+        return print_tac_assign_eq(context, tac.assign_eq);
+    case TAC_ASSIGN_NOT:
+        return print_tac_assign_unary(context, tac.assign_unary, "not");
+    case TAC_IDENT:
+        return print_tac_ident(context, tac.ident);
+    case TAC_ASSIGN_INT:
+        return print_tac_assign_int(context, tac.assign_int);
+    case TAC_ASSIGN_STRING:
+        return print_tac_assign_string(context, tac.assign_string);
+    case TAC_ASSIGN_BOOL:
+        return print_tac_assign_bool(context, tac.assign_bool);
+    }
+}
+
 static void assembler_find_const(assembler_context *context,
                                  asm_const_value value, asm_const **result) {
     for (size_t i = 0; i < context->consts.count; i++) {
@@ -786,29 +940,7 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
         assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, qword [rdi+%d]", method_offset);
         assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    rdi");
     } else {
-        for (size_t i = 0; i < context->mapping->classes.count; i++) {
-            semantic_mapping_item *item = NULL;
-            ds_dynamic_array_get_ref(&context->mapping->classes, i, (void **)&item);
-
-            int found = 0;
-            for (size_t j = 0; j < item->methods.count; j++) {
-                implementation_mapping_item *method = NULL;
-                ds_dynamic_array_get_ref(&item->methods, j, (void **)&method);
-
-                if (strcmp(method->method_name, instr.method) == 0) {
-                    found = 1;
-                    const char *class_name = item->class_name;
-
-                    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    %s.%s",
-                                       class_name, instr.method);
-                    break;
-                }
-            }
-
-            if (found) {
-                break;
-            }
-        }
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "call    %s.%s", instr.type, instr.method);
     }
 
     assembler_emit_store_variable(context, &tac, instr.ident);
@@ -1060,10 +1192,35 @@ static void assembler_emit_tac_assign_eq(assembler_context *context,
 
     ds_dynamic_array_append(&args, &instr.rhs);
 
+    const char *type = NULL;
+    for (size_t i = 0; i < context->mapping->classes.count; i++) {
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&context->mapping->classes, i, (void **)&item);
+
+        if (strcmp(item->class_name, instr.type) != 0) {
+            continue;
+        }
+
+        for (size_t j = 0; j < item->methods.count; j++) {
+            implementation_mapping_item *method = NULL;
+            ds_dynamic_array_get_ref(&item->methods, j, (void **)&method);
+
+            if (strcmp(method->from_class, item->class_name) == 0 &&
+                strcmp(method->method_name, "equals") == 0) {
+                type = item->class_name;
+                break;
+            }
+        }
+    }
+
+    if (type == NULL) {
+        type = "Object";
+    }
+
     tac_dispatch_call dispatch_call = {
         .ident = instr.ident,
         .expr = instr.lhs,
-        .type = instr.type,
+        .type = (char *)type,
         .method = "equals",
         .args = args,
     };
@@ -1149,6 +1306,8 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
                                size_t instr_idx) {
     tac_instr *instr = NULL;
     ds_dynamic_array_get_ref(&tac.instrs, instr_idx, (void **)&instr);
+
+    assembler_emit_tac_comment(context, *instr);
 
     switch (instr->kind) {
     case TAC_LABEL:
