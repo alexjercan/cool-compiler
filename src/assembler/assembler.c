@@ -1191,7 +1191,7 @@ static void assembler_emit_tac(assembler_context *context, tac_result tac,
 static void assembler_emit_expr(assembler_context *context,
                                 const expr_node *expr) {
     tac_result tac;
-    codegen_expr_to_tac(expr, &tac);
+    codegen_expr_to_tac(context->mapping, expr, &tac);
 
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbp");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbp, rsp");

@@ -1,6 +1,8 @@
 #include "codegen.h"
 #include "ds.h"
 #include "parser.h"
+#include "semantic.h"
+#include <assert.h>
 
 typedef struct tac_context {
         int result;
@@ -9,6 +11,7 @@ typedef struct tac_context {
         ds_dynamic_array locals; // char *
 
         ds_dynamic_array mapping; // tac_assign_value
+        semantic_mapping *semantic_mapping;
 } tac_context;
 
 static void tac_new_var(tac_context *context, char **ident) {
@@ -352,7 +355,32 @@ static void tac_case(tac_context *context, case_node *case_,
     ds_dynamic_array case_labels;
     ds_dynamic_array_init(&case_labels, sizeof(char *));
 
-    for (unsigned int i = 0; i < case_->cases.count; i++) {
+    ds_dynamic_array indices;
+    ds_dynamic_array_init(&indices, sizeof(int));
+
+    for (unsigned int i = 0; i < context->semantic_mapping->classes.count; i++) {
+        semantic_mapping_item *item;
+        ds_dynamic_array_get_ref(&context->semantic_mapping->classes, context->semantic_mapping->classes.count - i - 1, (void **)&item);
+
+        for (unsigned int j = 0; j < case_->cases.count; j++) {
+            branch_node *branch;
+            ds_dynamic_array_get_ref(&case_->cases, j, (void **)&branch);
+
+            if (strcmp(item->class_name, branch->type.value) == 0) {
+                ds_dynamic_array_append(&indices, &j);
+                break;
+            }
+        }
+    }
+
+    assert(indices.count == case_->cases.count);
+
+    for (unsigned int j = 0; j < indices.count; j++) {
+        int i = 0;
+        ds_dynamic_array_get(&indices, j, &i);
+
+        printf("case %d\n", i);
+
         char *ident;
         tac_new_var(context, &ident);
 
@@ -387,7 +415,10 @@ static void tac_case(tac_context *context, case_node *case_,
         ds_dynamic_array_append(instrs, &jump_case_instr);
     }
 
-    for (unsigned int i = 0; i < case_->cases.count; i++) {
+    for (unsigned int j = 0; j < indices.count; j++) {
+        int i = 0;
+        ds_dynamic_array_get(&indices, j, &i);
+
         char *case_label;
         ds_dynamic_array_get(&case_labels, i, &case_label);
 
@@ -713,8 +744,8 @@ static void tac_expr(tac_context *context, expr_node *expr,
     }
 }
 
-int codegen_expr_to_tac(const expr_node *expr, tac_result *tac) {
-    tac_context context = {.result = 0, .temp_count = 0, .label_count = 0};
+int codegen_expr_to_tac(semantic_mapping *mapping, const expr_node *expr, tac_result *tac) {
+    tac_context context = {.result = 0, .temp_count = 0, .label_count = 0, .semantic_mapping = mapping};
     ds_dynamic_array_init(&context.locals, sizeof(char *));
     ds_dynamic_array_init(&context.mapping, sizeof(tac_assign_value));
 

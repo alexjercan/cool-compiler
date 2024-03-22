@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
         if (argparse_get_flag(parser, ARG_TACGEN) == 1) {
             program_node *program = NULL;
             ds_dynamic_array_get_ref(&programs, index, (void **)&program);
-            codegen_tac_print(program);
+            codegen_tac_print(&mapping, program);
             return_defer(0);
         }
 

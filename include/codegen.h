@@ -3,6 +3,7 @@
 
 #include "ds.h"
 #include "parser.h"
+#include "semantic.h"
 
 enum tac_kind {
     TAC_LABEL,
@@ -139,8 +140,8 @@ typedef struct tac_result {
         ds_dynamic_array instrs; // tac_instr
 } tac_result;
 
-int codegen_expr_to_tac(const expr_node *expr, tac_result *result);
+int codegen_expr_to_tac(semantic_mapping *mapping, const expr_node *expr, tac_result *result);
 
-void codegen_tac_print(program_node *program);
+void codegen_tac_print(semantic_mapping *mapping, program_node *program);
 
 #endif // CODEGEN_H

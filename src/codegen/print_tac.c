@@ -136,7 +136,7 @@ static void print_tac(tac_instr tac) {
     }
 }
 
-void codegen_tac_print(program_node *program) {
+void codegen_tac_print(semantic_mapping *mapping, program_node *program) {
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
@@ -150,7 +150,7 @@ void codegen_tac_print(program_node *program) {
             }
 
             tac_result tac;
-            codegen_expr_to_tac(&method.body, &tac);
+            codegen_expr_to_tac(mapping, &method.body, &tac);
 
             printf("%s.%s\n", class.name.value, method.name.value);
             for (unsigned int k = 0; k < tac.instrs.count; k++) {
