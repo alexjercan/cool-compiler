@@ -15,10 +15,10 @@ typedef struct tac_context {
 } tac_context;
 
 static void tac_new_var(tac_context *context, char **ident) {
-    int needed = snprintf(NULL, 0, "t%d", context->temp_count) + 1;
+    int needed = snprintf(NULL, 0, "$t%d", context->temp_count) + 1;
 
     *ident = malloc(needed);
-    snprintf(*ident, needed, "t%d", context->temp_count++);
+    snprintf(*ident, needed, "$t%d", context->temp_count++);
 
     ds_dynamic_array_append(&context->locals, *ident);
 }
@@ -33,6 +33,19 @@ static void tac_new_label(tac_context *context, char **label) {
 static void tac_expr(tac_context *context, expr_node *expr,
                      ds_dynamic_array *instrs, tac_instr *result);
 
+static char *tac_find_ident_mapping(tac_context *context, char *ident) {
+    for (unsigned int i = 0; i < context->mapping.count; i++) {
+        tac_assign_value assign_value;
+        ds_dynamic_array_get(&context->mapping, context->mapping.count - i - 1, &assign_value);
+
+        if (strcmp(assign_value.ident, ident) == 0) {
+            return assign_value.expr;
+        }
+    }
+
+    return ident;
+}
+
 static void tac_assign(tac_context *context, assign_node *assign,
                        ds_dynamic_array *instrs, tac_instr *result) {
     tac_instr expr;
@@ -42,14 +55,15 @@ static void tac_assign(tac_context *context, assign_node *assign,
         .kind = TAC_ASSIGN_VALUE,
         .assign_value =
             {
-                .ident = assign->name.value,
+                .ident = tac_find_ident_mapping(context, assign->name.value),
                 .expr = expr.ident.name,
             },
     };
+
     ds_dynamic_array_append(instrs, &instr);
 
     result->kind = TAC_IDENT;
-    result->ident.name = assign->name.value;
+    result->ident.name = instr.assign_value.ident;
 }
 
 static void tac_dispatch_args(tac_context *context, dispatch_node *dispatch,
@@ -327,9 +341,21 @@ static void tac_let(tac_context *context, let_node *let,
             ds_dynamic_array_append(instrs, &expr);
         }
 
+        char *ident;
+        tac_new_var(context, &ident);
+        tac_instr instr = {
+            .kind = TAC_ASSIGN_VALUE,
+            .assign_value =
+                {
+                    .ident = ident,
+                    .expr = expr.ident.name,
+                },
+        };
+        ds_dynamic_array_append(instrs, &instr);
+
         tac_assign_value assign_value = {
             .ident = let_init.name.value,
-            .expr = expr.ident.name,
+            .expr = ident,
         };
 
         ds_dynamic_array_append(&context->mapping, &assign_value);
@@ -596,18 +622,7 @@ static void tac_paren(tac_context *context, expr_node *paren,
 static void tac_identifier(tac_context *context, node_info *ident,
                            ds_dynamic_array *instrs, tac_instr *result) {
     result->kind = TAC_IDENT;
-
-    for (unsigned int i = 0; i < context->mapping.count; i++) {
-        tac_assign_value assign_value;
-        ds_dynamic_array_get(&context->mapping, context->mapping.count - i - 1, &assign_value);
-
-        if (strcmp(assign_value.ident, ident->value) == 0) {
-            result->ident.name = assign_value.expr;
-            return;
-        }
-    }
-
-    result->ident.name = ident->value;
+    result->ident.name = tac_find_ident_mapping(context, ident->value);
 }
 
 static void tac_int(tac_context *context, node_info *int_node,
