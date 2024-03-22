@@ -1,9 +1,9 @@
 A.f
-t0 <- int 1
-t0
+$t0 <- int 1
+$t0
 A.g
-t0 <- bool true
-t0
+$t0 <- bool true
+$t0
 A.h
-t0 <- string "hello"
-t0
+$t0 <- string "hello"
+$t0

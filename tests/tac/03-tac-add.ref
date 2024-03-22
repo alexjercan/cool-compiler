@@ -1,12 +1,12 @@
 A.f
-t0 <- int 1
-t1 <- int 2
-t2 <- t0 + t1
-t3 <- int 3
-t4 <- t2 + t3
-t4
+$t0 <- int 1
+$t1 <- int 2
+$t2 <- $t0 + $t1
+$t3 <- int 3
+$t4 <- $t2 + $t3
+$t4
 A.g
-t0 <- int 2
-t1 <- x + t0
-t2 <- t1 + y
-t2
+$t0 <- int 2
+$t1 <- x + $t0
+$t2 <- $t1 + y
+$t2

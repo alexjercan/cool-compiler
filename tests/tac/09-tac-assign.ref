@@ -1,10 +1,10 @@
 A.f
-t0 <- int 100
-t1 <- t0 + y
-x <- t1
+$t0 <- int 100
+$t1 <- $t0 + y
+x <- $t1
 x
 A.g
-t0 <- int 100
-y <- t0
-t1 <- x + y
-t1
+$t0 <- int 100
+y <- $t0
+$t1 <- x + y
+$t1

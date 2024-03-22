@@ -1,17 +1,17 @@
 A.f
-t1 <- value instanceof String
-bt t1 L1
-t2 <- value instanceof Object
-bt t2 L2
+$t1 <- value instanceof String
+bt $t1 L1
+$t2 <- value instanceof Object
+bt $t2 L2
 L1:
-t3 <- value as String
-t0 <- t3
+$t3 <- value as String
+$t0 <- $t3
 jump L0
 L2:
-t4 <- value as Object
-t5 <- abort()
-t6 <- string ""
-t0 <- t6
+$t4 <- value as Object
+$t5 <- abort()
+$t6 <- string ""
+$t0 <- $t6
 jump L0
 L0:
-t0
+$t0

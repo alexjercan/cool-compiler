@@ -1,15 +1,15 @@
 A.f
-t0 <- int 2
-t1 <- ~ t0
-t2 <- y + t1
-t3 <- x * t2
-t4 <- int 3
-t5 <- t4 / x
-t6 <- t3 + t5
-t6
+$t0 <- int 2
+$t1 <- ~ $t0
+$t2 <- y + $t1
+$t3 <- x * $t2
+$t4 <- int 3
+$t5 <- $t4 / x
+$t6 <- $t3 + $t5
+$t6
 A.g
-t0 <- x <= y
-t1 <- int 10
-t2 <- y < t1
-t3 <- t0 = t2
-t3
+$t0 <- x <= y
+$t1 <- int 10
+$t2 <- y < $t1
+$t3 <- $t0 = $t2
+$t3

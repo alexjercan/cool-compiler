@@ -1,15 +1,17 @@
 A.f
-t0 <- new B
-t1 <- x + y
-t2 <- t0.f(t1, y)
-t2
+$t0 <- new B
+$t1 <- $t0
+$t2 <- x + y
+$t3 <- $t2
+$t4 <- $t1.f($t3, y)
+$t4
 A.g
-t0 <- new A
-t1 <- t0@A.f(x, y)
-t1
+$t0 <- new A
+$t1 <- $t0@A.f(x, y)
+$t1
 A.h
-t0 <- g(x, y)
-t0
+$t0 <- g(x, y)
+$t0
 B.f
-t0 <- x = y
-t0
+$t0 <- x = y
+$t0

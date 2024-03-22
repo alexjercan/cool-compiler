@@ -1,29 +1,29 @@
 A.f
 L0:
-t1 <- x < y
-t2 <- not t1
-bt t2 L1
-t3 <- int 1
-t4 <- x + t3
-x <- t4
-t0 <- x
+$t1 <- x < y
+$t2 <- not $t1
+bt $t2 L1
+$t3 <- int 1
+$t4 <- x + $t3
+x <- $t4
+$t0 <- x
 jump L0
 L1:
-t0
+$t0
 A.g
 L0:
-t1 <- int 100
-t2 <- y * t1
-t3 <- x + t2
-t4 <- x / y
-t5 <- t3 <= t4
-t6 <- not t5
-bt t6 L1
-t7 <- int 100
-t8 <- y + t7
-t9 <- t8 - x
-x <- t9
-t0 <- x
+$t1 <- int 100
+$t2 <- y * $t1
+$t3 <- x + $t2
+$t4 <- x / y
+$t5 <- $t3 <= $t4
+$t6 <- not $t5
+bt $t6 L1
+$t7 <- int 100
+$t8 <- y + $t7
+$t9 <- $t8 - x
+x <- $t9
+$t0 <- x
 jump L0
 L1:
-t0
+$t0

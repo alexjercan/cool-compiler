@@ -1,4 +1,4 @@
 A.f
-t0 <- new A
-t1 <- isvoid t0
-t1
+$t0 <- new A
+$t1 <- isvoid $t0
+$t1
