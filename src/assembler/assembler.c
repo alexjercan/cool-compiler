@@ -130,9 +130,9 @@ static inline const char *comment_fmt(const char *format, ...) {
     return comment;
 }
 
-static void print_tac_label(assembler_context *context, tac_label label) { assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s:", label.label); }
+static void print_tac_label(assembler_context *context, tac_label label) {}
 
-static void print_tac_jump(assembler_context *context, tac_jump jump) { assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; jump %s", jump.label); }
+static void print_tac_jump(assembler_context *context, tac_jump jump) {}
 
 static void print_tac_jump_if_true(assembler_context *context, tac_jump_if_true jump_if_true) {
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; bt %s %s", jump_if_true.expr, jump_if_true.label);
@@ -208,9 +208,6 @@ static void print_tac_assign_int(assembler_context *context, tac_assign_int assi
 }
 
 static void print_tac_assign_string(assembler_context *context, tac_assign_string assign_string) {
-    // use bytes like I did
-    // assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "; %s <- string \"%s\"", assign_string.ident, assign_string.value);
-
     ds_string_builder sb;
     ds_string_builder_init(&sb);
 
