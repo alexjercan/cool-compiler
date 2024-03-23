@@ -1540,14 +1540,14 @@ enum assembler_result assembler_run(const char *filename,
 
     int int_tag = 0, str_tag = 0, bool_tag = 0;
     for (size_t i = 0; i < mapping->classes.count; i++) {
-        class_node *class = NULL;
-        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&class);
+        semantic_mapping_item *item = NULL;
+        ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
 
-        if (strcmp(class->name.value, "Int") == 0) {
+        if (strcmp(item->class_name, "Int") == 0) {
             int_tag = i;
-        } else if (strcmp(class->name.value, "String") == 0) {
+        } else if (strcmp(item->class_name, "String") == 0) {
             str_tag = i;
-        } else if (strcmp(class->name.value, "Bool") == 0) {
+        } else if (strcmp(item->class_name, "Bool") == 0) {
             bool_tag = i;
         }
     }
