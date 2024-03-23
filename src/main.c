@@ -168,9 +168,7 @@ static enum status_code parse_user(build_context *context) {
 
         // parse tokens
         program_node program;
-        // TODO: I would like to see the realpath better
-        const char *basename = util_filepath_to_basename(filepath);
-        if (parser_run(basename, &tokens, &program) != PARSER_OK) {
+        if (parser_run(filepath, &tokens, &program) != PARSER_OK) {
             parser_status = PARSER_ERROR;
             continue;
         }
