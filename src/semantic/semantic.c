@@ -2004,7 +2004,7 @@ void semantic_print_mapping(semantic_mapping *mapping) {
 
         for (unsigned int j = 0; j < item->methods.count; j++) {
             implementation_mapping_item *method = NULL;
-            ds_dynamic_array_get_ref(&item->methods, i, (void **)&method);
+            ds_dynamic_array_get_ref(&item->methods, j, (void **)&method);
 
             printf("%s@%s.%s\n", item->class_name, method->from_class, method->method_name);
         }
