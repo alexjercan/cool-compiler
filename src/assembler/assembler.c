@@ -157,6 +157,7 @@ static void print_tac_dispatch_call(assembler_context *context, tac_dispatch_cal
     ds_string_builder_init(&sb);
 
     if (dispatch_call.expr != NULL) {
+        ds_string_builder_append(&sb, "(%s)", dispatch_call.expr_type);
         ds_string_builder_append(&sb, "%s", dispatch_call.expr);
         if (dispatch_call.type != NULL) {
             ds_string_builder_append(&sb, "@%s", dispatch_call.type);
@@ -369,9 +370,11 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
 
     switch (c.value.type) {
     case ASM_CONST_STR: {
-        size_t length = strlen(c.value.str.value);
+        size_t length = strlen(c.value.str.value) + 1;
 
         size_t words = (length + WORD_SIZE - 1) / WORD_SIZE;
+        size_t bytes = words * WORD_SIZE;
+        size_t padding = bytes - length;
 
         assembler_emit_fmt(context, align, "object size", "dq %d", 4 + words);
         assembler_emit_fmt(context, align, "dispatch table",
@@ -383,7 +386,14 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
 
         for (size_t i = 0; i < length; i++) {
             ds_string_builder_append(&sb, "%d", c.value.str.value[i]);
-            if (i < length - 1) {
+            if (i < length - 1 || padding > 0) {
+                ds_string_builder_appendc(&sb, ',');
+            }
+        }
+
+        for (size_t i = 0; i < padding; i++) {
+            ds_string_builder_appendc(&sb, '0');
+            if (i < padding - 1) {
                 ds_string_builder_appendc(&sb, ',');
             }
         }
@@ -391,11 +401,7 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
         char *str = NULL;
         ds_string_builder_build(&sb, &str);
 
-        if (strlen(str) == 0) {
-            assembler_emit_fmt(context, align, "string value", "db 0");
-        } else {
-            assembler_emit_fmt(context, align, "string value", "db %s,0", str);
-        }
+        assembler_emit_fmt(context, align, "string value", "db %s", str);
 
         break;
     }
@@ -905,34 +911,35 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
         assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "push    rax");
     }
 
-    if (instr.expr == NULL) {
-        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, rbx");
-    } else {
-        assembler_emit_load_variable(context, &tac, instr.expr);
-    }
+    assembler_emit_load_variable(context, &tac, instr.expr);
 
     if (instr.type == NULL) {
         assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, qword [rax+%d]", DISPTABLE_OFFSET);
 
+
         size_t method_index = 0;
+
+        const char *expr_type = instr.expr_type;
+        if (strcmp(expr_type, "SELF_TYPE") == 0) {
+            expr_type = context->current_class->class_name;
+        }
+
         for (size_t i = 0; i < context->mapping->classes.count; i++) {
             semantic_mapping_item *item = NULL;
             ds_dynamic_array_get_ref(&context->mapping->classes, i, (void **)&item);
 
-            int found = 0;
+            if (strcmp(item->class_name, expr_type) != 0) {
+                continue;
+            }
+
             for (size_t j = 0; j < item->methods.count; j++) {
                 implementation_mapping_item *method = NULL;
                 ds_dynamic_array_get_ref(&item->methods, j, (void **)&method);
 
                 if (strcmp(method->method_name, instr.method) == 0) {
-                    found = 1;
                     method_index = j;
                     break;
                 }
-            }
-
-            if (found) {
-                break;
             }
         }
 

@@ -81,6 +81,7 @@ typedef struct tac_assign_value {
 
 typedef struct tac_dispatch_call {
         char *ident;
+        char *expr_type;
         char *expr;
         char *type;
         char *method;

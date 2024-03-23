@@ -98,6 +98,7 @@ static void tac_dispatch_full(tac_context *context,
         .dispatch_call =
             {
                 .ident = ident,
+                .expr_type = (char *)dispatch_full->expr->type,
                 .type = (char *)dispatch_full->type.value,
                 .expr = expr.ident.name,
                 .method = dispatch_full->dispatch->method.value,
@@ -122,8 +123,9 @@ static void tac_dispatch(tac_context *context, dispatch_node *dispatch,
         .dispatch_call =
             {
                 .ident = ident,
+                .expr_type = "SELF_TYPE",
                 .type = NULL,
-                .expr = NULL,
+                .expr = "self",
                 .method = dispatch->method.value,
                 .args = args,
             },
