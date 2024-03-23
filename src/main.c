@@ -1,6 +1,8 @@
 #include "util.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #define ARGPARSE_IMPLEMENTATION
 #include "argparse.h"
 #include "assembler.h"
@@ -38,6 +40,54 @@ typedef struct build_context {
     semantic_mapping mapping;
 } build_context;
 
+static int build_context_prelude_init(build_context *context) {
+    int result = 0;
+    char *cool_home = NULL;
+    char *cool_lib = NULL;
+    ds_dynamic_array filepaths;
+
+    cool_home = getenv("COOL_HOME");
+    if (cool_home == NULL) {
+        cool_home = ".";
+    }
+
+    if (util_append_path(cool_home, "/lib", &cool_lib) != 0) {
+        DS_LOG_ERROR("Failed to append path");
+        return_defer(1);
+    }
+
+    if (util_list_filepaths(cool_lib, &filepaths) != 0) {
+        DS_LOG_ERROR("Failed to list filepaths");
+        return_defer(1);
+    }
+
+    for (size_t i = 0; i < filepaths.count; i++) {
+        char *filepath = NULL;
+        ds_dynamic_array_get(&filepaths, i, (void **)&filepath);
+
+        ds_string_slice slice, ext;
+        ds_string_slice_init(&slice, filepath, strlen(filepath));
+        while (ds_string_slice_tokenize(&slice, '.', &ext) == 0) { }
+        char *extension = NULL;
+        ds_string_slice_to_owned(&ext, &extension);
+
+        if (strcmp(extension, "cl") == 0) {
+            if (ds_dynamic_array_append(&context->prelude_filepaths, &filepath) != 0) {
+                DS_LOG_ERROR("Failed to append filepath");
+                return_defer(1);
+            }
+        } else if (strcmp(extension, "asm") == 0) {
+            if (ds_dynamic_array_append(&context->asm_filepaths, &filepath) != 0) {
+                DS_LOG_ERROR("Failed to append filepath");
+                return_defer(1);
+            }
+        }
+    }
+
+defer:
+    return result;
+}
+
 static int build_context_init(build_context *context, struct argparse_parser *parser) {
     int result = 0;
 
@@ -47,23 +97,8 @@ static int build_context_init(build_context *context, struct argparse_parser *pa
     ds_dynamic_array_init(&context->user_filepaths, sizeof(const char *));
     ds_dynamic_array_init(&context->asm_filepaths, sizeof(const char *));
 
-    // TODO: add prelude files
-    const char *prelude_files[] = {
-        "lib/prelude.cl",
-    };
-    size_t num_prelude_files = sizeof(prelude_files) / sizeof(prelude_files[0]);
-    if (ds_dynamic_array_append_many(&context->prelude_filepaths, (void **)prelude_files, num_prelude_files) != 0) {
-        DS_LOG_ERROR("Failed to append prelude file");
-        return_defer(1);
-    }
-
-    // TODO: add asm files
-    const char *asm_files[] = {
-        "lib/prelude.asm",
-    };
-    size_t num_asm_files = sizeof(asm_files) / sizeof(asm_files[0]);
-    if (ds_dynamic_array_append_many(&context->asm_filepaths, (void **)asm_files, num_asm_files) != 0) {
-        DS_LOG_ERROR("Failed to append asm file");
+    if (build_context_prelude_init(context) != 0) {
+        DS_LOG_ERROR("Failed to initialize prelude");
         return_defer(1);
     }
 
@@ -160,7 +195,6 @@ static enum status_code parse_user(build_context *context) {
             return_defer(STATUS_ERROR);
         }
 
-        // TODO: Maybe print filepath\ntokens
         if (lexer_stop == 1) {
             lexer_print_tokens(&tokens);
             continue;
@@ -197,7 +231,6 @@ static enum status_code parse_user(build_context *context) {
         return_defer(STATUS_ERROR);
     }
 
-    // TODO: Think about this one: Maybe print filepath\nast
     if (parser_stop == 1) {
         for (size_t i = 0; i < context->user_programs.count; i++) {
             program_node *program = NULL;
@@ -296,14 +329,8 @@ defer:
 
 int main(int argc, char **argv) {
     int result = 0;
-    int length = 0;
-    char *buffer = NULL;
-    ds_dynamic_array programs;
-    ds_dynamic_array tokens;
+    build_context context;
     struct argparse_parser *parser = NULL;
-    struct semantic_mapping mapping = {0};
-
-    ds_dynamic_array_init(&programs, sizeof(program_node));
 
     parser = util_parse_arguments(argc, argv);
     if (parser == NULL) {
@@ -311,16 +338,10 @@ int main(int argc, char **argv) {
         return_defer(1);
     }
 
-    char *filename = argparse_get_value(parser, ARG_INPUT);
-    const char *basename = util_filepath_to_basename(filename);
-    char *output = argparse_get_value(parser, ARG_OUTPUT);
-
-    const char *prelude_asm = "lib/prelude.asm";
-
-    build_context context;
     build_context_init(&context, parser);
 
     // TODO: Take from args
+    char *filename = argparse_get_value(parser, ARG_INPUT);
     ds_dynamic_array_append(&context.user_filepaths, &filename);
 
     int prelude_result = parse_prelude(&context);

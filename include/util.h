@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include "ds.h"
+
 #ifndef LINE_MAX
 #define LINE_MAX 4096
 #endif
@@ -25,6 +27,7 @@ void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
 
 int util_read_file(const char *filename, char **buffer);
 int util_write_file(const char *filename, char *buffer);
-const char *util_filepath_to_basename(const char *path);
+int util_list_filepaths(const char *dirpath, ds_dynamic_array *filepaths);
+int util_append_path(char *path, const char *filename, char **buffer);
 
 #endif // UTIL_H
