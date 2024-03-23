@@ -3,21 +3,19 @@
 Compiler for the [Classroom Object-Oriented
 Language](https://theory.stanford.edu/~aiken/software/cool/cool-manual.pdf).
 
-This repo can be used to write a compiler in any specific language. The project
-uses Docker for running all the implementations.
-
 ## Quickstart
 
-To run the compiler for a specific project use
+To run the compiler for a specific stage use
 
 ```console
-./coolc <project> <file.cl> -- [--lex | --syn | --sem | --tac]
+make
+./build/main <file.cl> [--lex | --syn | --sem | --tac | --asm]
 ```
 
 To run the checker for a specific implementation use
 
 ```console
-./checker.sh <project> [--lex | --syn | --sem | --tac]
+./checker.sh [--lex | --syn | --sem | --tac | --asm]
 ```
 
 ## Resources
