@@ -10,12 +10,10 @@
 #include "semantic.h"
 
 // Add support for the following:
-// - implement equality (as a method)
 // - abort for dispatch on void
 // - abort for case on void
 // - abort for case on no match
 // - exception handling
-// - copy more test cases from older project
 //
 // Future plans:
 // - add a new class Linux for the syscalls and implement a prelude for it
