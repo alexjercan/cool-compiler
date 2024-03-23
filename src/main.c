@@ -19,7 +19,6 @@
 //
 // Future plans:
 // - add a new class Linux for the syscalls and implement a prelude for it
-// - implement a better main/build system
 // - add graphics to IO
 
 enum status_code {
