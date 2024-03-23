@@ -23,6 +23,8 @@
 // implementation of the hash table data structure
 // - DS_AL_IMPLEMENTATION: Define this macro in one source file to include the
 // implementation of the allocator utility and set the allocator to use
+// - DS_AP_IMPLEMENTATION: Define this macro in one source file to include the
+// implementation of the ds_argument parser utility
 //
 // MEMORY MANAGEMENT
 //
@@ -115,7 +117,8 @@ DSHDEF int ds_dynamic_array_get(ds_dynamic_array *da, unsigned int index,
 DSHDEF void ds_dynamic_array_get_ref(ds_dynamic_array *da, unsigned int index,
                                      void **item);
 DSHDEF int ds_dynamic_array_copy(ds_dynamic_array *da, ds_dynamic_array *copy);
-DSHDEF void ds_dynamic_array_sort(ds_dynamic_array *da, int (*compare)(const void *, const void *));
+DSHDEF void ds_dynamic_array_sort(ds_dynamic_array *da,
+                                  int (*compare)(const void *, const void *));
 DSHDEF int ds_dynamic_array_reverse(ds_dynamic_array *da);
 DSHDEF int ds_dynamic_array_swap(ds_dynamic_array *da, unsigned int index1,
                                  unsigned int index2);
@@ -249,6 +252,62 @@ DSHDEF int ds_hash_table_get_ref(ds_hash_table *ht, const void *key,
 DSHDEF unsigned int ds_hash_table_count(ds_hash_table *ht);
 DSHDEF int ds_hash_table_remove(ds_hash_table *ht, const void *key);
 DSHDEF void ds_hash_table_free(ds_hash_table *ht);
+
+// ARGUMENT PARSER
+//
+// The ds_argument parser is a simple utility to parse command line arguments.
+// You can define the options and arguments to parse, and then parse the command
+// line arguments.
+// Argument types
+enum ds_argument_type {
+    ARGUMENT_TYPE_VALUE,      // Argument with a value
+    ARGUMENT_TYPE_FLAG,       // Flag ds_argument
+    ARGUMENT_TYPE_POSITIONAL, // Positional ds_argument
+};
+
+// Argument options
+typedef struct ds_argparse_options {
+        char short_name;            // Short name of the ds_argument
+        char *long_name;            // Long name of the ds_argument
+        char *description;          // Description of the ds_argument
+        enum ds_argument_type type; // Type of the ds_argument
+        unsigned int required;      // Whether the ds_argument is required
+} ds_argparse_options;
+
+// Argument
+typedef struct ds_argument {
+        struct ds_argparse_options options;
+        char *value;
+        unsigned int flag;
+} ds_argument;
+
+typedef struct ds_argparse_parser {
+        struct ds_allocator *allocator;
+        char *name;
+        char *description;
+        char *version;
+        ds_dynamic_array arguments; // ds_argument
+} ds_argparse_parser;
+
+DSHDEF void ds_argparse_parser_init_allocator(struct ds_argparse_parser *parser,
+                                              char *name, char *description,
+                                              char *version,
+                                              struct ds_allocator *allocator);
+DSHDEF void ds_argparse_parser_init(struct ds_argparse_parser *parser,
+                                    char *name, char *description,
+                                    char *version);
+DSHDEF int ds_argparse_add_argument(struct ds_argparse_parser *parser,
+                                    struct ds_argparse_options options);
+DSHDEF int ds_argparse_parse(struct ds_argparse_parser *parser, int argc,
+                             char **argv);
+DSHDEF char *ds_argparse_get_value(struct ds_argparse_parser *parser,
+                                   char *name);
+
+DSHDEF unsigned int ds_argparse_get_flag(struct ds_argparse_parser *parser, char *name);
+DSHDEF char *ds_argparse_get_positional(struct ds_argparse_parser *parser, unsigned int index);
+DSHDEF void ds_argparse_print_help(struct ds_argparse_parser *parser);
+DSHDEF void ds_argparse_print_version(struct ds_argparse_parser *parser);
+DSHDEF void ds_argparse_parser_free(struct ds_argparse_parser *parser);
 
 // RETURN DEFER
 //
@@ -496,6 +555,7 @@ static inline void *ds_realloc(void *a, void *ptr, unsigned int old_sz,
 #define DS_LL_IMPLEMENTATION
 #define DS_HT_IMPLEMENTATION
 #define DS_AL_IMPLEMENTATION
+#define DS_AP_IMPLEMENTATION
 #endif // DS_IMPLEMENTATION
 
 #ifdef DS_PQ_IMPLEMENTATION
@@ -509,6 +569,10 @@ static inline void *ds_realloc(void *a, void *ptr, unsigned int old_sz,
 #ifdef DS_HT_IMPLEMENTATION
 #define DS_DA_IMPLEMENTATION
 #endif // DS_HT_IMPLEMENTATION
+
+#ifdef DS_AP_IMPLEMENTATION
+#define DS_DA_IMPLEMENTATION
+#endif // DS_AP_IMPLEMENTATION
 
 #ifdef DS_PQ_IMPLEMENTATION
 
@@ -957,7 +1021,8 @@ defer:
     return result;
 }
 
-DSHDEF void ds_dynamic_array_sort(ds_dynamic_array *da, int (*compare)(const void *, const void *)) {
+DSHDEF void ds_dynamic_array_sort(ds_dynamic_array *da,
+                                  int (*compare)(const void *, const void *)) {
     qsort(da->items, da->count, da->item_size, compare);
 }
 
@@ -1707,3 +1772,407 @@ DSHDEF void ds_allocator_free(ds_allocator *allocator, void *ptr) {
 }
 
 #endif // DS_AL_IMPLEMENTATION
+
+#ifdef DS_AP_IMPLEMENTATION
+
+// Initialize the argparser with a custom allocator
+DSHDEF void ds_argparse_parser_init_allocator(ds_argparse_parser *parser,
+                                              char *name, char *description,
+                                              char *version,
+                                              ds_allocator *allocator) {
+    parser->allocator = allocator;
+    parser->name = name;
+    parser->description = description;
+    parser->version = version;
+    ds_dynamic_array_init_allocator(&parser->arguments, sizeof(ds_argument),
+                                    allocator);
+
+    ds_argparse_add_argument(
+        parser,
+        (ds_argparse_options){.short_name = 'v',
+                              .long_name = "version",
+                              .description = "print the program version",
+                              .type = ARGUMENT_TYPE_FLAG,
+                              .required = 0});
+    ds_argparse_add_argument(
+        parser, (ds_argparse_options){.short_name = 'h',
+                                      .long_name = "help",
+                                      .description = "print this help message",
+                                      .type = ARGUMENT_TYPE_FLAG,
+                                      .required = 0});
+}
+
+// Initialize with the default malloc allocator
+DSHDEF void ds_argparse_parser_init(ds_argparse_parser *parser, char *name,
+                                    char *description, char *version) {
+    ds_argparse_parser_init_allocator(parser, name, description, version, NULL);
+}
+
+// Add an argument to the parser
+//
+// Adds a new argument to the parser with the given options.
+//
+// Arguments:
+// - parser: argument parser
+// - options: argument options
+DSHDEF int ds_argparse_add_argument(ds_argparse_parser *parser,
+                                    ds_argparse_options options) {
+    ds_argument arg = {
+        .options = options,
+        .value = NULL,
+        .flag = 0,
+    };
+
+    return ds_dynamic_array_append(&parser->arguments, &arg);
+}
+
+static int argparse_validate_parser(ds_argparse_parser *parser) {
+    int result = 0;
+    int found_optional_positional = 0;
+
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        ds_argparse_options options = item->options;
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL && options.required == 0) {
+            found_optional_positional = 1;
+        }
+
+        if (options.short_name == '\0' && options.long_name == NULL) {
+            DS_LOG_ERROR("no short_name and long_name for argument %zu", i);
+            result = 1;
+        }
+        if (options.type == ARGUMENT_TYPE_FLAG && options.required == 1) {
+            DS_LOG_ERROR("flag argument cannot be required: %s",
+                         options.long_name);
+            result = 1;
+        }
+        if (options.type == ARGUMENT_TYPE_POSITIONAL && options.required == 1 &&
+            found_optional_positional == 1) {
+            DS_LOG_ERROR("required positional argument after optional: %s",
+                         options.long_name);
+            result = 1;
+        }
+    }
+
+    return result;
+}
+
+static int argparse_post_validate_parser(ds_argparse_parser *parser) {
+    int result = 0;
+
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        ds_argparse_options options = item->options;
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL && options.required == 1) {
+            if (item->value == NULL) {
+                DS_LOG_ERROR("missing required positional argument: %s",
+                             options.long_name);
+                result = 1;
+            }
+        }
+
+        if (options.type == ARGUMENT_TYPE_VALUE && options.required == 1) {
+            if (item->value == NULL) {
+                DS_LOG_ERROR("missing required argument: --%s",
+                             options.long_name);
+                result = 1;
+            }
+        }
+    }
+
+    return result;
+}
+
+static ds_argument *argparse_get_option_arg(ds_argparse_parser *parser,
+                                            const char *name) {
+    if (name[0] != '-') {
+        DS_LOG_WARN("provided name is not an option: %s", name);
+        return NULL;
+    }
+
+    ds_argument *arg = NULL;
+
+    for (size_t j = 0; j < parser->arguments.count; j++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, j, (void **)&item);
+
+        if ((name[1] == '-' && item->options.long_name != NULL &&
+             strcmp(name + 2, item->options.long_name) == 0) ||
+            (name[1] != '-' && item->options.short_name != '\0' &&
+             name[1] == item->options.short_name)) {
+            arg = item;
+            break;
+        }
+    }
+
+    if (arg == NULL) {
+        DS_LOG_ERROR("invalid argument: %s", name);
+        return NULL;
+    }
+
+    return arg;
+}
+
+static ds_argument *argparse_get_positional_arg(ds_argparse_parser *parser,
+                                                const char *name) {
+    if (name[0] == '-') {
+        DS_LOG_WARN("provided name is not a positional argument: %s", name);
+        return NULL;
+    }
+
+    ds_argument *arg = NULL;
+
+    for (size_t j = 0; j < parser->arguments.count; j++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, j, (void **)&item);
+
+        if (item->options.type == ARGUMENT_TYPE_POSITIONAL &&
+            item->value == NULL) {
+            arg = item;
+            break;
+        }
+    }
+
+    if (arg == NULL) {
+        DS_LOG_ERROR("unexpected positional argument: %s", name);
+        return NULL;
+    }
+
+    return arg;
+}
+
+// Parse the command line arguments
+//
+// Parses the command line arguments and sets the values of the arguments in the
+// parser.
+//
+// Arguments:
+// - parser: argument parser
+// - argc: number of command line arguments
+// - argv: command line arguments
+//
+// Returns 0 if the parsing was successful, 1 otherwise.
+int ds_argparse_parse(ds_argparse_parser *parser, int argc, char *argv[]) {
+    int result = 0;
+
+    if (argparse_validate_parser(parser) != 0) {
+        return_defer(1);
+    }
+
+    for (int i = 1; i < argc; i++) {
+        char *name = argv[i];
+
+        if (strcmp(name, "-h") == 0 || strcmp(name, "--help") == 0) {
+            ds_argparse_print_help(parser);
+            exit(0);
+        }
+
+        if (strcmp(name, "-v") == 0 || strcmp(name, "--version") == 0) {
+            ds_argparse_print_version(parser);
+            exit(0);
+        }
+
+        if (name[0] == '-') {
+            ds_argument *arg = argparse_get_option_arg(parser, name);
+
+            if (arg == NULL) {
+                return_defer(1);
+            }
+
+            switch (arg->options.type) {
+            case ARGUMENT_TYPE_FLAG: {
+                arg->flag = 1;
+                break;
+            }
+            case ARGUMENT_TYPE_VALUE: {
+                if (i + 1 >= argc) {
+                    DS_LOG_ERROR("missing value for argument: %s", name);
+                    ds_argparse_print_help(parser);
+                    return_defer(1);
+                }
+
+                arg->value = argv[++i];
+                break;
+            }
+            default: {
+                DS_LOG_ERROR("type not supported for argument: %s", name);
+                ds_argparse_print_help(parser);
+                return_defer(1);
+            }
+            }
+        } else {
+            ds_argument *arg = argparse_get_positional_arg(parser, name);
+
+            if (arg == NULL) {
+                DS_LOG_ERROR("unexpected positional argument: %s", name);
+                ds_argparse_print_help(parser);
+                return_defer(1);
+            }
+
+            arg->value = name;
+        }
+    }
+
+    if (argparse_post_validate_parser(parser) != 0) {
+        ds_argparse_print_help(parser);
+        return_defer(1);
+    }
+
+defer:
+    return result;
+}
+
+// Get the value of an argument
+//
+// Returns the value of the argument with the given long name.
+//
+// Arguments:
+// - parser: argument parser
+// - long_name: long name of the argument
+//
+// Returns:
+// - value of the argument
+char *ds_argparse_get_value(ds_argparse_parser *parser, char *long_name) {
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        if (item->options.long_name != NULL &&
+            strcmp(long_name, item->options.long_name) == 0) {
+            if (item->options.type != ARGUMENT_TYPE_VALUE &&
+                item->options.type != ARGUMENT_TYPE_POSITIONAL) {
+                DS_LOG_WARN("argument is not a value: %s", long_name);
+            }
+            return item->value;
+        }
+    }
+
+    return NULL;
+}
+
+// Get the value of a positional argument
+//
+// Returns the value of the positional argument with the given long name.
+//
+// Arguments:
+// - parser: argument parser
+// - long_name: long name of the argument
+//
+// Returns:
+// - value of the flag argument
+unsigned int ds_argparse_get_flag(ds_argparse_parser *parser, char *long_name) {
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        if (item->options.long_name != NULL &&
+            strcmp(long_name, item->options.long_name) == 0) {
+            if (item->options.type != ARGUMENT_TYPE_FLAG) {
+                DS_LOG_WARN("argument is not a flag: %s", long_name);
+            }
+            return item->flag;
+        }
+    }
+
+    return 0;
+}
+
+// Show the help message
+//
+// Prints the help message for the argument parser.
+//
+// Arguments:
+// - parser: argument parser
+void ds_argparse_print_help(ds_argparse_parser *parser) {
+    fprintf(stdout, "usage: %s [options]", parser->name);
+
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        ds_argparse_options options = item->options;
+
+        if (options.type == ARGUMENT_TYPE_VALUE && options.required == 1) {
+            fprintf(stdout, " -%c <%s>", options.short_name, options.long_name);
+        }
+    }
+
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        ds_argparse_options options = item->options;
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL) {
+            if (options.required == 1) {
+                fprintf(stdout, " <%s>", options.long_name);
+            } else {
+                fprintf(stdout, " [%s]", options.long_name);
+            }
+        }
+    }
+    fprintf(stdout, "\n");
+    fprintf(stdout, "%s\n", parser->description);
+    fprintf(stdout, "\n");
+    fprintf(stdout, "options:\n");
+
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        switch (item->options.type) {
+        case ARGUMENT_TYPE_POSITIONAL: {
+            fprintf(stdout, "  %c, %s\n", item->options.short_name,
+                   item->options.long_name);
+            fprintf(stdout, "      %s\n", item->options.description);
+            fprintf(stdout, "\n");
+            break;
+        }
+        case ARGUMENT_TYPE_FLAG: {
+            fprintf(stdout, "  -%c, --%s\n", item->options.short_name,
+                   item->options.long_name);
+            fprintf(stdout, "      %s\n", item->options.description);
+            fprintf(stdout, "\n");
+            break;
+        }
+        case ARGUMENT_TYPE_VALUE: {
+            fprintf(stdout, "  -%c, --%s <value>\n", item->options.short_name,
+                   item->options.long_name);
+            fprintf(stdout, "      %s\n", item->options.description);
+            fprintf(stdout, "\n");
+            break;
+        }
+        default: {
+            DS_PANIC("invalid argument type");
+        }
+        }
+    }
+}
+
+// Show the version
+//
+// Prints the version of the program.
+//
+// Arguments:
+// - parser: argument parser
+void ds_argparse_print_version(ds_argparse_parser *parser) {
+    fprintf(stdout, "%s %s\n", parser->name, parser->version);
+}
+
+// Free the argument parser
+//
+// Frees the memory allocated for the argument parser.
+//
+// Arguments:
+// - parser: argument parser
+void ds_argparse_free(ds_argparse_parser *parser) {
+    ds_dynamic_array_free(&parser->arguments);
+}
+
+#endif // DS_AP_IMPLEMENTATION

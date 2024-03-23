@@ -4,7 +4,6 @@
 #include <string.h>
 #include <dirent.h>
 #define ARGPARSE_IMPLEMENTATION
-#include "argparse.h"
 #include "assembler.h"
 #include "codegen.h"
 #include "ds.h"
@@ -30,7 +29,7 @@ enum status_code {
 };
 
 typedef struct build_context {
-    struct argparse_parser *parser;
+    ds_argparse_parser parser;
     ds_dynamic_array prelude_filepaths; // const char *
     ds_dynamic_array user_filepaths; // const char *
     ds_dynamic_array asm_filepaths; // const char *
@@ -88,7 +87,7 @@ defer:
     return result;
 }
 
-static int build_context_init(build_context *context, struct argparse_parser *parser) {
+static int build_context_init(build_context *context, ds_argparse_parser parser) {
     int result = 0;
 
     context->parser = parser;
@@ -170,8 +169,8 @@ static enum status_code parse_user(build_context *context) {
     char *buffer = NULL;
     ds_dynamic_array tokens; // struct token
 
-    int lexer_stop = argparse_get_flag(context->parser, ARG_LEXER);
-    int parser_stop = argparse_get_flag(context->parser, ARG_SYNTAX);
+    int lexer_stop = ds_argparse_get_flag(&context->parser, ARG_LEXER);
+    int parser_stop = ds_argparse_get_flag(&context->parser, ARG_SYNTAX);
 
     enum parser_result parser_status = PARSER_OK;
 
@@ -247,8 +246,8 @@ defer:
 }
 
 static enum status_code gatekeeping(build_context *context) {
-    int semantic_stop = argparse_get_flag(context->parser, ARG_SEMANTIC);
-    int mapping_stop = argparse_get_flag(context->parser, ARG_MAPPING);
+    int semantic_stop = ds_argparse_get_flag(&context->parser, ARG_SEMANTIC);
+    int mapping_stop = ds_argparse_get_flag(&context->parser, ARG_MAPPING);
 
     int result = STATUS_OK;
 
@@ -280,9 +279,9 @@ static enum status_code codegen(build_context *context) {
     int length;
     char *buffer = NULL;
 
-    char *output = argparse_get_value(context->parser, ARG_OUTPUT);
-    int tacgen_stop = argparse_get_flag(context->parser, ARG_TACGEN);
-    int assembler_stop = argparse_get_flag(context->parser, ARG_ASSEMBLER);
+    char *output = ds_argparse_get_value(&context->parser, ARG_OUTPUT);
+    int tacgen_stop = ds_argparse_get_flag(&context->parser, ARG_TACGEN);
+    int assembler_stop = ds_argparse_get_flag(&context->parser, ARG_ASSEMBLER);
 
     int result = STATUS_OK;
 
@@ -330,10 +329,9 @@ defer:
 int main(int argc, char **argv) {
     int result = 0;
     build_context context;
-    struct argparse_parser *parser = NULL;
+    ds_argparse_parser parser;
 
-    parser = util_parse_arguments(argc, argv);
-    if (parser == NULL) {
+    if (util_parse_arguments(&parser, argc, argv) != 0) {
         DS_LOG_ERROR("Failed to parse arguments");
         return_defer(1);
     }
@@ -341,7 +339,7 @@ int main(int argc, char **argv) {
     build_context_init(&context, parser);
 
     // TODO: Take from args
-    char *filename = argparse_get_value(parser, ARG_INPUT);
+    char *filename = ds_argparse_get_value(&parser, ARG_INPUT);
     ds_dynamic_array_append(&context.user_filepaths, &filename);
 
     int prelude_result = parse_prelude(&context);

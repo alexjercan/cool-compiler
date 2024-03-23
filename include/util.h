@@ -21,7 +21,7 @@
 #define ARG_TACGEN "tac"
 #define ARG_ASSEMBLER "asm"
 
-struct argparse_parser *util_parse_arguments(int argc, char **argv);
+int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv);
 void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
                     unsigned int *col);
 
