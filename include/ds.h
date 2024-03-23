@@ -260,9 +260,11 @@ DSHDEF void ds_hash_table_free(ds_hash_table *ht);
 // line arguments.
 // Argument types
 enum ds_argument_type {
-    ARGUMENT_TYPE_VALUE,      // Argument with a value
-    ARGUMENT_TYPE_FLAG,       // Flag ds_argument
-    ARGUMENT_TYPE_POSITIONAL, // Positional ds_argument
+    ARGUMENT_TYPE_VALUE,           // Argument with a value
+    ARGUMENT_TYPE_FLAG,            // Flag ds_argument
+    ARGUMENT_TYPE_POSITIONAL,      // Positional ds_argument
+    ARGUMENT_TYPE_POSITIONAL_REST, // Positional ds_argument that consumes the
+                                   // rest
 };
 
 // Argument options
@@ -277,8 +279,11 @@ typedef struct ds_argparse_options {
 // Argument
 typedef struct ds_argument {
         struct ds_argparse_options options;
-        char *value;
-        unsigned int flag;
+        union {
+                char *value;
+                unsigned int flag;
+                ds_dynamic_array values;
+        };
 } ds_argument;
 
 typedef struct ds_argparse_parser {
@@ -302,9 +307,10 @@ DSHDEF int ds_argparse_parse(struct ds_argparse_parser *parser, int argc,
                              char **argv);
 DSHDEF char *ds_argparse_get_value(struct ds_argparse_parser *parser,
                                    char *name);
-
-DSHDEF unsigned int ds_argparse_get_flag(struct ds_argparse_parser *parser, char *name);
-DSHDEF char *ds_argparse_get_positional(struct ds_argparse_parser *parser, unsigned int index);
+DSHDEF unsigned int ds_argparse_get_flag(struct ds_argparse_parser *parser,
+                                         char *name);
+DSHDEF int ds_argparse_get_values(struct ds_argparse_parser *parser, char *name,
+                                  ds_dynamic_array *values);
 DSHDEF void ds_argparse_print_help(struct ds_argparse_parser *parser);
 DSHDEF void ds_argparse_print_version(struct ds_argparse_parser *parser);
 DSHDEF void ds_argparse_parser_free(struct ds_argparse_parser *parser);
@@ -1819,9 +1825,22 @@ DSHDEF int ds_argparse_add_argument(ds_argparse_parser *parser,
                                     ds_argparse_options options) {
     ds_argument arg = {
         .options = options,
-        .value = NULL,
-        .flag = 0,
     };
+
+    switch (options.type) {
+    case ARGUMENT_TYPE_VALUE:
+        arg.value = NULL;
+        break;
+    case ARGUMENT_TYPE_FLAG:
+        arg.flag = 0;
+        break;
+    case ARGUMENT_TYPE_POSITIONAL:
+        arg.value = NULL;
+        break;
+    case ARGUMENT_TYPE_POSITIONAL_REST:
+        ds_dynamic_array_init(&arg.values, sizeof(char *));
+        break;
+    }
 
     return ds_dynamic_array_append(&parser->arguments, &arg);
 }
@@ -1829,12 +1848,30 @@ DSHDEF int ds_argparse_add_argument(ds_argparse_parser *parser,
 static int argparse_validate_parser(ds_argparse_parser *parser) {
     int result = 0;
     int found_optional_positional = 0;
+    int found_positional_rest = 0;
 
     for (size_t i = 0; i < parser->arguments.count; i++) {
         ds_argument *item = NULL;
         ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
 
         ds_argparse_options options = item->options;
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL && found_positional_rest) {
+            DS_LOG_ERROR("positional argument after positional rest: %s",
+                         options.long_name);
+            result = 1;
+        }
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL_REST &&
+            found_positional_rest) {
+            DS_LOG_ERROR("multiple positional rest arguments");
+            result = 1;
+        }
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL_REST &&
+            found_positional_rest == 0) {
+            found_positional_rest = 1;
+        }
 
         if (options.type == ARGUMENT_TYPE_POSITIONAL && options.required == 0) {
             found_optional_positional = 1;
@@ -1884,6 +1921,15 @@ static int argparse_post_validate_parser(ds_argparse_parser *parser) {
                 result = 1;
             }
         }
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL_REST &&
+            options.required == 1) {
+            if (item->values.count == 0) {
+                DS_LOG_ERROR("missing required positional rest argument: %s",
+                             options.long_name);
+                result = 1;
+            }
+        }
     }
 
     return result;
@@ -1927,7 +1973,6 @@ static ds_argument *argparse_get_positional_arg(ds_argparse_parser *parser,
     }
 
     ds_argument *arg = NULL;
-
     for (size_t j = 0; j < parser->arguments.count; j++) {
         ds_argument *item = NULL;
         ds_dynamic_array_get_ref(&parser->arguments, j, (void **)&item);
@@ -1937,11 +1982,11 @@ static ds_argument *argparse_get_positional_arg(ds_argparse_parser *parser,
             arg = item;
             break;
         }
-    }
 
-    if (arg == NULL) {
-        DS_LOG_ERROR("unexpected positional argument: %s", name);
-        return NULL;
+        if (item->options.type == ARGUMENT_TYPE_POSITIONAL_REST) {
+            arg = item;
+            break;
+        }
     }
 
     return arg;
@@ -2015,6 +2060,25 @@ int ds_argparse_parse(ds_argparse_parser *parser, int argc, char *argv[]) {
                 return_defer(1);
             }
 
+            switch (arg->options.type) {
+            case ARGUMENT_TYPE_POSITIONAL: {
+                arg->value = name;
+                break;
+            }
+            case ARGUMENT_TYPE_POSITIONAL_REST: {
+                if (ds_dynamic_array_append(&arg->values, &name) != 0) {
+                    DS_LOG_ERROR("failed to append value to positional rest");
+                    return_defer(1);
+                }
+                break;
+            }
+            default: {
+                DS_LOG_ERROR("type not supported for argument: %s", name);
+                ds_argparse_print_help(parser);
+                return_defer(1);
+            }
+            }
+
             arg->value = name;
         }
     }
@@ -2083,6 +2147,25 @@ unsigned int ds_argparse_get_flag(ds_argparse_parser *parser, char *long_name) {
     return 0;
 }
 
+DSHDEF int ds_argparse_get_values(struct ds_argparse_parser *parser,
+                                  char *long_name, ds_dynamic_array *values) {
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        if (item->options.long_name != NULL &&
+            strcmp(long_name, item->options.long_name) == 0) {
+            if (item->options.type != ARGUMENT_TYPE_POSITIONAL_REST) {
+                DS_LOG_WARN("argument is not a positional rest: %s", long_name);
+            }
+            *values = item->values;
+            return item->values.count;
+        }
+    }
+
+    return 0;
+}
+
 // Show the help message
 //
 // Prints the help message for the argument parser.
@@ -2117,6 +2200,22 @@ void ds_argparse_print_help(ds_argparse_parser *parser) {
             }
         }
     }
+
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        ds_argparse_options options = item->options;
+
+        if (options.type == ARGUMENT_TYPE_POSITIONAL_REST) {
+            if (options.required == 1) {
+                fprintf(stdout, " <%s>...", options.long_name);
+            } else {
+                fprintf(stdout, " [%s]...", options.long_name);
+            }
+        }
+    }
+
     fprintf(stdout, "\n");
     fprintf(stdout, "%s\n", parser->description);
     fprintf(stdout, "\n");
@@ -2129,21 +2228,28 @@ void ds_argparse_print_help(ds_argparse_parser *parser) {
         switch (item->options.type) {
         case ARGUMENT_TYPE_POSITIONAL: {
             fprintf(stdout, "  %c, %s\n", item->options.short_name,
-                   item->options.long_name);
+                    item->options.long_name);
+            fprintf(stdout, "      %s\n", item->options.description);
+            fprintf(stdout, "\n");
+            break;
+        }
+        case ARGUMENT_TYPE_POSITIONAL_REST: {
+            fprintf(stdout, "  %c, %s\n", item->options.short_name,
+                    item->options.long_name);
             fprintf(stdout, "      %s\n", item->options.description);
             fprintf(stdout, "\n");
             break;
         }
         case ARGUMENT_TYPE_FLAG: {
             fprintf(stdout, "  -%c, --%s\n", item->options.short_name,
-                   item->options.long_name);
+                    item->options.long_name);
             fprintf(stdout, "      %s\n", item->options.description);
             fprintf(stdout, "\n");
             break;
         }
         case ARGUMENT_TYPE_VALUE: {
             fprintf(stdout, "  -%c, --%s <value>\n", item->options.short_name,
-                   item->options.long_name);
+                    item->options.long_name);
             fprintf(stdout, "      %s\n", item->options.description);
             fprintf(stdout, "\n");
             break;

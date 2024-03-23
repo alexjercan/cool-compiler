@@ -101,6 +101,8 @@ static int build_context_init(build_context *context, ds_argparse_parser parser)
         return_defer(1);
     }
 
+    ds_argparse_get_values(&parser, ARG_INPUT, &context->user_filepaths);
+
     ds_dynamic_array_init(&context->user_programs, sizeof(program_node));
     ds_dynamic_array_init(&context->program.classes, sizeof(class_node));
     context->mapping = (struct semantic_mapping){0};
@@ -337,10 +339,6 @@ int main(int argc, char **argv) {
     }
 
     build_context_init(&context, parser);
-
-    // TODO: Take from args
-    char *filename = ds_argparse_get_value(&parser, ARG_INPUT);
-    ds_dynamic_array_append(&context.user_filepaths, &filename);
 
     int prelude_result = parse_prelude(&context);
     int user_result = parse_user(&context);

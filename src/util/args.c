@@ -30,7 +30,7 @@ int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv) {
         parser, ((ds_argparse_options){.short_name = 'i',
                                            .long_name = ARG_INPUT,
                                            .description = "Input file",
-                                           .type = ARGUMENT_TYPE_POSITIONAL,
+                                           .type = ARGUMENT_TYPE_POSITIONAL_REST,
                                            .required = 1}));
 
     ds_argparse_add_argument(

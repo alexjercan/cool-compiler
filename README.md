@@ -9,7 +9,7 @@ To run the compiler for a specific stage use
 
 ```console
 make
-./build/main <file.cl> [--lex | --syn | --sem | --tac | --asm]
+./build/main [--lex | --syn | --sem | --tac | --asm] [--o outfile] <file.cl> ...
 ```
 
 To run the checker for a specific implementation use

@@ -61,7 +61,7 @@ static int assembler_context_init(assembler_context *context,
     if (filename == NULL) {
         context->file = stdout;
     } else {
-        context->file = fopen(filename, "w");
+        context->file = fopen(filename, "a");
         if (context->file == NULL) {
             return_defer(1);
         }
