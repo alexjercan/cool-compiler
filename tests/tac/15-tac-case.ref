@@ -9,7 +9,7 @@ $t0 <- $t3
 jump L0
 L2:
 $t4 <- value as Object
-$t5 <- abort()
+$t5 <- self.abort()
 $t6 <- string ""
 $t0 <- $t6
 jump L0
