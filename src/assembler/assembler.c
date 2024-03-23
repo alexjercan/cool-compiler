@@ -369,7 +369,11 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
 
     switch (c.value.type) {
     case ASM_CONST_STR: {
-        assembler_emit_fmt(context, align, "object size", "dq %d", 5);
+        size_t length = strlen(c.value.str.value);
+
+        size_t words = (length + WORD_SIZE - 1) / WORD_SIZE;
+
+        assembler_emit_fmt(context, align, "object size", "dq %d", 4 + words);
         assembler_emit_fmt(context, align, "dispatch table",
                            "dq String_dispTab");
         assembler_emit_fmt(context, align, "pointer to length", "dq %s",
@@ -377,7 +381,6 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
         ds_string_builder sb;
         ds_string_builder_init(&sb);
 
-        size_t length = strlen(c.value.str.value);
         for (size_t i = 0; i < length; i++) {
             ds_string_builder_append(&sb, "%d", c.value.str.value[i]);
             if (i < length - 1) {

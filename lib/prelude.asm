@@ -53,6 +53,8 @@ loc_2 = 24
 loc_3 = 32
 loc_4 = 40
 loc_5 = 48
+loc_6 = 56
+loc_7 = 64
 
 arg_0 = 16
 arg_1 = 24
@@ -416,7 +418,7 @@ segment readable executable
 IO.in_string:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 40                    ; allocate 5 local variables
+    sub     rsp, 48                    ; allocate 6 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -489,10 +491,30 @@ IO.in_string:
     mov     rdi, qword [rbp - loc_0]
     mov     qword [rax], rdi
 
+    ; t5 <- ((t3 - t1 + 7) >> 3) << 3
+    mov     rax, qword [rbp - loc_3]
+    sub     rax, qword [rbp - loc_1]
+    add     rax, 7
+    shr     rax, 3
+    shl     rax, 3
+    mov     qword [rbp - loc_5], rax
+
+    ; size(t1) <- t5 >> 3
+    mov     rax, qword [rbp - loc_5]
+    shr     rax, 3
+    mov     rdi, rax
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [obj_size]
+    mov     [rax], rdi
+
+    ; heap_pos <- heap_pos + t5
+    mov     rax, qword [rbp - loc_5]
+    add     [heap_pos], rax
+
     mov     rax, qword [rbp - loc_1]
 
     pop     rbx                        ; restore register
-    add     rsp, 40                    ; deallocate local variables
+    add     rsp, 48                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -536,7 +558,7 @@ segment readable executable
 String.concat:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 48                    ; allocate 6 local variables
+    sub     rsp, 56                    ; allocate 7 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -631,10 +653,30 @@ String.concat:
     mov     rax, qword [rbp - loc_5]
     mov     [heap_pos], rax
 
+    ; t6 <- ((t5 - t1 + 7) >> 3) << 3
+    mov     rax, qword [rbp - loc_5]
+    sub     rax, qword [rbp - loc_1]
+    add     rax, 7
+    shr     rax, 3
+    shl     rax, 3
+    mov     qword [rbp - loc_5], rax
+
+    ; size(t1) <- t6 >> 3
+    mov     rax, qword [rbp - loc_6]
+    shr     rax, 3
+    mov     rdi, rax
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [obj_size]
+    mov     [rax], rdi
+
+    ; heap_pos <- heap_pos + t6
+    mov     rax, qword [rbp - loc_6]
+    add     [heap_pos], rax
+
     mov     rax, qword [rbp - loc_1]   ; get t1
 
     pop     rbx                        ; restore register
-    add     rsp, 40                    ; deallocate local variables
+    add     rsp, 56                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
