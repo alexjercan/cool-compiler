@@ -1141,6 +1141,7 @@ static void build_feature(struct parser *parser, class_node *class) {
 static void build_class(struct parser *parser, class_node *class) {
     struct token token;
 
+    class->filename = parser->filename;
     class->name.value = NULL;
     class->superclass.value = NULL;
     ds_dynamic_array_init(&class->attributes, sizeof(attribute_node));
@@ -1233,6 +1234,7 @@ enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
                               program_node *program) {
 
     ds_dynamic_array_init(&program->classes, sizeof(class_node));
+    program->filename = filename;
 
     struct parser parser = {.filename = filename,
                             .tokens = tokens,

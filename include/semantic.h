@@ -38,8 +38,7 @@ typedef struct semantic_mapping {
         ds_dynamic_array classes; // semantic_mapping_item
 } semantic_mapping;
 
-enum semantic_result semantic_check(const char *filename, program_node *program,
-                                    semantic_mapping *mapping);
+enum semantic_result semantic_check(program_node *program, semantic_mapping *mapping);
 void semantic_print_mapping(semantic_mapping *mapping);
 
 #endif // SEMANTIC_H

@@ -214,15 +214,12 @@ defer:
 }
 
 static enum status_code gatekeeping(build_context *context) {
-    const char *basename = util_filepath_to_basename(argparse_get_value(context->parser, ARG_INPUT));
-
     int semantic_stop = argparse_get_flag(context->parser, ARG_SEMANTIC);
     int mapping_stop = argparse_get_flag(context->parser, ARG_MAPPING);
 
     int result = STATUS_OK;
 
-    // TODO: This should not require basename, the names should be stored in each class node
-    if (semantic_check(basename, &context->program, &context->mapping) != SEMANTIC_OK) {
+    if (semantic_check(&context->program, &context->mapping) != SEMANTIC_OK) {
         return_defer(STATUS_ERROR);
     }
 

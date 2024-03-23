@@ -310,6 +310,7 @@ static void semantic_check_classes(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
+        context->filename = class.filename;
 
         if (is_class_name_illegal(context, class)) {
             context_show_error_class_name_illegal(context, class);
@@ -333,6 +334,7 @@ static void semantic_check_classes(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
+        context->filename = class.filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class.name.value, &class_ctx);
@@ -364,6 +366,7 @@ static void semantic_check_classes(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
+        context->filename = class.filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class.name.value, &class_ctx);
@@ -451,6 +454,7 @@ static void semantic_check_attributes(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
+        context->filename = class.filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class.name.value, &class_ctx);
@@ -496,6 +500,7 @@ static void semantic_check_attributes(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
+        context->filename = class.filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class.name.value, &class_ctx);
@@ -655,6 +660,7 @@ static void semantic_check_methods(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
+        context->filename = class.filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class.name.value, &class_ctx);
@@ -724,6 +730,7 @@ static void semantic_check_methods(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node class;
         ds_dynamic_array_get(&program->classes, i, &class);
+        context->filename = class.filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class.name.value, &class_ctx);
@@ -1796,6 +1803,7 @@ static void semantic_check_method_body(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node *class = NULL;
         ds_dynamic_array_get_ref(&program->classes, i, (void **)&class);
+        context->filename = class->filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class->name.value, &class_ctx);
@@ -1871,6 +1879,7 @@ static void semantic_check_attribute_init(semantic_context *context,
     for (unsigned int i = 0; i < program->classes.count; i++) {
         class_node *class = NULL;
         ds_dynamic_array_get_ref(&program->classes, i, (void **)&class);
+        context->filename = class->filename;
 
         class_context *class_ctx = NULL;
         find_class_ctx(context, class->name.value, &class_ctx);
@@ -2000,7 +2009,6 @@ void semantic_print_mapping(semantic_mapping *mapping) {
     for (unsigned int i = 0; i < mapping->classes.count; i++) {
         semantic_mapping_item *item = NULL;
         ds_dynamic_array_get_ref(&mapping->classes, i, (void **)&item);
-
 
         for (unsigned int j = 0; j < item->methods.count; j++) {
             implementation_mapping_item *method = NULL;
@@ -2149,7 +2157,6 @@ static void build_semantic_mapping(semantic_context *context,
 
         const char *class_name = class_ctx->name;
 
-
         ds_linked_list class_stack;
         ds_linked_list_init(&class_stack, sizeof(class_context *));
 
@@ -2211,9 +2218,8 @@ static void build_semantic_mapping(semantic_context *context,
     }
 }
 
-enum semantic_result semantic_check(const char *filename, program_node *program,
-                                    semantic_mapping *mapping) {
-    semantic_context context = {.filename = filename};
+enum semantic_result semantic_check(program_node *program, semantic_mapping *mapping) {
+    semantic_context context = {.filename = program->filename};
 
     context.result = SEMANTIC_OK;
     ds_dynamic_array_init(&context.classes, sizeof(class_context));

@@ -173,6 +173,7 @@ typedef struct method_node {
 } method_node;
 
 typedef struct class_node {
+        const char *filename;
         node_info name;
         node_info superclass;
         ds_dynamic_array attributes; // attribute_node
@@ -180,6 +181,7 @@ typedef struct class_node {
 } class_node;
 
 typedef struct program_node {
+        const char *filename;
         ds_dynamic_array classes; // class_node
 } program_node;
 
