@@ -536,7 +536,7 @@ segment readable executable
 String.concat:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 40                    ; allocate 5 local variables
+    sub     rsp, 48                    ; allocate 6 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -573,10 +573,14 @@ String.concat:
     add     rax, qword [rbp - loc_3]
     mov     qword [rbp - loc_4], rax
 
-    ; cmp t1.s + t4 <= heap_end
+    ; t5 <- t1.s + t4
     mov     rax, qword [rbp - loc_1]
     add     rax, [str_field]
     add     rax, qword [rbp - loc_4]
+    mov     qword [rbp - loc_5], rax
+
+    ; cmp t5 <= heap_end
+    mov     rax, qword [rbp - loc_5]
     cmp     rax, qword [heap_end]
     jle     .ok_concat
 
@@ -614,10 +618,17 @@ String.concat:
     mov     rdi, qword [rbp - loc_0]
     mov     [rax], rdi
 
-    ; update heap_pos
+    ; size(t1) <- (t5 - t1) >> 3
+    mov     rax, qword [rbp - loc_5]
+    sub     rax, qword [rbp - loc_1]
+    shr     rax, 3
+    mov     rdi, rax
     mov     rax, qword [rbp - loc_1]
-    add     rax, [str_field]
-    add     rax, qword [rbp - loc_4]
+    add     rax, [obj_size]
+    mov     [rax], rdi
+
+    ; update heap_pos
+    mov     rax, qword [rbp - loc_5]
     mov     [heap_pos], rax
 
     mov     rax, qword [rbp - loc_1]   ; get t1
