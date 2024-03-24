@@ -2023,15 +2023,24 @@ static void search_dfs_class_tree(semantic_context *context,
                                   program_node *program,
                                   class_context *current_ctx,
                                   ds_linked_list *class_queue) {
-    // TODO: maybe do it iteratively
-    ds_linked_list_push_back(class_queue, &current_ctx);
+    ds_linked_list stack;
+    ds_linked_list_init(&stack, sizeof(class_context *));
 
-    for (unsigned int i = 0; i < context->classes.count; i++) {
-        class_context *child_ctx = NULL;
-        ds_dynamic_array_get_ref(&context->classes, i, (void **)&child_ctx);
+    ds_linked_list_push_front(&stack, &current_ctx);
 
-        if (child_ctx->parent == current_ctx) {
-            search_dfs_class_tree(context, program, child_ctx, class_queue);
+    while (ds_linked_list_empty(&stack) == 0) {
+        class_context *current_ctx = NULL;
+        ds_linked_list_pop_front(&stack, &current_ctx);
+
+        ds_linked_list_push_back(class_queue, &current_ctx);
+
+        for (unsigned int i = 0; i < context->classes.count; i++) {
+            class_context *child_ctx = NULL;
+            ds_dynamic_array_get_ref(&context->classes, i, (void **)&child_ctx);
+
+            if (child_ctx->parent == current_ctx) {
+                ds_linked_list_push_front(&stack, &child_ctx);
+            }
         }
     }
 }
