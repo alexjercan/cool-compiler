@@ -29,4 +29,23 @@ class List {
             self;
         }
     };
+
+    concat(l: List): List {
+        {
+            if isvoid next then
+                next <- l
+            else
+                next.concat(l)
+            fi;
+            self;
+        }
+    };
+
+    index(i: Int): Object {
+        if i = 0 then
+            value
+        else
+            next.index(i - 1)
+        fi
+    };
 };
