@@ -23,6 +23,10 @@
 
 #define FASM "fasm"
 #define DEFAULT_OUTPUT "main.asm"
+#define COMPILATION_HALTED()                                                   \
+    do {                                                                       \
+        fprintf(stderr, "Compilation halted\n");                               \
+    } while (0)
 
 enum status_code {
     STATUS_OK = 0,
@@ -383,7 +387,7 @@ int main(int argc, char **argv) {
         return_defer(0);
     }
     if (prelude_result != STATUS_OK || user_result != STATUS_OK) {
-        printf("Compilation halted\n");
+        COMPILATION_HALTED();
         return_defer(1);
     }
 
@@ -392,7 +396,7 @@ int main(int argc, char **argv) {
         return_defer(0);
     }
     if (gatekeeping_result != STATUS_OK) {
-        printf("Compilation halted\n");
+        COMPILATION_HALTED();
         return_defer(1);
     }
 
@@ -401,7 +405,7 @@ int main(int argc, char **argv) {
         return_defer(0);
     }
     if (codegen_result != STATUS_OK) {
-        printf("Compilation halted\n");
+        COMPILATION_HALTED();
         return_defer(1);
     }
 
@@ -410,7 +414,7 @@ int main(int argc, char **argv) {
         return_defer(0);
     }
     if (fasm_result != STATUS_OK) {
-        printf("Compilation halted\n");
+        COMPILATION_HALTED();
         return_defer(1);
     }
 
