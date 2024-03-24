@@ -9,6 +9,7 @@ struct parser {
         unsigned int index;
         int result;
         int panicd;
+        FILE *error_fd;
 };
 
 static int parser_current(struct parser *parser, struct token *token) {
@@ -53,26 +54,26 @@ static void parser_show_errorf(struct parser *parser, const char *format, ...) {
 
     if (token.type == ILLEGAL) {
         if (filename != NULL) {
-            printf("\"%s\", ", filename);
+            fprintf(parser->error_fd, "\"%s\", ", filename);
         }
 
-        printf("line %d:%d, Lexical error: %s", token.line, token.col,
+        fprintf(parser->error_fd, "line %d:%d, Lexical error: %s", token.line, token.col,
                error_type_to_string(token.error));
 
         if (token.literal != NULL) {
-            printf(": %s", token.literal);
+            fprintf(parser->error_fd, ": %s", token.literal);
         }
 
-        printf("\n");
+        fprintf(parser->error_fd, "\n");
     } else if (parser->panicd == 0) {
         if (filename != NULL) {
-            printf("\"%s\", ", filename);
+            fprintf(parser->error_fd, "\"%s\", ", filename);
         }
-        printf("line %d:%d, Syntax error: ", token.line, token.col);
+        fprintf(parser->error_fd, "line %d:%d, Syntax error: ", token.line, token.col);
 
         va_list args;
         va_start(args, format);
-        vprintf(format, args);
+        vfprintf(parser->error_fd, format, args);
         va_end(args);
 
         printf("\n");
@@ -1239,7 +1240,9 @@ enum parser_result parser_run(const char *filename, ds_dynamic_array *tokens,
     struct parser parser = {.filename = filename,
                             .tokens = tokens,
                             .index = 0,
-                            .result = PARSER_OK};
+                            .result = PARSER_OK,
+                            .panicd = 0,
+                            .error_fd = stderr};
 
     build_program(&parser, program);
 

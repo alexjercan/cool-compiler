@@ -41,4 +41,3 @@ class Main inherits IO {
 };
 
 -- TODO: print errors to stderr
--- TODO: add fasm in build tool
