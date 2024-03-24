@@ -2,11 +2,10 @@ class A {};
 class B inherits A {};
 class C inherits B {};
 
-class F inherits D {};
-
 class D inherits A {};
 class E inherits D {};
 
+class F inherits D {};
 
 class Main inherits IO {
     the_method(x: Object): Int {

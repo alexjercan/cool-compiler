@@ -4,26 +4,7 @@ format ELF64 executable 3
 ; arguments on the stack
 ; return value in rax
 
-; Define entry point
-entry _start
-segment readable executable
-_start:
-    ; Initialize the heap
-    mov     rax, 12                    ; brk
-    mov     rdi, 0                     ; increment = 0
-    syscall
-    mov     [heap_pos], rax            ; save the current position of the heap
-    mov     [heap_end], rax            ; save the end of the heap
-    ; Call the main method
-    mov     rax, Main_protObj
-    call    Object.copy
-    call    Main_init
-    call    Main.main
-    ; Exit the program
-    mov     rax, 60
-    xor     rdi, rdi
-    syscall
-
+; memory layout
 segment readable writable
 heap_pos dq 0
 heap_end dq 0
@@ -34,7 +15,6 @@ _abort_msg db "Abort called from class ", 0
 _abort_msg_len dq $ - _abort_msg
 _nl db 10, 0
 _nl_len dq $ - _nl
-
 
 ; Define some constants
 segment readable
@@ -60,6 +40,26 @@ arg_0 = 16
 arg_1 = 24
 arg_2 = 32
 
+; Define entry point
+entry _start
+segment readable executable
+_start:
+    ; Initialize the heap
+    mov     rax, 12                    ; brk
+    mov     rdi, 0                     ; increment = 0
+    syscall
+    mov     [heap_pos], rax            ; save the current position of the heap
+    mov     [heap_end], rax            ; save the end of the heap
+    ; Call the main method
+    mov     rax, Main_protObj
+    call    Object.copy
+    call    Main_init
+    call    Main.main
+    ; Exit the program
+    mov     rax, 60
+    xor     rdi, rdi
+    syscall
+
 ;
 ;
 ; read syscall
@@ -70,7 +70,6 @@ arg_2 = 32
 ;      - count: Int
 ;   OUTPUT: rax points to the string object containing the read string
 ;
-segment readable executable
 Linux.read:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
@@ -172,7 +171,6 @@ Linux.read:
 ;      - buf: String
 ;   OUTPUT: rax points to the int object containing the number of bytes written
 ;
-segment readable executable
 Linux.write:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
@@ -235,7 +233,6 @@ Linux.write:
 ;   STACK: empty
 ;   OUTPUT: rax points to the newly created copy.
 ;
-segment readable executable
 Object.copy:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
@@ -297,7 +294,6 @@ Object.copy:
 ;   STACK: empty
 ;   OUTPUT: never returns
 ;
-segment readable executable
 Object.abort:
     mov     rdi, 1                     ; fd = stdout
     mov     rsi, _abort_msg            ; str "Abort called from class "
@@ -333,7 +329,6 @@ Object.abort:
 ;   STACK: empty
 ;   OUTPUT: rax reference to class name string object
 ;
-segment readable executable
 Object.type_name:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
@@ -425,7 +420,6 @@ Object.equals:
 ;   STACK: empty
 ;   OUTPUT: rax the int object which is the size of the string
 ;
-segment readable executable
 String.length:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
@@ -451,7 +445,6 @@ String.length:
 ;        s string object
 ;   OUTPUT: rax the string object which is the concatenation of self and arg1
 ;
-segment readable executable
 String.concat:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
@@ -576,7 +569,6 @@ String.concat:
 ;		l int object
 ;	OUTPUT:	rax contains the string object which is the sub string of self
 ;
-segment readable executable
 String.substr:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
@@ -969,3 +961,4 @@ parse_uint:
     add     rsp, 16                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
+
