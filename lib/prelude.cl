@@ -39,6 +39,8 @@ class Object {
 
 (* The IO class provides basic input and output operations. *)
 class IO inherits Object {
+    linux: Linux <- new Linux;
+
     (*
         The out_string method writes a string to the output.
 
@@ -46,7 +48,12 @@ class IO inherits Object {
 
         Returns: SELF_TYPE
     *)
-    out_string(x: String): SELF_TYPE extern;
+    out_string(x: String): SELF_TYPE {
+        {
+            linux.write(1, x);
+            self;
+        }
+    };
 
     (*
         The out_int method writes an integer to the output.
@@ -62,7 +69,24 @@ class IO inherits Object {
 
         Returns: String
     *)
-    in_string(): String extern;
+    in_string(): String {
+        let s: String <- new String,
+            tmp: String <- new String
+        in
+            {
+                tmp <- linux.read(0, 1024);
+                s <- s.concat(tmp);
+
+                while tmp.length() = 1024 loop
+                    {
+                        tmp <- linux.read(0, 1024);
+                        s <- s.concat(tmp);
+                    }
+                pool;
+
+                s;
+            }
+    };
 
     (*
         The in_int method reads an integer from the input.
