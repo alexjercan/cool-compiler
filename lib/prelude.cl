@@ -1,53 +1,17 @@
-(* COOL Standard Library *)
-
-(* The Object class is the root of the class hierarchy. *)
 class Object {
-    (*
-        The abort method can be called to halt the program.
-
-        Returns: Object
-    *)
     abort(): Object extern;
-
-    (*
-        The type_name method returns a string representation of the class of the
-        object.
-
-        Returns: String
-    *)
     type_name(): String extern;
-
-    (*
-        The copy method returns a new object that is a copy of the object on which
-        it is called.
-
-        Returns: SELF_TYPE
-    *)
     copy(): SELF_TYPE extern;
-
-    (*
-        The equals method returns true if the object on which it is called is equal
-        to the object passed as an argument.
-
-        x: Object - The object to compare with the object on which the method is
-                    called.
-
-        Returns: Bool
-    *)
     equals(x: Object): Bool extern;
+
+    to_string(): String {
+        self.type_name().concat(" object")
+    };
 };
 
-(* The IO class provides basic input and output operations. *)
 class IO inherits Object {
     linux: Linux <- new Linux;
 
-    (*
-        The out_string method writes a string to the output.
-
-        x: String - The string to write to the output.
-
-        Returns: SELF_TYPE
-    *)
     out_string(x: String): SELF_TYPE {
         {
             linux.write(1, x);
@@ -55,23 +19,17 @@ class IO inherits Object {
         }
     };
 
-    (*
-        The out_int method writes an integer to the output.
+    out_int(x: Int): SELF_TYPE {
+        {
+            out_string(x.to_string());
+            self;
+        }
+    };
 
-        x: Int - The integer to write to the output.
-
-        Returns: SELF_TYPE
-    *)
-    out_int(x: Int): SELF_TYPE extern;
-
-    (*
-        The in_string method reads a string from the input.
-
-        Returns: String
-    *)
     in_string(): String {
-        let s: String <- new String,
-            tmp: String <- new String
+        let s: String <- "",
+            tmp: String,
+            c: String
         in
             {
                 tmp <- linux.read(0, 1024);
@@ -84,123 +42,148 @@ class IO inherits Object {
                     }
                 pool;
 
-                s;
+                if s.substr(s.length() - 1, 1) = "\n" then
+                    s.substr(0, s.length() - 1)
+                else
+                    s
+                fi;
             }
     };
 
-    (*
-        The in_int method reads an integer from the input.
-
-        Returns: Int
-    *)
-    in_int(): Int extern;
+    in_int(): Int {
+        in_string().to_int()
+    };
 };
 
-(* The String class provides methods for manipulating strings. *)
 class String inherits Object {
-    l: Int <- extern;       -- The length of the string.
-    str: String <- extern;  -- The default value of a String object.
+    l: Int <- extern;     -- TOOD: weird bug cannot use l variable in let
+    str: String <- extern;
 
-    (*
-        The length method returns the length of the string.
-
-        Returns: Int
-    *)
     length(): Int extern;
-
-    (*
-        The concat method returns a new string that is the concatenation of the
-        string on which it is called and the string passed as an argument.
-
-        s: String - The string to concatenate with the string on which the method
-                    is called.
-
-        Returns: String
-    *)
     concat(s: String): String extern;
-
-    (*
-        The substr method returns a substring of the string on which it is called.
-
-        i: Int - The starting index of the substring.
-        l: Int - The length of the substring.
-
-        Returns: String
-    *)
     substr(i: Int, l: Int): String extern;
-
-    (*
-        The equals method returns true if the object on which it is called is equal
-        to the object passed as an argument.
-
-        x: Object - The object to compare with the object on which the method is
-                    called.
-
-        Returns: Bool
-    *)
     equals(x: Object): Bool extern;
+
+    to_string(): String {
+        case self of
+            me: String => me;
+            me: Object => { abort(); new String; };
+        esac
+    };
+
+    to_int(): Int {
+        let s: String <- case self of
+                             me: String => me;
+                             me: Object => { abort(); new String; };
+                         esac,
+            c: String,
+            n: Int <- 0,
+            i: Int <- 0,
+            d: Int
+        in
+            {
+                while i < s.length() loop
+                    {
+                        c <- s.substr(i, 1);
+                        if c = "0" then d <- 0 else
+                        if c = "1" then d <- 1 else
+                        if c = "2" then d <- 2 else
+                        if c = "3" then d <- 3 else
+                        if c = "4" then d <- 4 else
+                        if c = "5" then d <- 5 else
+                        if c = "6" then d <- 6 else
+                        if c = "7" then d <- 7 else
+                        if c = "8" then d <- 8 else
+                        if c = "9" then d <- 9 else
+                        { abort(); 0; }
+                        fi fi fi fi fi fi fi fi fi fi;
+                        i <- i + 1;
+                        n <- n * 10 + d;
+                    }
+                pool;
+                n;
+            }
+    };
 };
 
-(* The Int class provides methods for manipulating integers. *)
 class Int inherits Object {
-    val: Int <- extern; -- The default value of an Int object.
+    val: Int <- extern;
 
-    (*
-        The equals method returns true if the object on which it is called is equal
-        to the object passed as an argument.
-
-        x: Object - The object to compare with the object on which the method is
-                    called.
-
-        Returns: Bool
-    *)
     equals(x: Object): Bool extern;
+
+    to_string(): String {
+        let x: Int <- case self of
+                          me: Int => me;
+                          me: Object => { abort(); 0; };
+                      esac,
+            s: String <- "",
+            n: Int <- x.abs(),
+            d: Int
+        in
+            {
+                while not n = 0 loop
+                    {
+                        d <- n.mod(10);
+                        if d = 0 then s <- "0".concat(s) else
+                        if d = 1 then s <- "1".concat(s) else
+                        if d = 2 then s <- "2".concat(s) else
+                        if d = 3 then s <- "3".concat(s) else
+                        if d = 4 then s <- "4".concat(s) else
+                        if d = 5 then s <- "5".concat(s) else
+                        if d = 6 then s <- "6".concat(s) else
+                        if d = 7 then s <- "7".concat(s) else
+                        if d = 8 then s <- "8".concat(s) else
+                        if d = 9 then s <- "9".concat(s) else
+                        { abort(); new String; }
+                        fi fi fi fi fi fi fi fi fi fi;
+                        n <- n / 10;
+                    }
+                pool;
+
+                if x = 0 then "0" else if x < 0 then "-".concat(s) else s fi fi;
+            }
+    };
+
+    abs(): Int {
+        case self of
+            me: Int => if me < 0 then ~me else me fi;
+            me: Object => { abort(); 0; };
+        esac
+    };
+
+    mod(x: Int): Int {
+        case self of
+            me: Int => me - (me / x) * x;
+            me: Object => { abort(); 0; };
+        esac
+    };
 };
 
-(* The Bool class provides methods for manipulating booleans. *)
 class Bool inherits Object {
-    val: Bool <- extern; -- The default value of a Bool object.
+    val: Bool <- extern;
 
-    (*
-        The equals method returns true if the object on which it is called is equal
-        to the object passed as an argument.
-
-        x: Object - The object to compare with the object on which the method is
-                    called.
-
-        Returns: Bool
-    *)
     equals(x: Object): Bool extern;
 
-    (*
-        The and method returns true if the object on which it is called and the
-        object passed as an argument are both true.
-
-        x: Bool - The boolean to compare with the boolean on which the method is
-                  called.
-
-        Returns: Bool
-    *)
     and(x: Bool): Bool {
         case self of
             me: Bool => if me then x else false fi;
-            me: Object => false;
+            me: Object => { abort(); false; };
         esac
     };
 
-    (*
-        The or method returns true if the object on which it is called or the object
-        passed as an argument are true.
-
-        x: Bool - The boolean to compare with the boolean on which the method is
-                  called.
-
-        Returns: Bool
-    *)
     or(x: Bool): Bool {
         case self of
             me: Bool => if me then true else x fi;
-            me: Object => false;
+            me: Object => { abort(); false; };
+        esac
+    };
+
+    to_string(): String {
+        case self of
+            me: Bool => if me then "true" else "false" fi;
+            me: Object => { abort(); new String; };
         esac
     };
 };
+
+-- TODO: new String was not ""
