@@ -8,6 +8,7 @@ typedef struct semantic_context {
         const char *filename;
         enum semantic_result result;
         ds_dynamic_array classes; // class_context
+        FILE *error_fd;
 } semantic_context;
 
 typedef struct class_context {
@@ -112,17 +113,17 @@ static void context_show_errorf(semantic_context *context, unsigned int line,
     const char *filename = context->filename;
 
     if (filename != NULL) {
-        printf("\"%s\", ", filename);
+        fprintf(context->error_fd, "\"%s\", ", filename);
     }
 
-    printf("line %d:%d, Semantic error: ", line, col);
+    fprintf(context->error_fd, "line %d:%d, Semantic error: ", line, col);
 
     va_list args;
     va_start(args, format);
-    vprintf(format, args);
+    vfprintf(context->error_fd, format, args);
     va_end(args);
 
-    printf("\n");
+    fprintf(context->error_fd, "\n");
 }
 
 static void find_class_ctx(semantic_context *context, const char *class_name,
@@ -2232,6 +2233,7 @@ enum semantic_result semantic_check(program_node *program, semantic_mapping *map
 
     context.result = SEMANTIC_OK;
     ds_dynamic_array_init(&context.classes, sizeof(class_context));
+    context.error_fd = stderr;
 
     semantic_check_classes(&context, program);
     semantic_check_attributes(&context, program);
