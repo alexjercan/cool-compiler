@@ -412,30 +412,6 @@ Object.equals:
 
 ;
 ;
-; String.length
-;
-;   Returns Int Obj with string length of self
-;
-;   INPUT: rax contains self
-;   STACK: empty
-;   OUTPUT: rax the int object which is the size of the string
-;
-String.length:
-    push    rbp                        ; save return address
-    mov     rbp, rsp                   ; set up stack frame
-    push    rbx                        ; save register
-    mov     rbx, rax                   ; save self
-
-    mov     rax, rbx                   ; get self
-    add     rax, [str_size]            ; get *self.l
-    mov     rax, [rax]                 ; get self.l
-
-    pop     rbx                        ; restore register
-    pop     rbp                        ; restore return address
-    ret
-
-;
-;
 ; String.concat
 ;
 ;   Returns a the concatenation of self and arg1
@@ -663,165 +639,140 @@ String.substr:
     add     rsp, 48                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
-
 ;
 ;
-; String.equals
+; String.ord
 ;
-;   Compares two strings for equality.
+;   Converts a single character string to an integer.
 ;
 ;   INPUT: rax contains self
-;   STACK:
-;        x object
-;   OUTPUT: rax contains a boolean object
-String.equals:
+;   STACK: empty
+;   OUTPUT: rax contains an integer object
+String.ord:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
     sub     rsp, 24                    ; allocate 3 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; t0 <- new Bool
-    mov     rax, Bool_protObj
+    ; t0 <- new Int
+    mov     rax, Int_protObj
     call    Object.copy
-    call    Bool_init
+    call    Int_init
     mov     qword [rbp - loc_0], rax
 
-    ; t1 <- get self.l.val
+    ; t1 <- self.s
     mov     rax, rbx
-    add     rax, [str_size]
-    mov     rax, [rax]
-    add     rax, [int_slot]
-    mov     rax, [rax]
+    add     rax, [str_field]
+    movzx   rax, byte [rax]
     mov     qword [rbp - loc_1], rax
 
-    ; arg0 = self.str, arg1 = x.str, arg2 = t1
-    mov     rdi, rbx
-    add     rdi, [str_field]
-    mov     rsi, [rbp + arg_0]
-    add     rsi, [str_field]
-    mov     rdx, qword [rbp - loc_1]
-    call    memcmp
-
-    ; t2 <- 1 if equal, 0 otherwise
-    test    rax, rax
-    setz    al
-    movzx   rax, al
-    mov     qword [rbp - loc_2], rax
-
-    ; t0.val <- t2
+    ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
-    add     rax, [bool_slot]
-    mov     rdi, qword [rbp - loc_2]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_1]
     mov     [rax], rdi
 
-    mov     rax, qword [rbp - loc_0]   ; get t0
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
 
     pop     rbx                        ; restore register
     add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
-
 ;
 ;
-; Int.equals
+; Int.chr
 ;
-;   Compares two ints for equality.
+;   Converts an integer to a single character string (assume ASCII).
 ;
 ;   INPUT: rax contains self
-;   STACK:
-;        x object
-;   OUTPUT: rax contains a boolean object
-Int.equals:
+;   STACK: empty
+;   OUTPUT: rax contains a string object
+Int.chr:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 16                    ; allocate 2 local variables
+    sub     rsp, 48                    ; allocate 6 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; t0 <- new Bool
-    mov     rax, Bool_protObj
+    ; t0 <- new Int
+    mov     rax, Int_protObj
     call    Object.copy
-    call    Bool_init
+    call    Int_init
     mov     qword [rbp - loc_0], rax
 
-    ; get self.val
-    mov     rdi, rbx
-    add     rdi, [int_slot]
-    mov     rdi, [rdi]
-
-    ; get x.val
-    mov     rsi, [rbp + arg_0]
-    add     rsi, [int_slot]
-    mov     rsi, [rsi]
-
-    ; t1 <- 1 if equal, 0 otherwise
-    cmp     rdi, rsi
-    setz    al
-    movzx   rax, al
-    mov     qword [rbp - loc_1], rax
-
-    ; t0.val <- t1
-    mov     rax, qword [rbp - loc_0]
-    add     rax, [bool_slot]
-    mov     rdi, qword [rbp - loc_1]
-    mov     [rax], rdi
-
-    mov     rax, qword [rbp - loc_0]   ; get t0
-
-    pop     rbx                        ; restore register
-    add     rsp, 16                    ; deallocate local variables
-    pop     rbp                        ; restore return address
-    ret
-;
-;
-; Bool.equals
-;
-;   Compares two bools for equality.
-;
-;   INPUT: rax contains self
-;   STACK:
-;        x object
-;   OUTPUT: rax contains a boolean object
-Bool.equals:
-    push    rbp                        ; save return address
-    mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 16                    ; allocate 2 local variables
-    push    rbx                        ; save register
-    mov     rbx, rax                   ; save self
-
-    ; t0 <- new Bool
-    mov     rax, Bool_protObj
+    ; t1 <- new String
+    mov     rax, String_protObj
     call    Object.copy
-    call    Bool_init
-    mov     qword [rbp - loc_0], rax
-
-    ; get self.val
-    mov     rdi, rbx
-    add     rdi, [bool_slot]
-    mov     rdi, [rdi]
-
-    ; get x.val
-    mov     rsi, [rbp + arg_0]
-    add     rsi, [bool_slot]
-    mov     rsi, [rsi]
-
-    ; t1 <- 1 if equal, 0 otherwise
-    cmp     rdi, rsi
-    setz    al
-    movzx   rax, al
+    call    String_init
     mov     qword [rbp - loc_1], rax
 
-    ; t0.val <- t1
-    mov     rax, qword [rbp - loc_0]
-    add     rax, [bool_slot]
-    mov     rdi, qword [rbp - loc_1]
+    ; t2 <- *t1.s
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- 1
+    mov     rax, 1
+    mov     qword [rbp - loc_3], rax
+
+    ; cmp t2 + t3 <= heap_end
+    mov     rax, qword [rbp - loc_2]
+    add     rax, qword [rbp - loc_3]
+    cmp     rax, [heap_end]
+    jle     .ok_chr
+
+    ; malloc_64k()
+    call    malloc_64k
+
+.ok_chr:
+    ; t4 <- self.val
+    mov     rax, rbx
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_4], rax
+
+    ; t1.s <- t4
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    mov     rdi, qword [rbp - loc_4]
     mov     [rax], rdi
 
-    mov     rax, qword [rbp - loc_0]   ; get t0
+    ; t0.val <- t3
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; t1.l <- t0
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_size]
+    mov     rdi, qword [rbp - loc_0]
+    mov     qword [rax], rdi
+
+    ; t5 <- (t3 + 7) >> 3
+    mov     rax, qword [rbp - loc_3]
+    add     rax, 7
+    shr     rax, 3
+    mov     qword [rbp - loc_5], rax
+
+    ; size(t1) <- t5
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [obj_size]
+    mov     rdi, qword [rbp - loc_5]
+    mov     [rax], rdi
+
+    ; heap_pos <- heap_pos + (t3 << 3)
+    mov     rax, qword [rbp - loc_3]
+    shl     rax, 3
+    add     [heap_pos], rax
+
+    ; return t1
+    mov     rax, qword [rbp - loc_1]
 
     pop     rbx                        ; restore register
-    add     rsp, 16                    ; deallocate local variables
+    add     rsp, 48                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 

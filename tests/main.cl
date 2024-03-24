@@ -2,7 +2,7 @@ class Person {
     name: String;
     food: String;
 
-    init(n: String, f: String): Person {
+    init(n: String, f: String): SELF_TYPE {
         {
             name <- n;
             food <- f;
@@ -29,6 +29,7 @@ class Main inherits IO {
                 l.append(true);
                 l.append(new Object);
                 l.append(guy);
+                l.append("1".ord());
                 while not isvoid l loop
                     {
                         out_string(l.value().to_string()).out_string("\n");
