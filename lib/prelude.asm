@@ -226,6 +226,25 @@ Linux.write:
     ret
 
 ;
+; exit syscall
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - status: Int
+;   OUTPUT: never returns
+;
+Linux.exit:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+
+    mov     rdi, [rsp + arg_0]
+    add     rdi, [int_slot]
+    mov     rdi, [rdi]
+
+    mov     rax, 60
+    syscall
+
+;
 ;
 ; Copy method
 ;
@@ -282,44 +301,6 @@ Object.copy:
     add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
-
-;
-;
-; Object.abort
-;
-;   The abort method for the object class (usually inherited by
-;   all other classes)
-;
-;   INPUT: rax contains self
-;   STACK: empty
-;   OUTPUT: never returns
-;
-Object.abort:
-    mov     rdi, 1                     ; fd = stdout
-    mov     rsi, _abort_msg            ; str "Abort called from class "
-    mov     rdx, [_abort_msg_len]      ; length of the string
-    mov     rax, 1                     ; write
-    syscall
-
-    ; t0 <- self@Object.type_name()
-    mov     rax, rbx
-    call    Object.type_name
-
-    ; t1 <- self@IO.out_string(t0)
-    push    rax
-    mov     rax, rbx
-    call    IO.out_string
-    pop     rax
-
-    mov     rdi, 1                     ; fd = stdout
-    mov     rsi, _nl                   ; str = "\n"
-    mov     rdx, [_nl_len]             ; length of the string
-    mov     rax, 1                     ; write
-    syscall
-
-    mov     rax, 60
-    xor     rdi, rdi
-    syscall
 
 ;
 ;

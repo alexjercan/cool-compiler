@@ -1,8 +1,14 @@
 class Object {
-    abort(): Object extern;
     type_name(): String extern;
     copy(): SELF_TYPE extern;
     equals(x: Object): Bool extern;
+
+    abort(): Object {
+        {
+            new IO.out_string("Abort called from class ").out_string(type_name()).out_string("\n");
+            new Linux.exit(0);
+        }
+    };
 
     to_string(): String {
         self.type_name().concat(" object")
