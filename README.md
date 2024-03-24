@@ -3,7 +3,21 @@
 Compiler for the [Classroom Object-Oriented
 Language](https://theory.stanford.edu/~aiken/software/cool/cool-manual.pdf).
 
+## Requirements
+
+- [FASM](https://flatassembler.net/)
+
 ## Quickstart
+
+To compile a single file use
+
+```console
+make
+./build/main <file.cl>
+```
+
+this will create a file `main.asm` with the assembly code and a file `main`
+with the executable.
 
 To run the compiler for a specific stage use
 
