@@ -21,6 +21,9 @@
 // - add a new class Linux for the syscalls and implement a prelude for it
 // - add graphics to IO
 
+#define FASM "fasm"
+#define DEFAULT_OUTPUT "main.asm"
+
 enum status_code {
     STATUS_OK = 0,
     STATUS_ERROR = 1,
@@ -281,11 +284,19 @@ static enum status_code codegen(build_context *context) {
     int length;
     char *buffer = NULL;
 
-    char *output = ds_argparse_get_value(&context->parser, ARG_OUTPUT);
     int tacgen_stop = ds_argparse_get_flag(&context->parser, ARG_TACGEN);
     int assembler_stop = ds_argparse_get_flag(&context->parser, ARG_ASSEMBLER);
+    char *output = ds_argparse_get_value(&context->parser, ARG_OUTPUT);
+    char *asm_path = NULL;
 
     int result = STATUS_OK;
+
+    if (output == NULL && assembler_stop == 0) {
+        asm_path = DEFAULT_OUTPUT;
+    } else if (output != NULL && util_append_extension(output, "asm", &asm_path) != 0) {
+        DS_LOG_ERROR("Failed to append extension");
+        return STATUS_ERROR;
+    }
 
     if (tacgen_stop == 1) {
         for (size_t i = 0; i < context->user_programs.count; i++) {
@@ -307,19 +318,45 @@ static enum status_code codegen(build_context *context) {
             return_defer(STATUS_ERROR);
         }
 
-        if (util_write_file(output, buffer) != 0) {
-            DS_LOG_ERROR("Failed to write file: %s", output);
+        if (util_write_file(asm_path, buffer) != 0) {
+            DS_LOG_ERROR("Failed to write file: %s", asm_path);
             return_defer(STATUS_ERROR);
         }
     }
 
     // assembler
-    if (assembler_run(output, &context->mapping) != ASSEMBLER_OK) {
+    if (assembler_run(asm_path, &context->mapping) != ASSEMBLER_OK) {
         return_defer(STATUS_ERROR);
     }
 
     if (assembler_stop == 1) {
         return_defer(STATUS_STOP);
+    }
+
+    return_defer(STATUS_OK);
+
+defer:
+    return result;
+}
+
+static enum status_code fasm_run(build_context *context) {
+    enum status_code result = STATUS_OK;
+
+    char *output = ds_argparse_get_value(&context->parser, ARG_OUTPUT);
+    char *asm_path = NULL;
+
+    if (output == NULL) {
+        asm_path = DEFAULT_OUTPUT;
+    }
+
+    if (output != NULL && util_append_extension(output, "asm", &asm_path) != 0) {
+        DS_LOG_ERROR("Failed to append extension");
+        return_defer(STATUS_ERROR);
+    }
+
+    if (util_exec(FASM, (char *const[]){FASM, asm_path, NULL}) != 0) {
+        DS_LOG_ERROR("Failed to execute fasm");
+        return_defer(STATUS_ERROR);
     }
 
     return_defer(STATUS_OK);
@@ -368,7 +405,14 @@ int main(int argc, char **argv) {
         return_defer(1);
     }
 
-    // TODO: maybe call fasm here
+    int fasm_result = fasm_run(&context);
+    if (fasm_result == STATUS_STOP) {
+        return_defer(0);
+    }
+    if (fasm_result != STATUS_OK) {
+        printf("Compilation halted\n");
+        return_defer(1);
+    }
 
     return_defer(0);
 

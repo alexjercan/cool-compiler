@@ -29,5 +29,8 @@ int util_read_file(const char *filename, char **buffer);
 int util_write_file(const char *filename, char *buffer);
 int util_list_filepaths(const char *dirpath, ds_dynamic_array *filepaths);
 int util_append_path(char *path, const char *filename, char **buffer);
+int util_append_extension(const char *filename, const char *extension,
+                          char **buffer);
+int util_exec(const char *command, char *const argv[]);
 
 #endif // UTIL_H
