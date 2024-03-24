@@ -29,6 +29,7 @@ int util_list_filepaths(const char *dirpath, ds_dynamic_array *filepaths) {
         return_defer(1);
     }
 
+    // TODO: search for nested directories
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_REG) {
             int needed = snprintf(NULL, 0, "%s/%s", dirpath, entry->d_name);

@@ -44,6 +44,7 @@ static int build_context_prelude_init(build_context *context) {
     char *cool_lib = NULL;
     ds_dynamic_array filepaths;
 
+    // TODO: find a better solution
     cool_home = getenv("COOL_HOME");
     if (cool_home == NULL) {
         cool_home = ".";
@@ -367,8 +368,11 @@ int main(int argc, char **argv) {
         return_defer(1);
     }
 
+    // TODO: maybe call fasm here
+
     return_defer(0);
 
 defer:
+    // TODO: memory
     return result;
 }
