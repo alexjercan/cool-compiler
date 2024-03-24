@@ -31,6 +31,7 @@ enum status_code {
 };
 
 typedef struct build_context {
+    char *binary;
     ds_argparse_parser parser;
     ds_dynamic_array prelude_filepaths; // const char *
     ds_dynamic_array user_filepaths; // const char *
@@ -47,13 +48,12 @@ static int build_context_prelude_init(build_context *context) {
     char *cool_lib = NULL;
     ds_dynamic_array filepaths;
 
-    // TODO: find a better solution
     cool_home = getenv("COOL_HOME");
     if (cool_home == NULL) {
-        cool_home = ".";
+        util_cwd(&cool_home);
     }
 
-    if (util_append_path(cool_home, "/lib", &cool_lib) != 0) {
+    if (util_append_path(cool_home, "lib", &cool_lib) != 0) {
         DS_LOG_ERROR("Failed to append path");
         return_defer(1);
     }
