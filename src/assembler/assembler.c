@@ -1124,15 +1124,13 @@ static void assembler_emit_tac_assign_div(assembler_context *context,
 static void assembler_emit_tac_assign_neg(assembler_context *context,
                                           tac_result tac,
                                           tac_assign_unary instr) {
-    const char *comment;
-
     // t0 <- new Int
     assembler_emit_new_type(context, "Int");
     assembler_emit_store_variable(context, &tac, instr.ident);
 
     // set rax to ~t0.val
     assembler_emit_get_attr(context, tac, instr.expr, "Int", "val");
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "neg     rax");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "neg     rax");
 
     // set t1 to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Bool", "val");

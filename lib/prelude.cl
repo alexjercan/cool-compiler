@@ -56,7 +56,7 @@ class IO inherits Object {
 };
 
 class String inherits Object {
-    l: Int <- extern;     -- TOOD: weird bug cannot use l variable in let
+    l: Int;
     str: String <- extern;
 
     length(): Int extern;
@@ -76,13 +76,14 @@ class String inherits Object {
                              me: String => me;
                              me: Object => { abort(); new String; };
                          esac,
+            l: Int <- s.length(),
             c: String,
             n: Int <- 0,
             i: Int <- 0,
             d: Int
         in
             {
-                while i < s.length() loop
+                while i < l loop
                     {
                         c <- s.substr(i, 1);
                         if c = "0" then d <- 0 else
@@ -185,5 +186,3 @@ class Bool inherits Object {
         esac
     };
 };
-
--- TODO: new String was not ""

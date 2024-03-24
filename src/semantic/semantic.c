@@ -1123,7 +1123,7 @@ static int is_external_ident(object_environment_item *object_env,
                              node_info *ident) {
     for (unsigned int i = 0; i < object_env->objects.count; i++) {
         object_context object;
-        ds_dynamic_array_get(&object_env->objects, i, &object);
+        ds_dynamic_array_get(&object_env->objects, object_env->objects.count - i - 1, &object);
 
         if (strcmp(object.name, ident->value) == 0) {
             return object.external;
