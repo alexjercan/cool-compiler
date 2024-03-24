@@ -39,5 +39,3 @@ class Main inherits IO {
             }
     };
 };
-
--- TODO: print errors to stderr
