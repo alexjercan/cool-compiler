@@ -1062,6 +1062,9 @@ static const char *semantic_check_case_expression(
     semantic_context *context, case_node *expr, class_context *class_ctx,
     method_environment *method_env, object_environment_item *object_env) {
     const char *case_type = NULL;
+
+    semantic_check_expression(context, expr->expr, class_ctx, method_env, object_env);
+
     for (unsigned int i = 0; i < expr->cases.count; i++) {
         branch_node *branch = NULL;
         ds_dynamic_array_get_ref(&expr->cases, i, (void **)&branch);
