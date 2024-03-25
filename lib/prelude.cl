@@ -136,7 +136,7 @@ class Int inherits Object {
     };
 
     mod(x: Int): Int {
-        case self of me: Int => me - (me / x) * x; esac
+        case self of me: Int => let v: Int <- me - (me / x) * x in if me < 0 then x + v else v fi; esac
     };
 
     to_string(): String {
@@ -176,6 +176,10 @@ class Bool inherits Object {
 
     xor(x: Bool): Bool {
         case self of me: Bool => if me then not x else x fi; esac
+    };
+
+    to_int(): Int {
+        case self of me: Bool => if me then 1 else 0 fi; esac
     };
 
     to_string(): String {

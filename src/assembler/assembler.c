@@ -1110,12 +1110,12 @@ static void assembler_emit_tac_assign_div(assembler_context *context,
     assembler_emit_get_attr(context, tac, instr.rhs, "Int", "val");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rdi, rax");
 
-    // set rdi to t1
+    // set rax to t1
     assembler_emit_get_attr(context, tac, instr.lhs, "Int", "val");
 
     // set rax to t1 / t2
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "xor     rdx, rdx");
-    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "div     rdi");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "cqo");
+    assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "idiv    rdi");
 
     // set t0.val to rax
     assembler_emit_set_attr(context, tac, instr.ident, "Int", "val");
