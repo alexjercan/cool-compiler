@@ -70,6 +70,22 @@ class String inherits Object {
     substr(i: Int, l: Int): String extern;
     ord(): Int extern;
 
+    repeat(n: Int): String {
+        let s: String <- case self of me: String => me; esac,
+            i: Int <- 0,
+            buf: String <- ""
+        in
+            {
+                while i <= n loop
+                    {
+                        buf <- buf.concat(s);
+                        i <- i + 1;
+                    }
+                pool;
+                buf;
+            }
+    };
+
     equals(x: Object): Bool {
         let s: String <- case self of me: String => me; esac,
             other: String <- case x of me: String => me; esac,

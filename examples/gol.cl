@@ -22,7 +22,6 @@ class Main {
         in
             alive(tl).to_int() + alive(tm).to_int() + alive(tr).to_int() + alive(ml).to_int()
             + alive(mr).to_int() + alive(bl).to_int() + alive(bm).to_int() + alive(br).to_int()
-
     };
 
     transition(index: Int): Bool {
