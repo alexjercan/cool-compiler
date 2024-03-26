@@ -1,58 +1,56 @@
+; self in rax
+; arguments on the stack
+; return value in rax
+
+section '.data' writeable
+; memory layout
+heap_pos dq 0
+heap_end dq 0
+
+section '.data'
+; Define some constants
+obj_tag dq 0
+obj_size dq 8
+disp_tab dq 16
+int_slot dq 24
+bool_slot dq 24
+str_size dq 24
+str_field dq 32
+
+loc_0 = 8
+loc_1 = 16
+loc_2 = 24
+loc_3 = 32
+loc_4 = 40
+loc_5 = 48
+loc_6 = 56
+loc_7 = 64
+
+arg_0 = 16
+arg_1 = 24
+arg_2 = 32
+arg_3 = 40
+arg_4 = 48
+arg_5 = 56
+arg_6 = 64
+arg_7 = 72
+
+; Define entry point
 section '.text' executable
-
-;
-;
-; malloc_64k
-;   INPUT: none
-;   STACK: empty
-;   OUTPUT: none
-;
-malloc_64k:
-    push    rbp                        ; save return address
-    mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 8                     ; allocate 1 local variable
-    push    rbx                        ; save register
-    mov     rbx, rax                   ; save self
-
+public _start
+_start:
+    ; Initialize the heap
     mov     rax, 12                    ; brk
-    mov     rdi, 0x10000               ; 64K bytes (larger obj. will fail)
-    add     rdi, [heap_end]            ; new end of the heap
+    mov     rdi, 0                     ; increment = 0
     syscall
-    mov     [heap_end], rax            ; save the new end of the heap
-
-    mov     rax, rbx                   ; restore self
-    pop     rbx                        ; restore register
-    add     rsp, 8                     ; deallocate local variables
-    pop     rbp                        ; restore return address
-    ret
-
-;
-;
-; memcpy
-;   INPUT:
-;       rdi points to destination
-;       rsi points to source
-;       rdx contains the number of bytes to copy
-;   STACK: empty
-;   OUTPUT: nothing
-;
-memcpy:
-    push    rbp                        ; save return address
-    mov     rbp, rsp                   ; set up stack frame
-
-.next_byte:
-    cmp     rdx, 0                     ; check if done
-    jle     .done
-
-    mov     al, byte [rsi]             ; get byte from self
-    mov     byte [rdi], al             ; copy byte to new object
-
-    inc     rdi                        ; increment destination
-    inc     rsi                        ; increment source
-    dec     rdx                        ; decrement count
-
-    jmp .next_byte
-.done:
-
-    pop     rbp                        ; restore return address
-    ret
+    mov     [heap_pos], rax            ; save the current position of the heap
+    mov     [heap_end], rax            ; save the end of the heap
+    ; Call the main method
+    mov     rax, Main_protObj
+    call    Object.copy
+    call    Main_init
+    call    Main.main
+    ; Exit the program
+    mov     rax, 60
+    xor     rdi, rdi
+    syscall

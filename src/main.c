@@ -18,8 +18,9 @@
 // - exception handling
 //
 // Future plans:
-// - add a new class Linux for the syscalls and implement a prelude for it
-// - add graphics to IO
+// - add support for module based compile
+// - add linker phase in compiler
+// - implement allocator for memory management
 
 #define FASM "fasm"
 #define DEFAULT_OUTPUT "main.asm"
@@ -61,6 +62,8 @@ static int build_context_prelude_init(build_context *context) {
         DS_LOG_ERROR("Failed to append path");
         return_defer(1);
     }
+
+    // TODO: for loop over all the modules and only take the ones that are needed - probably some argument to the compiler
 
     if (util_list_filepaths(cool_lib, &filepaths) != 0) {
         DS_LOG_ERROR("Failed to list filepaths");
@@ -311,7 +314,7 @@ static enum status_code codegen(build_context *context) {
         return_defer(STATUS_STOP);
     }
 
-    if (util_write_file(asm_path, "", "w") != 0) {
+    if (util_write_file(asm_path, "format ELF64\n", "w") != 0) {
         DS_LOG_ERROR("Failed to write file: %s", asm_path);
         return_defer(STATUS_ERROR);
     }
