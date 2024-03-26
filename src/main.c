@@ -482,8 +482,6 @@ static enum status_code ld_run(build_context *context) {
         char *flag = NULL;
         ds_dynamic_array_get(&ld_flags, i, &flag);
 
-        printf("flag: %s\n", flag);
-
         if (ds_string_builder_append(&sb, "%s ", flag) != 0) {
             DS_LOG_ERROR("Failed to append flag to string builder");
             return_defer(STATUS_ERROR);
