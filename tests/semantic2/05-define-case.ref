@@ -11,7 +11,7 @@ program
         Int
       Int
       case : Int
-        x
+        x : Int
         case branch : Int
           x
           Int

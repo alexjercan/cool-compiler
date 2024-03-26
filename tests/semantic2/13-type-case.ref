@@ -10,7 +10,7 @@ program
       <- : Int
         x
         case : Int
-          x
+          x : Int
           case branch : Int
             x
             Int
@@ -30,7 +30,7 @@ program
       <- : B
         b
         case : B
-          b
+          b : B
           case branch : B
             x
             Int
