@@ -265,6 +265,7 @@ enum ds_argument_type {
     ARGUMENT_TYPE_POSITIONAL,      // Positional ds_argument
     ARGUMENT_TYPE_POSITIONAL_REST, // Positional ds_argument that consumes the
                                    // rest
+    ARGUMENT_TYPE_VALUE_ARRAY,     // Argument with an array of values
 };
 
 // Argument options
@@ -1840,6 +1841,9 @@ DSHDEF int ds_argparse_add_argument(ds_argparse_parser *parser,
     case ARGUMENT_TYPE_POSITIONAL_REST:
         ds_dynamic_array_init(&arg.values, sizeof(char *));
         break;
+    case ARGUMENT_TYPE_VALUE_ARRAY:
+        ds_dynamic_array_init(&arg.values, sizeof(char *));
+        break;
     }
 
     return ds_dynamic_array_append(&parser->arguments, &arg);
@@ -1916,6 +1920,15 @@ static int argparse_post_validate_parser(ds_argparse_parser *parser) {
 
         if (options.type == ARGUMENT_TYPE_VALUE && options.required == 1) {
             if (item->value == NULL) {
+                DS_LOG_ERROR("missing required argument: --%s",
+                             options.long_name);
+                result = 1;
+            }
+        }
+
+        if (options.type == ARGUMENT_TYPE_VALUE_ARRAY &&
+            options.required == 1) {
+            if (item->values.count == 0) {
                 DS_LOG_ERROR("missing required argument: --%s",
                              options.long_name);
                 result = 1;
@@ -2045,6 +2058,20 @@ int ds_argparse_parse(ds_argparse_parser *parser, int argc, char *argv[]) {
                 arg->value = argv[++i];
                 break;
             }
+            case ARGUMENT_TYPE_VALUE_ARRAY: {
+                if (i + 1 >= argc) {
+                    DS_LOG_ERROR("missing value for argument: %s", name);
+                    ds_argparse_print_help(parser);
+                    return_defer(1);
+                }
+
+                if (ds_dynamic_array_append(&arg->values, &argv[++i]) != 0) {
+                    DS_LOG_ERROR("failed to append value to argument: %s",
+                                 name);
+                    return_defer(1);
+                }
+                break;
+            }
             default: {
                 DS_LOG_ERROR("type not supported for argument: %s", name);
                 ds_argparse_print_help(parser);
@@ -2155,8 +2182,9 @@ DSHDEF int ds_argparse_get_values(struct ds_argparse_parser *parser,
 
         if (item->options.long_name != NULL &&
             strcmp(long_name, item->options.long_name) == 0) {
-            if (item->options.type != ARGUMENT_TYPE_POSITIONAL_REST) {
-                DS_LOG_WARN("argument is not a positional rest: %s", long_name);
+            if (item->options.type != ARGUMENT_TYPE_POSITIONAL_REST &&
+                item->options.type != ARGUMENT_TYPE_VALUE_ARRAY) {
+                DS_LOG_WARN("argument is not a array: %s", long_name);
             }
             *values = item->values;
             return item->values.count;
@@ -2250,6 +2278,13 @@ void ds_argparse_print_help(ds_argparse_parser *parser) {
         case ARGUMENT_TYPE_VALUE: {
             fprintf(stdout, "  -%c, --%s <value>\n", item->options.short_name,
                     item->options.long_name);
+            fprintf(stdout, "      %s\n", item->options.description);
+            fprintf(stdout, "\n");
+            break;
+        }
+        case ARGUMENT_TYPE_VALUE_ARRAY: {
+            fprintf(stdout, "  -%c, --%s <value>...\n",
+                    item->options.short_name, item->options.long_name);
             fprintf(stdout, "      %s\n", item->options.description);
             fprintf(stdout, "\n");
             break;
