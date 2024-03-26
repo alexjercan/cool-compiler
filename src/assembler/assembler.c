@@ -16,6 +16,8 @@
 #define DISPTABLE_OFFSET 16
 #define ATTRIBUTE_OFFSET 24
 
+#define locals_count_16_aligned(count) ((count + 1) / 2 * 2)
+
 enum asm_const_type {
     ASM_CONST_INT,
     ASM_CONST_STR,
@@ -903,13 +905,17 @@ static void assembler_emit_tac_assign_value(assembler_context *context,
 static void assembler_emit_tac_dispatch_call(assembler_context *context,
                                              tac_result tac,
                                              tac_dispatch_call instr) {
+    if (instr.args.count % 2 == 1) {
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    0");
+    }
+
     for (size_t i = 0; i < instr.args.count; i++) {
         char *arg = NULL;
         ds_dynamic_array_get(&instr.args, instr.args.count - i - 1, &arg);
 
         assembler_emit_load_variable(context, &tac, arg);
 
-        const char *comment = comment_fmt("arg0: %s", arg);
+        const char *comment = comment_fmt("arg%d: %s", i, arg);
         assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "push    rax");
     }
 
@@ -957,6 +963,11 @@ static void assembler_emit_tac_dispatch_call(assembler_context *context,
     const char *comment = comment_fmt("free %d args", instr.args.count);
     assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "add     rsp, %d",
                        WORD_SIZE * instr.args.count);
+
+    if (instr.args.count % 2 == 1) {
+        assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rsp, %d",
+                           WORD_SIZE);
+    }
 }
 
 static void assembler_emit_tac_assign_new(assembler_context *context,
@@ -1386,9 +1397,11 @@ static void assembler_emit_expr(assembler_context *context,
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbp");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbp, rsp");
 
-    const char *comment = comment_fmt("allocate %d locals", tac.locals.count);
+    int num_locals = locals_count_16_aligned(tac.locals.count) + 1;
+
+    const char *comment = comment_fmt("allocate %d locals", num_locals);
     assembler_emit_fmt(context, ASM_INDENT_SIZE, comment, "sub     rsp, %d",
-                       WORD_SIZE * tac.locals.count);
+                       WORD_SIZE * num_locals);
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "push    rbx");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rbx, rax");
 
@@ -1398,7 +1411,7 @@ static void assembler_emit_expr(assembler_context *context,
 
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbx");
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "add     rsp, %d",
-                       WORD_SIZE * tac.locals.count);
+                       WORD_SIZE * num_locals);
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "pop     rbp");
 }
 
@@ -1414,6 +1427,7 @@ static void assembler_emit_object_init_attribute(assembler_context *context,
     }
 
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, rbx");
+    // TODO: do I need to do an extra push here for 16 byte alignment?
     assembler_emit_expr(context, &attr->attribute->value);
 
     const char *comment = comment_fmt("init %s", attr->attribute_name);

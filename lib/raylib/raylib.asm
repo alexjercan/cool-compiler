@@ -7,6 +7,8 @@ extrn BeginDrawing
 extrn EndDrawing
 extrn ClearBackground
 extrn DrawText
+extrn SetTargetFPS
+extrn DrawRectangle
 
 ;
 ;
@@ -19,10 +21,11 @@ extrn DrawText
 ;      - window width: Int
 ;      - window height: Int
 ;      - window title: String
-;   OUTPUT: rax contains a new object
+;   OUTPUT: rax contains self
 Raylib.initWindow:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -42,11 +45,10 @@ Raylib.initWindow:
 
     call    InitWindow
 
-    mov     rax, Object_protObj
-    call    Object.copy
-    call    Object_init
+    mov     rax, rbx                   ; return self
 
     pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -62,7 +64,7 @@ Raylib.initWindow:
 Raylib.windowShouldClose:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 16                    ; allocate 2 local variables
+    sub     rsp, 24                    ; allocate 3 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -86,7 +88,7 @@ Raylib.windowShouldClose:
     mov     rax, qword [rbp - loc_0]
 
     pop     rbx                        ; restore register
-    add     rsp, 16                    ; deallocate local variables
+    add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -98,21 +100,20 @@ Raylib.windowShouldClose:
 ;
 ;   INPUT: rax contains self
 ;   STACK: empty
-;   OUTPUT: rax contains a new object
+;   OUTPUT: rax contains self
 Raylib.closeWindow:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
     call    CloseWindow
 
-    ; return new Object
-    mov     rax, Object_protObj
-    call    Object.copy
-    call    Object_init
+    mov     rax, rbx                   ; return self
 
     pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -128,6 +129,7 @@ Raylib.closeWindow:
 Raylib.beginDrawing:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -136,6 +138,7 @@ Raylib.beginDrawing:
     mov     rax, rbx                   ; return self
 
     pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -151,6 +154,7 @@ Raylib.beginDrawing:
 Raylib.endDrawing:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -159,6 +163,7 @@ Raylib.endDrawing:
     mov     rax, rbx                   ; return self
 
     pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -170,18 +175,20 @@ Raylib.endDrawing:
 ;
 ;   INPUT: rax contains self
 ;   STACK:
-;      - color: Color (field1: String with 4 bytes)
+;      - color: Color (field1: Int)
 ;   OUTPUT: rax contains self
 Raylib.clearBackground:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
     add     rax, 24
     mov     rax, [rax]
-    add     rax, [str_field]
+    add     rax, [int_slot]
+    mov     rax, [rax]
 
     mov     rdi, rax
     call    ClearBackground
@@ -189,6 +196,7 @@ Raylib.clearBackground:
     mov     rax, rbx                   ; return self
 
     pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -209,6 +217,7 @@ Raylib.clearBackground:
 Raylib.drawText:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -226,19 +235,102 @@ Raylib.drawText:
 
     mov     rax, qword [rbp + arg_3]
     add     rax, [int_slot]
-    mov     r10, [rax]
+    mov     rcx, [rax]
 
     mov     rax, qword [rbp + arg_4]
     add     rax, 24
     mov     rax, [rax]
-    add     rax, [str_field]
-    mov     r8, rax
+    add     rax, [int_slot]
+    mov     r8, [rax]
 
     call    DrawText
 
     mov     rax, rbx
 
     pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
+;
+;
+; Raylib.setTargetFPS
+;
+;   Set target FPS (maximum)
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - fps: Int
+;   OUTPUT: rax contains self
+Raylib.setTargetFPS:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rdi, [rax]
+
+    call    SetTargetFPS
+
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+
+;
+;
+; Raylib.drawRectangle
+;
+;   Draw a color-filled rectangle
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - x: Int
+;      - y: Int
+;      - width: Int
+;      - height: Int
+;      - color: Color (field1: Int)
+;   OUTPUT: rax contains self
+Raylib.drawRectangle:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rdi, [rax]
+
+    mov     rax, qword [rbp + arg_1]
+    add     rax, [int_slot]
+    mov     rsi, [rax]
+
+    mov     rax, qword [rbp + arg_2]
+    add     rax, [int_slot]
+    mov     rdx, [rax]
+
+    mov     rax, qword [rbp + arg_3]
+    add     rax, [int_slot]
+    mov     rcx, [rax]
+
+    mov     rax, qword [rbp + arg_4]
+    add     rax, 24
+    mov     rax, [rax]
+    add     rax, [int_slot]
+    mov     r8, [rax]
+
+    call    DrawRectangle
+
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret

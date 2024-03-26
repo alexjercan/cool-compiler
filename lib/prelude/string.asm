@@ -138,7 +138,7 @@ String.concat:
 String.substr:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 48                    ; allocate 6 local variables
+    sub     rsp, 56                    ; allocate 7 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -226,7 +226,7 @@ String.substr:
     mov     rax, qword [rbp - loc_1]   ; get t1
 
     pop     rbx                        ; restore register
-    add     rsp, 48                    ; deallocate local variables
+    add     rsp, 56                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 ;

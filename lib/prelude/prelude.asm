@@ -10,6 +10,7 @@ section '.text' executable
 malloc_64k:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variable
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -21,6 +22,7 @@ malloc_64k:
 
     mov     rax, rbx                   ; restore self
     pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -36,8 +38,6 @@ malloc_64k:
 ;
 memcpy:
     push    rbp                        ; save return address
-    push    rdi
-    push    rsi
     mov     rbp, rsp                   ; set up stack frame
 
 .next_byte:
@@ -54,7 +54,5 @@ memcpy:
     jmp .next_byte
 .done:
 
-    pop     rsi
-    pop     rdi
     pop     rbp                        ; restore return address
     ret

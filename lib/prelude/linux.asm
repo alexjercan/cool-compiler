@@ -174,6 +174,7 @@ Linux.write:
 Linux.exit:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
 
     mov     rdi, [rsp + arg_0]
     add     rdi, [int_slot]

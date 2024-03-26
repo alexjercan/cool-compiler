@@ -1,16 +1,18 @@
 class Main {
     raylib: Raylib <- new Raylib;
-    raywhite: Color <- new Color.init(255, 0, 0, 255);
 
     main(): Object {
         {
-            raylib.initWindow(800, 600, "Raylib from COOL");
-            while not raylib.windowShouldClose() loop
+            raylib.initWindow(800, 600, "Raylib from COOL").setTargetFPS(30);
+            while raylib.windowShouldClose() = false loop
+            {
                 raylib
                     .beginDrawing()
-                    .clearBackground(raywhite)
-                    .drawText("Congrats! You created your first window!", 190, 200, 20, raywhite)
-                    .endDrawing()
+                    .clearBackground(raylib.raywhite())
+                    .drawText("Congrats! You created your first window!", 190, 200, 20, raylib.black())
+                    .drawRectangle(10, 10, 10, 10, raylib.black())
+                    .endDrawing();
+            }
             pool;
             raylib.closeWindow();
         }

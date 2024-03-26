@@ -69,7 +69,7 @@ Object.copy:
 Object.type_name:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 32                    ; allocate 4 local variables
+    sub     rsp, 40                    ; allocate 5 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -98,7 +98,7 @@ Object.type_name:
     mov    rax, [rax]
 
     pop     rbx                        ; restore register
-    add     rsp, 32                    ; deallocate local variables
+    add     rsp, 40                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -116,7 +116,7 @@ Object.type_name:
 Object.equals:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 16                    ; allocate 2 local variables
+    sub     rsp, 24                    ; allocate 3 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
@@ -143,6 +143,6 @@ Object.equals:
     mov     rax, qword [rbp - loc_0]
 
     pop     rbx                        ; restore register
-    add     rsp, 16                    ; deallocate local variables
+    add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
