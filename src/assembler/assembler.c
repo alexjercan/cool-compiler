@@ -423,7 +423,7 @@ static void assembler_emit_const(assembler_context *context, asm_const c) {
 }
 
 static void assembler_emit_consts(assembler_context *context) {
-    assembler_emit(context, "segment readable");
+    assembler_emit(context, "section '.data'");
 
     for (size_t i = 0; i < context->consts.count; i++) {
         asm_const *c = NULL;
@@ -434,7 +434,8 @@ static void assembler_emit_consts(assembler_context *context) {
 }
 
 static void assembler_emit_class_name_table(assembler_context *context) {
-    assembler_emit(context, "segment readable");
+    assembler_emit(context, "section '.data'");
+
     assembler_emit(context, "class_nameTab:");
 
     for (size_t i = 0; i < context->mapping->classes.count; i++) {
@@ -539,7 +540,8 @@ static void assembler_emit_object_prototype(assembler_context *context, size_t i
 
     const char *class_name = item->class_name;
 
-    assembler_emit(context, "segment readable");
+    assembler_emit(context, "section '.data'");
+
     assembler_emit_fmt(context, 0, NULL, "%s_protObj:", class_name);
     assembler_emit_fmt(context, ASM_INDENT_SIZE, "object tag", "dq %d", i);
     assembler_emit_fmt(context, ASM_INDENT_SIZE, "object size", "dq %d",
@@ -1457,7 +1459,8 @@ static void assembler_emit_object_init(assembler_context *context,
 }
 
 static void assembler_emit_object_inits(assembler_context *context) {
-    assembler_emit(context, "segment readable executable");
+    assembler_emit(context, "section '.text' executable");
+
     for (size_t i = 0; i < context->mapping->classes.count; i++) {
         assembler_emit_object_init(context, i);
     }
@@ -1491,7 +1494,8 @@ static void assembler_emit_method(assembler_context *context,
 }
 
 static void assembler_emit_methods(assembler_context *context) {
-    assembler_emit(context, "segment readable executable");
+    assembler_emit(context, "section '.text' executable");
+
     for (size_t i = 0; i < context->mapping->classes.count; i++) {
         semantic_mapping_item *item = NULL;
         ds_dynamic_array_get_ref(&context->mapping->classes, i, (void **)&item);
@@ -1521,7 +1525,8 @@ static void assembler_emit_dispatch_table(assembler_context *context,
 }
 
 static void assembler_emit_dispatch_tables(assembler_context *context) {
-    assembler_emit(context, "segment readable");
+    assembler_emit(context, "section '.data'");
+
     for (size_t i = 0; i < context->mapping->classes.count; i++) {
         assembler_emit_dispatch_table(context, i);
     }

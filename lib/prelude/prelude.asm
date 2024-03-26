@@ -1,3 +1,5 @@
+section '.text' executable
+
 ;
 ;
 ; malloc_64k
@@ -34,6 +36,8 @@ malloc_64k:
 ;
 memcpy:
     push    rbp                        ; save return address
+    push    rdi
+    push    rsi
     mov     rbp, rsp                   ; set up stack frame
 
 .next_byte:
@@ -50,5 +54,7 @@ memcpy:
     jmp .next_byte
 .done:
 
+    pop     rsi
+    pop     rdi
     pop     rbp                        ; restore return address
     ret

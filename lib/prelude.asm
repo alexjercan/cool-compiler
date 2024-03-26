@@ -1,16 +1,16 @@
-format ELF64 executable 3
+format ELF64
 
 ; self in rax
 ; arguments on the stack
 ; return value in rax
 
+section '.data' writeable
 ; memory layout
-segment readable writable
 heap_pos dq 0
 heap_end dq 0
 
+section '.data'
 ; Define some constants
-segment readable
 obj_tag dq 0
 obj_size dq 8
 disp_tab dq 16
@@ -31,10 +31,15 @@ loc_7 = 64
 arg_0 = 16
 arg_1 = 24
 arg_2 = 32
+arg_3 = 40
+arg_4 = 48
+arg_5 = 56
+arg_6 = 64
+arg_7 = 72
 
 ; Define entry point
-entry _start
-segment readable executable
+section '.text' executable
+public _start
 _start:
     ; Initialize the heap
     mov     rax, 12                    ; brk

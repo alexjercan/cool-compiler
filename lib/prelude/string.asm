@@ -1,3 +1,5 @@
+section '.text' executable
+
 ;
 ;
 ; String.concat
