@@ -311,6 +311,11 @@ static enum status_code codegen(build_context *context) {
         return_defer(STATUS_STOP);
     }
 
+    if (util_write_file(asm_path, "", "w") != 0) {
+        DS_LOG_ERROR("Failed to write file: %s", asm_path);
+        return_defer(STATUS_ERROR);
+    }
+
     for (size_t i = 0; i < context->asm_filepaths.count; i++) {
         const char *asm_filepath = NULL;
         ds_dynamic_array_get(&context->asm_filepaths, i, (void **)&asm_filepath);
@@ -322,7 +327,7 @@ static enum status_code codegen(build_context *context) {
             return_defer(STATUS_ERROR);
         }
 
-        if (util_write_file(asm_path, buffer) != 0) {
+        if (util_write_file(asm_path, buffer, "a") != 0) {
             DS_LOG_ERROR("Failed to write file: %s", asm_path);
             return_defer(STATUS_ERROR);
         }

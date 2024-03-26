@@ -61,12 +61,12 @@ defer:
     return result;
 }
 
-int util_write_file(const char *filename, char *buffer) {
+int util_write_file(const char *filename, char *buffer, const char *mode) {
     int result = 0;
     FILE *file = NULL;
 
     if (filename != NULL) {
-        file = fopen(filename, "w");
+        file = fopen(filename, mode);
         if (file == NULL) {
             DS_LOG_ERROR("Failed to open file: %s", filename);
             return_defer(-1);
