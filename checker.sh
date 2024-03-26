@@ -70,6 +70,12 @@ runner() {
             continue
         fi
 
+        ld /tmp/$file_name.o -o /tmp/$file_name 2>&1 > /dev/null
+        if [ $? -ne 0 ]; then
+            echo -e "\e[31mFAILED\e[0m"
+            continue
+        fi
+
         /tmp/$file_name | diff - $ref_path > /dev/null 2>&1
 
         if [ $? -eq 0 ]; then

@@ -1,8 +1,8 @@
 #include "util.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
 #define ARGPARSE_IMPLEMENTATION
 #include "assembler.h"
 #include "codegen.h"
@@ -23,7 +23,8 @@
 // - implement allocator for memory management
 
 #define FASM "fasm"
-#define DEFAULT_OUTPUT "main.asm"
+#define LD "ld"
+#define DEFAULT_OUTPUT "main"
 #define COMPILATION_HALTED()                                                   \
     do {                                                                       \
         fprintf(stderr, "Compilation halted\n");                               \
@@ -36,15 +37,15 @@ enum status_code {
 };
 
 typedef struct build_context {
-    char *binary;
-    ds_argparse_parser parser;
-    ds_dynamic_array prelude_filepaths; // const char *
-    ds_dynamic_array user_filepaths; // const char *
-    ds_dynamic_array asm_filepaths; // const char *
+        char *binary;
+        ds_argparse_parser parser;
+        ds_dynamic_array prelude_filepaths; // const char *
+        ds_dynamic_array user_filepaths;    // const char *
+        ds_dynamic_array asm_filepaths;     // const char *
 
-    ds_dynamic_array user_programs; // program_node
-    program_node program;
-    semantic_mapping mapping;
+        ds_dynamic_array user_programs; // program_node
+        program_node program;
+        semantic_mapping mapping;
 } build_context;
 
 static int build_context_prelude_init(build_context *context) {
@@ -52,6 +53,10 @@ static int build_context_prelude_init(build_context *context) {
     char *cool_home = NULL;
     char *cool_lib = NULL;
     ds_dynamic_array filepaths;
+    ds_dynamic_array modules;
+
+    ds_dynamic_array_init(&filepaths, sizeof(const char *));
+    ds_dynamic_array_init(&modules, sizeof(const char *));
 
     cool_home = getenv("COOL_HOME");
     if (cool_home == NULL) {
@@ -63,32 +68,57 @@ static int build_context_prelude_init(build_context *context) {
         return_defer(1);
     }
 
-    // TODO: for loop over all the modules and only take the ones that are needed - probably some argument to the compiler
+    ds_argparse_get_values(&context->parser, ARG_MODULE, &modules);
 
-    if (util_list_filepaths(cool_lib, &filepaths) != 0) {
-        DS_LOG_ERROR("Failed to list filepaths");
+    if (util_append_default_modules(&modules) != 0) {
+        DS_LOG_ERROR("Failed to append default modules");
         return_defer(1);
     }
 
-    for (size_t i = 0; i < filepaths.count; i++) {
-        char *filepath = NULL;
-        ds_dynamic_array_get(&filepaths, i, (void **)&filepath);
+    for (size_t i = 0; i < modules.count; i++) {
+        char *module = NULL;
+        ds_dynamic_array_get(&modules, i, (void **)&module);
 
-        ds_string_slice slice, ext;
-        ds_string_slice_init(&slice, filepath, strlen(filepath));
-        while (ds_string_slice_tokenize(&slice, '.', &ext) == 0) { }
-        char *extension = NULL;
-        ds_string_slice_to_owned(&ext, &extension);
+        if (util_validate_module(module) != 0) {
+            DS_LOG_ERROR("Module name %s is invalid. Valid options are: %s",
+                         module, util_show_valid_modules());
+            return_defer(1);
+        }
 
-        if (strcmp(extension, "cl") == 0) {
-            if (ds_dynamic_array_append(&context->prelude_filepaths, &filepath) != 0) {
-                DS_LOG_ERROR("Failed to append filepath");
-                return_defer(1);
+        char *module_path = NULL;
+        if (util_append_path(cool_lib, module, &module_path) != 0) {
+            DS_LOG_ERROR("Failed to append path");
+            return_defer(1);
+        }
+
+        if (util_list_filepaths(module_path, &filepaths) != 0) {
+            DS_LOG_ERROR("Failed to list filepaths");
+            return_defer(1);
+        }
+
+        for (size_t i = 0; i < filepaths.count; i++) {
+            char *filepath = NULL;
+            ds_dynamic_array_get(&filepaths, i, (void **)&filepath);
+
+            ds_string_slice slice, ext;
+            ds_string_slice_init(&slice, filepath, strlen(filepath));
+            while (ds_string_slice_tokenize(&slice, '.', &ext) == 0) {
             }
-        } else if (strcmp(extension, "asm") == 0) {
-            if (ds_dynamic_array_append(&context->asm_filepaths, &filepath) != 0) {
-                DS_LOG_ERROR("Failed to append filepath");
-                return_defer(1);
+            char *extension = NULL;
+            ds_string_slice_to_owned(&ext, &extension);
+
+            if (strcmp(extension, "cl") == 0) {
+                if (ds_dynamic_array_append(&context->prelude_filepaths,
+                                            &filepath) != 0) {
+                    DS_LOG_ERROR("Failed to append filepath");
+                    return_defer(1);
+                }
+            } else if (strcmp(extension, "asm") == 0) {
+                if (ds_dynamic_array_append(&context->asm_filepaths,
+                                            &filepath) != 0) {
+                    DS_LOG_ERROR("Failed to append filepath");
+                    return_defer(1);
+                }
             }
         }
     }
@@ -97,7 +127,8 @@ defer:
     return result;
 }
 
-static int build_context_init(build_context *context, ds_argparse_parser parser) {
+static int build_context_init(build_context *context,
+                              ds_argparse_parser parser) {
     int result = 0;
 
     context->parser = parser;
@@ -133,7 +164,8 @@ static enum status_code parse_prelude(build_context *context) {
 
     for (size_t i = 0; i < context->prelude_filepaths.count; i++) {
         const char *filepath = NULL;
-        ds_dynamic_array_get(&context->prelude_filepaths, i, (void **)&filepath);
+        ds_dynamic_array_get(&context->prelude_filepaths, i,
+                             (void **)&filepath);
 
         length = util_read_file(filepath, &buffer);
         if (length < 0) {
@@ -245,7 +277,8 @@ static enum status_code parse_user(build_context *context) {
     if (parser_stop == 1) {
         for (size_t i = 0; i < context->user_programs.count; i++) {
             program_node *program = NULL;
-            ds_dynamic_array_get_ref(&context->user_programs, i, (void **)&program);
+            ds_dynamic_array_get_ref(&context->user_programs, i,
+                                     (void **)&program);
             parser_print_ast(program);
         }
         return_defer(STATUS_STOP);
@@ -270,7 +303,8 @@ static enum status_code gatekeeping(build_context *context) {
     if (semantic_stop == 1) {
         for (size_t i = 0; i < context->user_programs.count; i++) {
             program_node *program = NULL;
-            ds_dynamic_array_get_ref(&context->user_programs, i, (void **)&program);
+            ds_dynamic_array_get_ref(&context->user_programs, i,
+                                     (void **)&program);
             parser_print_ast(program);
         }
         return_defer(STATUS_STOP);
@@ -298,17 +332,20 @@ static enum status_code codegen(build_context *context) {
 
     int result = STATUS_OK;
 
-    if (output == NULL && assembler_stop == 0) {
-        asm_path = DEFAULT_OUTPUT;
-    } else if (output != NULL && util_append_extension(output, "asm", &asm_path) != 0) {
+    if (output == NULL) {
+        output = DEFAULT_OUTPUT;
+    }
+
+    if (assembler_stop == 0 && util_append_extension(output, "asm", &asm_path) != 0) {
         DS_LOG_ERROR("Failed to append extension");
-        return STATUS_ERROR;
+        return_defer(STATUS_ERROR);
     }
 
     if (tacgen_stop == 1) {
         for (size_t i = 0; i < context->user_programs.count; i++) {
             program_node *program = NULL;
-            ds_dynamic_array_get_ref(&context->user_programs, i, (void **)&program);
+            ds_dynamic_array_get_ref(&context->user_programs, i,
+                                     (void **)&program);
             codegen_tac_print(&context->mapping, program);
         }
         return_defer(STATUS_STOP);
@@ -321,7 +358,8 @@ static enum status_code codegen(build_context *context) {
 
     for (size_t i = 0; i < context->asm_filepaths.count; i++) {
         const char *asm_filepath = NULL;
-        ds_dynamic_array_get(&context->asm_filepaths, i, (void **)&asm_filepath);
+        ds_dynamic_array_get(&context->asm_filepaths, i,
+                             (void **)&asm_filepath);
 
         // read asm prelude file
         length = util_read_file(asm_filepath, &buffer);
@@ -353,21 +391,114 @@ defer:
 
 static enum status_code fasm_run(build_context *context) {
     enum status_code result = STATUS_OK;
+    char *command = NULL;
+
+    ds_string_builder sb;
+    ds_string_builder_init(&sb);
 
     char *output = ds_argparse_get_value(&context->parser, ARG_OUTPUT);
     char *asm_path = NULL;
 
     if (output == NULL) {
-        asm_path = DEFAULT_OUTPUT;
+        output = DEFAULT_OUTPUT;
     }
 
-    if (output != NULL && util_append_extension(output, "asm", &asm_path) != 0) {
+    if (util_append_extension(output, "asm", &asm_path) != 0) {
         DS_LOG_ERROR("Failed to append extension");
         return_defer(STATUS_ERROR);
     }
 
+    if (ds_string_builder_append(&sb, "%s %s", FASM, asm_path) != 0) {
+        DS_LOG_ERROR("Failed to append flag to string builder");
+        return_defer(STATUS_ERROR);
+    }
+
+    ds_string_builder_build(&sb, &command);
+
+    DS_LOG_INFO("Executing command: %s", command);
+
     if (util_exec(FASM, (char *const[]){FASM, asm_path, NULL}) != 0) {
         DS_LOG_ERROR("Failed to execute fasm");
+        return_defer(STATUS_ERROR);
+    }
+
+    return_defer(STATUS_OK);
+
+defer:
+    return result;
+}
+
+static enum status_code ld_run(build_context *context) {
+    enum status_code result = STATUS_OK;
+
+    char **ld_flags_array = NULL;
+    char *command = NULL;
+
+    ds_string_builder sb;
+    ds_string_builder_init(&sb);
+
+    ds_dynamic_array ld_flags;
+    ds_dynamic_array modules;
+
+    ds_dynamic_array_init(&ld_flags, sizeof(const char *));
+    ds_dynamic_array_init(&modules, sizeof(const char *));
+
+    ds_argparse_get_values(&context->parser, ARG_MODULE, &modules);
+
+    char *output = ds_argparse_get_value(&context->parser, ARG_OUTPUT);
+    char *obj_path = NULL;
+
+    if (output == NULL) {
+        output = DEFAULT_OUTPUT;
+    }
+
+    if (util_append_extension(output, "o", &obj_path) != 0) {
+        DS_LOG_ERROR("Failed to append extension");
+        return_defer(STATUS_ERROR);
+    }
+
+    if (util_get_ld_flags(modules, &ld_flags) != 0) {
+        DS_LOG_ERROR("Failed to get ld flags");
+        return_defer(STATUS_ERROR);
+    }
+
+    int needed = ld_flags.count + 5;
+    ld_flags_array = malloc(sizeof(char *) * needed);
+    if (ld_flags_array == NULL) {
+        DS_LOG_ERROR("Failed to allocate memory for ld flags");
+        return_defer(STATUS_ERROR);
+    }
+
+    ld_flags_array[0] = LD;
+    ld_flags_array[1] = "-o";
+    ld_flags_array[2] = output;
+    ld_flags_array[3] = obj_path;
+    if (ds_string_builder_append(&sb, "%s -o %s %s ", LD, output, obj_path) != 0) {
+        DS_LOG_ERROR("Failed to append flag to string builder");
+        return_defer(STATUS_ERROR);
+    }
+
+    for (size_t i = 0; i < ld_flags.count; i++) {
+        char *flag = NULL;
+        ds_dynamic_array_get(&ld_flags, i, &flag);
+
+        printf("flag: %s\n", flag);
+
+        if (ds_string_builder_append(&sb, "%s ", flag) != 0) {
+            DS_LOG_ERROR("Failed to append flag to string builder");
+            return_defer(STATUS_ERROR);
+        }
+
+        ld_flags_array[i + 4] = flag;
+    }
+
+    ld_flags_array[needed - 1] = NULL;
+
+    ds_string_builder_build(&sb, &command);
+    DS_LOG_INFO("Executing command: %s", command);
+
+    if (util_exec(LD, ld_flags_array) != 0) {
+        DS_LOG_ERROR("Failed to execute ld");
         return_defer(STATUS_ERROR);
     }
 
@@ -422,6 +553,15 @@ int main(int argc, char **argv) {
         return_defer(0);
     }
     if (fasm_result != STATUS_OK) {
+        COMPILATION_HALTED();
+        return_defer(1);
+    }
+
+    int ld_result = ld_run(&context);
+    if (ld_result == STATUS_STOP) {
+        return_defer(0);
+    }
+    if (ld_result != STATUS_OK) {
         COMPILATION_HALTED();
         return_defer(1);
     }

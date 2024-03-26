@@ -20,8 +20,19 @@
 #define ARG_MAPPING "map"
 #define ARG_TACGEN "tac"
 #define ARG_ASSEMBLER "asm"
+#define ARG_MODULE "module"
+
+#define MODULE_PRELUDE "prelude"
+#define MODULE_DS "ds"
+#define MODULE_RAYLIB "raylib"
 
 int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv);
+int util_validate_module(const char *module);
+int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags);
+int util_append_default_modules(ds_dynamic_array *modules);
+
+char *util_show_valid_modules(void);
+
 void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
                     unsigned int *col);
 
