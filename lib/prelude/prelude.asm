@@ -72,51 +72,38 @@ Linux.read:
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; TODO: call to a function that creates a string with a given size
-
     ; t0 <- new Int
     mov     rax, Int_protObj
     call    Object.copy
     call    Int_init
     mov     qword [rbp - loc_0], rax
 
-    ; t1 <- new String
-    mov     rax, String_protObj
-    call    Object.copy
-    call    String_init
-    mov     qword [rbp - loc_1], rax
-
-    ; t2 <- *t1.s
-    mov     rax, qword [rbp - loc_1]
-    add     rax, [str_field]
-    mov     qword [rbp - loc_2], rax
-
-    ; t3 <- arg1.val
+    ; t1 <- arg1.val
     mov     rax, [rbp + arg_1]
     add     rax, [int_slot]
     mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- allocate_string(t1)
+    mov     rdi, qword [rbp - loc_1]
+    call    allocate_string
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- *t2.s
+    mov     rax, qword [rbp - loc_2]
+    add     rax, [str_field]
     mov     qword [rbp - loc_3], rax
 
-    ; cmp t2 + t3 <= heap_end
-    mov     rax, qword [rbp - loc_2]
-    add     rax, qword [rbp - loc_3]
-    cmp     rax, [heap_end]
-    jle     .read
-
-    ; malloc_64k()
-    call    malloc_64k
-
-.read:
     ; t4 <- arg0.val
     mov     rax, [rbp + arg_0]
     add     rax, [int_slot]
     mov     rax, [rax]
     mov     qword [rbp - loc_4], rax
 
-    ; t5 <- syscall read(t4, t2, t3)
+    ; t5 <- syscall read(t4, t3, t1)
     mov     rdi, qword [rbp - loc_4]
-    mov     rsi, qword [rbp - loc_2]
-    mov     rdx, qword [rbp - loc_3]
+    mov     rsi, qword [rbp - loc_3]
+    mov     rdx, qword [rbp - loc_1]
     mov     rax, 0
     syscall
     mov     qword [rbp - loc_5], rax
@@ -127,31 +114,14 @@ Linux.read:
     mov     rdi, qword [rbp - loc_5]
     mov     [rax], rdi
 
-    ; t1.l <- t0
-    mov     rax, qword [rbp - loc_1]
+    ; t2.l <- t0
+    mov     rax, qword [rbp - loc_2]
     add     rax, [str_size]
     mov     rdi, qword [rbp - loc_0]
     mov     qword [rax], rdi
 
-    ; t6 <- (t5 + 7) >> 3
-    mov     rax, qword [rbp - loc_5]
-    add     rax, 7
-    shr     rax, 3
-    mov     qword [rbp - loc_6], rax
-
-    ; size(t1) <- t6
-    mov     rax, qword [rbp - loc_1]
-    add     rax, [obj_size]
-    mov     rdi, qword [rbp - loc_6]
-    mov     [rax], rdi
-
-    ; heap_pos <- heap_pos + (t6 << 3)
-    mov     rax, qword [rbp - loc_6]
-    shl     rax, 3
-    add     [heap_pos], rax
-
-    ; return t1
-    mov     rax, qword [rbp - loc_1]
+    ; return t2
+    mov     rax, qword [rbp - loc_2]
 
     pop     rbx                        ; restore register
     add     rsp, 56                    ; deallocate local variables
@@ -235,7 +205,7 @@ Linux.exit:
     mov     rbp, rsp                   ; set up stack frame
     sub     rsp, 8                     ; allocate 1 local variables
 
-    mov     rdi, [rsp + arg_0]
+    mov     rdi, [rbp + arg_0]
     add     rdi, [int_slot]
     mov     rdi, [rdi]
 
@@ -257,10 +227,6 @@ Object.copy:
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; t0 <- heap_pos
-    mov     rax, qword [heap_pos]
-    mov     qword [rbp - loc_0], rax
-
     ; t1 <- sizeof(self)
     mov     rax, rbx
     add     rax, [obj_size]            ; get *self.size
@@ -268,31 +234,16 @@ Object.copy:
     shl     rax, 3                     ; size = size * 8
     mov     qword [rbp - loc_1], rax
 
-    ; t2 <- t0 + t1
-    mov     rax, qword [rbp - loc_0]
-    add     rax, qword [rbp - loc_1]
-    mov     qword [rbp - loc_2], rax
+    ; t0 <- allocate(t1)
+    mov     rdi, qword [rbp - loc_1]
+    call    allocate
+    mov     qword [rbp - loc_0], rax
 
-    ; cmp t2 <= heap_end
-    mov     rax, qword [rbp - loc_2]
-    cmp     rax, qword [heap_end]
-    jle     .copy
-
-    ; TODO: somehow call to a function that ensures the memory is alloc'd
-
-    ; malloc_64k()
-    call    malloc_64k
-
-.copy:
     ; memcpy(t0, self, t1)
     mov     rdi, qword [rbp - loc_0]
     mov     rsi, rbx
     mov     rdx, qword [rbp - loc_1]
     call    memcpy
-
-    ; heap_pos <- t2
-    mov     rax, qword [rbp - loc_2]
-    mov     qword [heap_pos], rax
 
     ; t0
     mov     rax, qword [rbp - loc_0]
@@ -403,11 +354,12 @@ Object.equals:
 Int.chr:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 56                    ; allocate 7 local variables
+    sub     rsp, 40                    ; allocate 5 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
 
-    ; TODO: call to a function that creates a string with a given size
+    ; t3 <- 1
+    mov     qword [rbp - loc_3], 1
 
     ; t0 <- new Int
     mov     rax, Int_protObj
@@ -415,31 +367,16 @@ Int.chr:
     call    Int_init
     mov     qword [rbp - loc_0], rax
 
-    ; t1 <- new String
-    mov     rax, String_protObj
-    call    Object.copy
-    call    String_init
+    ; t1 <- allocate_string(t3)
+    mov     rdi, qword [rbp - loc_3]
+    call    allocate_string
     mov     qword [rbp - loc_1], rax
 
-    ; t2 <- *t1.s
+    ; t2 <- t1.s
     mov     rax, qword [rbp - loc_1]
     add     rax, [str_field]
     mov     qword [rbp - loc_2], rax
 
-    ; t3 <- 1
-    mov     rax, 1
-    mov     qword [rbp - loc_3], rax
-
-    ; cmp t2 + t3 <= heap_end
-    mov     rax, qword [rbp - loc_2]
-    add     rax, qword [rbp - loc_3]
-    cmp     rax, [heap_end]
-    jle     .ok_chr
-
-    ; malloc_64k()
-    call    malloc_64k
-
-.ok_chr:
     ; t4 <- self.val
     mov     rax, rbx
     add     rax, [int_slot]
@@ -464,28 +401,11 @@ Int.chr:
     mov     rdi, qword [rbp - loc_0]
     mov     qword [rax], rdi
 
-    ; t5 <- (t3 + 7) >> 3
-    mov     rax, qword [rbp - loc_3]
-    add     rax, 7
-    shr     rax, 3
-    mov     qword [rbp - loc_5], rax
-
-    ; size(t1) <- t5
-    mov     rax, qword [rbp - loc_1]
-    add     rax, [obj_size]
-    mov     rdi, qword [rbp - loc_5]
-    mov     [rax], rdi
-
-    ; heap_pos <- heap_pos + (t3 << 3)
-    mov     rax, qword [rbp - loc_3]
-    shl     rax, 3
-    add     [heap_pos], rax
-
     ; return t1
     mov     rax, qword [rbp - loc_1]
 
     pop     rbx                        ; restore register
-    add     rsp, 56                    ; deallocate local variables
+    add     rsp, 40                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -503,23 +423,15 @@ Int.chr:
 String.concat:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 56                    ; allocate 7 local variables
+    sub     rsp, 40                    ; allocate 5 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
-
-    ; TODO: call to a function that creates a string with a given size
 
     ; t0 <- new Int
     mov     rax, Int_protObj
     call    Object.copy
     call    Int_init
     mov     qword [rbp - loc_0], rax
-
-    ; t1 <- new String
-    mov     rax, String_protObj
-    call    Object.copy
-    call    String_init
-    mov     qword [rbp - loc_1], rax
 
     ; t2 <- self.l.val
     mov     rax, rbx
@@ -542,23 +454,12 @@ String.concat:
     add     rax, qword [rbp - loc_3]
     mov     qword [rbp - loc_4], rax
 
-    ; t5 <- t1.s + t4
-    mov     rax, qword [rbp - loc_1]
-    add     rax, [str_field]
-    add     rax, qword [rbp - loc_4]
-    mov     qword [rbp - loc_5], rax
+    ; t1 <- allocate_string(t4)
+    mov     rdi, qword [rbp - loc_4]
+    call    allocate_string
+    mov     qword [rbp - loc_1], rax
 
-    ; cmp t5 <= heap_end
-    mov     rax, qword [rbp - loc_5]
-    cmp     rax, qword [heap_end]
-    jle     .ok_concat
-
-    ; malloc_64k()
-    call    malloc_64k
-
-.ok_concat:
-
-    ; rdi = t1.s, rsi = self.s, rdx = self.l.val
+    ; rdi = t1.s, rsi = self.s, rdx = t2
     mov     rdi, qword [rbp - loc_1]
     add     rdi, [str_field]
     mov     rsi, rbx
@@ -566,7 +467,7 @@ String.concat:
     mov     rdx, qword [rbp - loc_2]
     call    memcpy
 
-    ; rdi = t1.s + self.l.val, rsi = arg1.s, rdx = arg1.l.val
+    ; rdi = t1.s + t2, rsi = arg1.s, rdx = t3
     mov     rdi, qword [rbp - loc_1]
     add     rdi, [str_field]
     add     rdi, qword [rbp - loc_2]
@@ -587,30 +488,11 @@ String.concat:
     mov     rdi, qword [rbp - loc_0]
     mov     [rax], rdi
 
-    ; t6 <- ((t5 - t1 + 7) >> 3) << 3
-    mov     rax, qword [rbp - loc_5]
-    sub     rax, qword [rbp - loc_1]
-    add     rax, 7
-    shr     rax, 3
-    shl     rax, 3
-    mov     qword [rbp - loc_6], rax
-
-    ; size(t1) <- t6 >> 3
-    mov     rax, qword [rbp - loc_6]
-    shr     rax, 3
-    mov     rdi, rax
+    ; return t1
     mov     rax, qword [rbp - loc_1]
-    add     rax, [obj_size]
-    mov     [rax], rdi
-
-    ; heap_pos <- heap_pos + t6
-    mov     rax, qword [rbp - loc_6]
-    add     [heap_pos], rax
-
-    mov     rax, qword [rbp - loc_1]   ; get t1
 
     pop     rbx                        ; restore register
-    add     rsp, 56                    ; deallocate local variables
+    add     rsp, 40                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -629,11 +511,9 @@ String.concat:
 String.substr:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 56                    ; allocate 7 local variables
+    sub     rsp, 40                    ; allocate 5 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
-
-    ; TODO: call to a function that creates a string with a given size
 
     ; t0 <- new Int
     mov     rax, Int_protObj
@@ -641,10 +521,15 @@ String.substr:
     call    Int_init
     mov     qword [rbp - loc_0], rax
 
-    ; t1 <- new String
-    mov     rax, String_protObj
-    call    Object.copy
-    call    String_init
+    ; t3 <- arg1.val
+    mov     rax, [rbp + arg_1]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_3], rax
+
+    ; t1 <- allocate_string(t3)
+    mov     rdi, qword [rbp - loc_3]
+    call    allocate_string
     mov     qword [rbp - loc_1], rax
 
     ; t2 <- arg0.val
@@ -652,28 +537,6 @@ String.substr:
     add     rax, [int_slot]
     mov     rax, [rax]
     mov     qword [rbp - loc_2], rax
-
-    ; t3 <- arg2.val
-    mov     rax, [rbp + arg_1]
-    add     rax, [int_slot]
-    mov     rax, [rax]
-    mov     qword [rbp - loc_3], rax
-
-    ; t4 <- t1.s + t3
-    mov     rax, qword [rbp - loc_1]
-    add     rax, [str_field]
-    add     rax, qword [rbp - loc_3]
-    mov     qword [rbp - loc_4], rax
-
-    ; cmp t4 <= heap_end
-    mov     rax, qword [rbp - loc_4]
-    cmp     rax, qword [heap_end]
-    jle     .ok_substr
-
-    ; malloc_64k()
-    call    malloc_64k
-
-.ok_substr:
 
     ; rdi = t1.s, rsi = self.s + t2, rdx = t3
     mov     rdi, qword [rbp - loc_1]
@@ -696,30 +559,11 @@ String.substr:
     mov     rdi, qword [rbp - loc_0]
     mov     [rax], rdi
 
-    ; t5 <- ((t4 - t1 + 7) >> 3) << 3
-    mov     rax, qword [rbp - loc_4]
-    sub     rax, qword [rbp - loc_1]
-    add     rax, 7
-    shr     rax, 3
-    shl     rax, 3
-    mov     qword [rbp - loc_5], rax
-
-    ; size(t1) <- t5 >> 3
-    mov     rax, qword [rbp - loc_5]
-    shr     rax, 3
-    mov     rdi, rax
+    ; return t1
     mov     rax, qword [rbp - loc_1]
-    add     rax, [obj_size]
-    mov     [rax], rdi
-
-    ; heap_pos <- heap_pos + t5
-    mov     rax, qword [rbp - loc_5]
-    add     [heap_pos], rax
-
-    mov     rax, qword [rbp - loc_1]   ; get t1
 
     pop     rbx                        ; restore register
-    add     rsp, 56                    ; deallocate local variables
+    add     rsp, 40                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 ;
@@ -761,6 +605,102 @@ String.ord:
 
     pop     rbx                        ; restore register
     add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; allocate
+;
+;   INPUT: rdi contains the size in bytes
+;   STACK: empty
+;   OUTPUT: rax points to the newly allocated memory
+;
+allocate:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 16                    ; allocate 2 local variables
+
+    ; t0 <- heap_pos
+    mov     rax, qword [heap_pos]
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- t0 + rdi
+    mov     rax, qword [rbp - loc_0]
+    add     rax, rdi
+    mov     qword [rbp - loc_1], rax
+
+    ; cmp t1 <= heap_end
+    mov     rax, qword [rbp - loc_1]
+    cmp     rax, qword [heap_end]
+    jle     .alloc_ok
+
+    ; malloc_64k()
+    call    malloc_64k
+
+.alloc_ok:
+
+    ; heap_pos <- t1
+    mov     rax, qword [rbp - loc_1]
+    mov     qword [heap_pos], rax
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    add     rsp, 16                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; allocate_string
+;
+;   INPUT: rdi contains the size in bytes
+;   STACK: empty
+;   OUTPUT: rax points to the newly allocated string object
+;
+allocate_string:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 32                    ; allocate 4 local variables
+
+    ; t1 <- (rdi + 7) >> 3
+    mov     rax, rdi
+    add     rax, 7
+    shr     rax, 3
+    mov     qword [rbp - loc_1], rax
+
+    ; t0 <- new String
+    mov     rax, String_protObj
+    call    Object.copy
+    call    String_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t2 <- size(t0) + t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [obj_size]
+    mov     rax, [rax]
+    add     rax, qword [rbp - loc_1]
+    mov     qword [rbp - loc_2], rax
+
+    ; size(t0) <- t2
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [obj_size]
+    mov     rdi, qword [rbp - loc_2]
+    mov     [rax], rdi
+
+    ; t3 <- t0.copy()
+    mov     rax, qword [rbp - loc_0]
+    call    Object.copy
+    call    String_init
+    mov     qword [rbp - loc_3], rax
+
+    ; should we free t0?
+
+    ; return t3
+    mov     rax, qword [rbp - loc_3]
+
+    add     rsp, 32                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
