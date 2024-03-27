@@ -24,10 +24,16 @@ $(BUILD_DIR):
 
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -f coolc
 
 examples: all
 	./coolc examples/gol.cl -o build/gol
 	./coolc examples/rule110.cl -o build/rule110
 	./coolc examples/raylib.cl --module raylib -o build/raylib
 
-.PHONY: all clean examples
+dist: clean all
+	rm -rf coolc.tar.gz
+	tar -czf coolc.tar.gz coolc lib
+
+
+.PHONY: all clean examples dist

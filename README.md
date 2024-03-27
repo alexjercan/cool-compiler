@@ -71,6 +71,14 @@ make examples
 
 this will generate all the example executables in the `build` folder.
 
+To create a distributable version of the compiler use
+
+```console
+make dist
+```
+
+this will create `coolc.tar.gz` with the compiler and the standard library.
+
 ## Resources
 
 - [Manual](https://theory.stanford.edu/~aiken/software/cool/cool-manual.pdf)
