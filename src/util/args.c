@@ -2,14 +2,10 @@
 #include "util.h"
 
 const char *const MODULES[] = {
-    MODULE_PRELUDE,
-    MODULE_DS,
-    MODULE_RAYLIB,
-    MODULE_ALLOCATOR,
-    MODULE_MALLOCATOR,
+    MODULE_PRELUDE,   MODULE_DS,         MODULE_RAYLIB,
+    MODULE_ALLOCATOR, MODULE_MALLOCATOR,
 };
 const size_t MODULES_SIZE = sizeof(MODULES) / sizeof(MODULES[0]);
-
 
 int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv) {
     ds_argparse_parser_init(parser, PROGRAM_NAME, PROGRAM_DESCRIPTION,
@@ -107,6 +103,7 @@ int util_validate_module(const char *module) {
 int util_post_validate_modules(ds_dynamic_array *modules) {
     int found_pre = 0;
     int found_ds = 0;
+    int found_raylib = 0;
     int found_mallocator = 0;
     int found_allocator = 0;
 
@@ -118,6 +115,8 @@ int util_post_validate_modules(ds_dynamic_array *modules) {
             found_pre = 1;
         } else if (strcmp(module, MODULE_DS) == 0) {
             found_ds = 1;
+        } else if (strcmp(module, MODULE_RAYLIB) == 0) {
+            found_raylib = 1;
         } else if (strcmp(module, MODULE_ALLOCATOR) == 0) {
             found_allocator = 1;
         } else if (strcmp(module, MODULE_MALLOCATOR) == 0) {
@@ -131,9 +130,21 @@ int util_post_validate_modules(ds_dynamic_array *modules) {
         return 1;
     }
 
-    if (!found_allocator && !found_mallocator) {
+    if (!found_allocator && !found_mallocator && found_raylib) {
+        DS_LOG_DEBUG("No allocator specified, using %s because %s is specified",
+                     MODULE_MALLOCATOR, MODULE_RAYLIB);
+
+        char *allocator = MODULE_MALLOCATOR;
+        ds_dynamic_array_append(modules, &allocator);
+    } else if (!found_allocator && !found_mallocator) {
+        DS_LOG_DEBUG("No allocator specified, using %s", MODULE_ALLOCATOR);
+
         char *allocator = MODULE_ALLOCATOR;
         ds_dynamic_array_append(modules, &allocator);
+    } else
+    if (found_allocator && found_raylib) {
+        DS_LOG_WARN("Using %s with %s is not recommended, consider using %s",
+                    MODULE_ALLOCATOR, MODULE_RAYLIB, MODULE_MALLOCATOR);
     }
 
     if (!found_pre) {
@@ -149,7 +160,8 @@ int util_post_validate_modules(ds_dynamic_array *modules) {
     return 0;
 }
 
-int util_get_ld_flags(char *cool_home, ds_dynamic_array modules, ds_dynamic_array *ld_flags) {
+int util_get_ld_flags(char *cool_home, ds_dynamic_array modules,
+                      ds_dynamic_array *ld_flags) {
     ds_dynamic_array_init(ld_flags, sizeof(char *));
 
     int dynamic = 0;
