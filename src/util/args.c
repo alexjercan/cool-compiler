@@ -1,6 +1,16 @@
 #include "ds.h"
 #include "util.h"
 
+const char *const MODULES[] = {
+    MODULE_PRELUDE,
+    MODULE_DS,
+    MODULE_RAYLIB,
+    MODULE_ALLOCATOR,
+    MODULE_MALLOCATOR,
+};
+const size_t MODULES_SIZE = sizeof(MODULES) / sizeof(MODULES[0]);
+
+
 int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv) {
     ds_argparse_parser_init(parser, PROGRAM_NAME, PROGRAM_DESCRIPTION,
                             PROGRAM_VERSION);
@@ -77,8 +87,16 @@ int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv) {
                  module, MODULE_PRELUDE, MODULE_DS, MODULE_RAYLIB)
 
 int util_validate_module(const char *module) {
-    if (strcmp(module, MODULE_PRELUDE) != 0 && strcmp(module, MODULE_DS) != 0 &&
-        strcmp(module, MODULE_RAYLIB) != 0) {
+    int found = 0;
+
+    for (size_t i = 0; i < MODULES_SIZE; i++) {
+        if (strcmp(module, MODULES[i]) == 0) {
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found) {
         util_show_invalid_module_error(module);
         return 1;
     }
@@ -86,11 +104,11 @@ int util_validate_module(const char *module) {
     return 0;
 }
 
-int util_append_default_modules(ds_dynamic_array *modules) {
-    char *prelude = MODULE_PRELUDE;
-    char *ds = MODULE_DS;
+int util_post_validate_modules(ds_dynamic_array *modules) {
     int found_pre = 0;
     int found_ds = 0;
+    int found_mallocator = 0;
+    int found_allocator = 0;
 
     for (size_t i = 0; i < modules->count; i++) {
         char *module = NULL;
@@ -100,14 +118,31 @@ int util_append_default_modules(ds_dynamic_array *modules) {
             found_pre = 1;
         } else if (strcmp(module, MODULE_DS) == 0) {
             found_ds = 1;
+        } else if (strcmp(module, MODULE_ALLOCATOR) == 0) {
+            found_allocator = 1;
+        } else if (strcmp(module, MODULE_MALLOCATOR) == 0) {
+            found_mallocator = 1;
         }
     }
 
+    if (found_allocator && found_mallocator) {
+        DS_LOG_ERROR("Cannot use both %s and %s modules", MODULE_ALLOCATOR,
+                     MODULE_MALLOCATOR);
+        return 1;
+    }
+
+    if (!found_allocator && !found_mallocator) {
+        char *allocator = MODULE_ALLOCATOR;
+        ds_dynamic_array_append(modules, &allocator);
+    }
+
     if (!found_pre) {
+        char *prelude = MODULE_PRELUDE;
         ds_dynamic_array_append(modules, &prelude);
     }
 
     if (!found_ds) {
+        char *ds = MODULE_DS;
         ds_dynamic_array_append(modules, &ds);
     }
 
@@ -130,10 +165,15 @@ int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags) {
             continue;
         } else if (strcmp(module, MODULE_DS) == 0) {
             continue;
+        } else if (strcmp(module, MODULE_ALLOCATOR) == 0) {
+            continue;
         } else if (strcmp(module, MODULE_RAYLIB) == 0) {
             dynamic = 1;
             lraylib = 1;
             lm = 1;
+            lc = 1;
+        } else if (strcmp(module, MODULE_MALLOCATOR) == 0) {
+            dynamic = 1;
             lc = 1;
         }
     }
@@ -147,7 +187,8 @@ int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags) {
     if (lraylib) {
         char *raylib = "-lraylib";
         ds_dynamic_array_append(ld_flags, &raylib);
-        char *raylibpath = "-L./external/raylib/src";
+        // TODO: use COOL_HOME to get the path
+        char *raylibpath = "-L./raylib";
         ds_dynamic_array_append(ld_flags, &raylibpath);
     }
     if (lm) {

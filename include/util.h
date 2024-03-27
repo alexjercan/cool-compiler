@@ -25,11 +25,13 @@
 #define MODULE_PRELUDE "prelude"
 #define MODULE_DS "data"
 #define MODULE_RAYLIB "raylib"
+#define MODULE_ALLOCATOR "allocator"
+#define MODULE_MALLOCATOR "mallocator"
 
 int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv);
 int util_validate_module(const char *module);
 int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags);
-int util_append_default_modules(ds_dynamic_array *modules);
+int util_post_validate_modules(ds_dynamic_array *modules);
 
 void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
                     unsigned int *col);

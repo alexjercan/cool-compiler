@@ -70,8 +70,8 @@ static int build_context_prelude_init(build_context *context) {
 
     ds_argparse_get_values(&context->parser, ARG_MODULE, &modules);
 
-    if (util_append_default_modules(&modules) != 0) {
-        DS_LOG_ERROR("Failed to append default modules");
+    if (util_post_validate_modules(&modules) != 0) {
+        DS_LOG_ERROR("Failed to post validate modules");
         return_defer(1);
     }
 
