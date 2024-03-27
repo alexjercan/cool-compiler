@@ -2235,6 +2235,23 @@ void ds_argparse_print_help(ds_argparse_parser *parser) {
 
         ds_argparse_options options = item->options;
 
+        if (options.type == ARGUMENT_TYPE_VALUE_ARRAY) {
+            if (options.required == 1) {
+                fprintf(stdout, " -%c <%s>...", options.short_name,
+                        options.long_name);
+            } else {
+                fprintf(stdout, " -%c [%s]...", options.short_name,
+                        options.long_name);
+            }
+        }
+    }
+
+    for (size_t i = 0; i < parser->arguments.count; i++) {
+        ds_argument *item = NULL;
+        ds_dynamic_array_get_ref(&parser->arguments, i, (void **)&item);
+
+        ds_argparse_options options = item->options;
+
         if (options.type == ARGUMENT_TYPE_POSITIONAL_REST) {
             if (options.required == 1) {
                 fprintf(stdout, " <%s>...", options.long_name);
