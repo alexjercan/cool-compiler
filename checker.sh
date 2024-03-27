@@ -23,7 +23,7 @@ analyzer() {
         file_name=$(basename $file_path)
         echo -en "Testing $file_name ... "
 
-        ./$BUILD_DIR/main $exec_arg $file_path 2>&1 | diff - $ref_path > /dev/null 2>&1
+        ./$BUILD_DIR/main $exec_arg --module allocator $file_path 2>&1 | diff - $ref_path > /dev/null 2>&1
 
         if [ $? -eq 0 ]; then
             echo -e "\e[32mPASSED\e[0m"
@@ -58,7 +58,7 @@ runner() {
         file_name=$(basename $file_path .cl)
         echo -en "Testing $file_name.cl ... "
 
-        ./$BUILD_DIR/main $exec_arg $file_path 2>&1 > /tmp/$file_name.s 2>&1
+        ./$BUILD_DIR/main $exec_arg --module allocator $file_path 2>&1 > /tmp/$file_name.s 2>&1
         if [ $? -ne 0 ]; then
             echo -e "\e[31mFAILED\e[0m"
             continue
