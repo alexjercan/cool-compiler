@@ -10,6 +10,7 @@ HDR_DIR=include
 HDR_FILES=$(wildcard $(HDR_DIR)/**/*.h $(HDR_DIR)/*.h)
 
 all: $(BUILD_DIR)/main
+	cp $(BUILD_DIR)/main coolc
 
 $(BUILD_DIR)/main: $(OBJ_FILES) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -24,4 +25,9 @@ $(BUILD_DIR):
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean
+examples: all
+	./coolc examples/gol.cl -o build/gol
+	./coolc examples/rule110.cl -o build/rule110
+	./coolc examples/raylib.cl --module raylib -o build/raylib
+
+.PHONY: all clean examples
