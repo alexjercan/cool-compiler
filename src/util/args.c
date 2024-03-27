@@ -197,11 +197,11 @@ int util_get_ld_flags(char *cool_home, ds_dynamic_array modules,
         ds_dynamic_array_append(ld_flags, &linker);
     }
     if (lraylib) {
-        char *raylib = "-lraylib";
+        char *raylib = "-l:libraylib.a";
         ds_dynamic_array_append(ld_flags, &raylib);
-        int needed = snprintf(NULL, 0, "-L%s/raylib", cool_home);
+        int needed = snprintf(NULL, 0, "-L%s/lib/raylib/raylib-5.0_linux_amd64/lib/", cool_home);
         char *raylibpath = malloc(needed + 1);
-        snprintf(raylibpath, needed + 1, "-L%s/raylib", cool_home);
+        snprintf(raylibpath, needed + 1, "-L%s/lib/raylib/raylib-5.0_linux_amd64/lib/", cool_home);
         ds_dynamic_array_append(ld_flags, &raylibpath);
     }
     if (lm) {
