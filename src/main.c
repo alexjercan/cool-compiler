@@ -80,8 +80,6 @@ static int build_context_prelude_init(build_context *context) {
         ds_dynamic_array_get(&modules, i, (void **)&module);
 
         if (util_validate_module(module) != 0) {
-            DS_LOG_ERROR("Module name %s is invalid. Valid options are: %s",
-                         module, util_show_valid_modules());
             return_defer(1);
         }
 
@@ -516,7 +514,10 @@ int main(int argc, char **argv) {
         return_defer(1);
     }
 
-    build_context_init(&context, parser);
+    if (build_context_init(&context, parser) != 0) {
+        DS_LOG_ERROR("Failed to initialize build context");
+        return_defer(1);
+    }
 
     int prelude_result = parse_prelude(&context);
     int user_result = parse_user(&context);

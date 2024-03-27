@@ -54,3 +54,769 @@ _start:
     mov     rax, 60
     xor     rdi, rdi
     syscall
+
+;
+;
+; read syscall
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - file descriptor: Int
+;      - count: Int
+;   OUTPUT: rax points to the string object containing the read string
+;
+Linux.read:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 56                    ; allocate 7 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO: call to a function that creates a string with a given size
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- new String
+    mov     rax, String_protObj
+    call    Object.copy
+    call    String_init
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- *t1.s
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- arg1.val
+    mov     rax, [rbp + arg_1]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_3], rax
+
+    ; cmp t2 + t3 <= heap_end
+    mov     rax, qword [rbp - loc_2]
+    add     rax, qword [rbp - loc_3]
+    cmp     rax, [heap_end]
+    jle     .read
+
+    ; malloc_64k()
+    call    malloc_64k
+
+.read:
+    ; t4 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_4], rax
+
+    ; t5 <- syscall read(t4, t2, t3)
+    mov     rdi, qword [rbp - loc_4]
+    mov     rsi, qword [rbp - loc_2]
+    mov     rdx, qword [rbp - loc_3]
+    mov     rax, 0
+    syscall
+    mov     qword [rbp - loc_5], rax
+
+    ; t0.val <- t5
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_5]
+    mov     [rax], rdi
+
+    ; t1.l <- t0
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_size]
+    mov     rdi, qword [rbp - loc_0]
+    mov     qword [rax], rdi
+
+    ; t6 <- (t5 + 7) >> 3
+    mov     rax, qword [rbp - loc_5]
+    add     rax, 7
+    shr     rax, 3
+    mov     qword [rbp - loc_6], rax
+
+    ; size(t1) <- t6
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [obj_size]
+    mov     rdi, qword [rbp - loc_6]
+    mov     [rax], rdi
+
+    ; heap_pos <- heap_pos + (t6 << 3)
+    mov     rax, qword [rbp - loc_6]
+    shl     rax, 3
+    add     [heap_pos], rax
+
+    ; return t1
+    mov     rax, qword [rbp - loc_1]
+
+    pop     rbx                        ; restore register
+    add     rsp, 56                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; write syscall
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - file descriptor: Int
+;      - buf: String
+;   OUTPUT: rax points to the int object containing the number of bytes written
+;
+Linux.write:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 56                    ; allocate 7 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg1.s
+    mov     rax, [rbp + arg_1]
+    add     rax, [str_field]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- arg1.l.val
+    mov     rax, [rbp + arg_1]
+    add     rax, [str_size]
+    mov     rax, [rax]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_3], rax
+
+    ; t4 <- syscall write(t1, t2, t3)
+    mov     rdi, qword [rbp - loc_1]
+    mov     rsi, qword [rbp - loc_2]
+    mov     rdx, qword [rbp - loc_3]
+    mov     rax, 1
+    syscall
+    mov     qword [rbp - loc_4], rax
+
+    ; t0.val <- t4
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_4]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 56                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+; exit syscall
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - status: Int
+;   OUTPUT: never returns
+;
+Linux.exit:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+
+    mov     rdi, [rsp + arg_0]
+    add     rdi, [int_slot]
+    mov     rdi, [rdi]
+
+    mov     rax, 60
+    syscall
+
+;
+;
+; Copy method
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax points to the newly created copy.
+;
+Object.copy:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- heap_pos
+    mov     rax, qword [heap_pos]
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- sizeof(self)
+    mov     rax, rbx
+    add     rax, [obj_size]            ; get *self.size
+    mov     rax, [rax]                 ; get self.size
+    shl     rax, 3                     ; size = size * 8
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- t0 + t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, qword [rbp - loc_1]
+    mov     qword [rbp - loc_2], rax
+
+    ; cmp t2 <= heap_end
+    mov     rax, qword [rbp - loc_2]
+    cmp     rax, qword [heap_end]
+    jle     .copy
+
+    ; TODO: somehow call to a function that ensures the memory is alloc'd
+
+    ; malloc_64k()
+    call    malloc_64k
+
+.copy:
+    ; memcpy(t0, self, t1)
+    mov     rdi, qword [rbp - loc_0]
+    mov     rsi, rbx
+    mov     rdx, qword [rbp - loc_1]
+    call    memcpy
+
+    ; heap_pos <- t2
+    mov     rax, qword [rbp - loc_2]
+    mov     qword [heap_pos], rax
+
+    ; t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Object.type_name
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax reference to class name string object
+;
+Object.type_name:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 40                    ; allocate 5 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- class_nameTab
+    mov    rax, class_nameTab
+    mov    qword [rbp - loc_0], rax
+
+    ; t1 <- obj_tag(self)
+    mov    rax, rbx
+    add    rax, [obj_tag]
+    mov    rax, [rax]
+    mov    qword [rbp - loc_1], rax
+
+    ; t2 <- t1 * 8
+    mov    rax, qword [rbp - loc_1]
+    shl    rax, 3
+    mov    qword [rbp - loc_2], rax
+
+    ; t3 <- t0 + t2
+    mov    rax, qword [rbp - loc_0]
+    add    rax, qword [rbp - loc_2]
+    mov    qword [rbp - loc_3], rax
+
+    ; deref t3
+    mov    rax, qword [rbp - loc_3]
+    mov    rax, [rax]
+
+    pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Object.equals
+;
+;   Compares two objects for equality.
+;   This represents the default implementation of the equals method.
+;
+;   INPUT: rax contains self
+;   STACK:
+;        x object
+;   OUTPUT: rax contains a boolean object
+Object.equals:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Bool
+    mov     rax, Bool_protObj
+    call    Object.copy
+    call    Bool_init
+    mov     qword [rbp - loc_0], rax
+
+    ; cmp address of self == address of x
+    mov     rdi, rbx
+    mov     rsi, [rbp + arg_0]
+    cmp     rdi, rsi
+    setz    al
+    movzx   rax, al
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [bool_slot]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Int.chr
+;
+;   Converts an integer to a single character string (assume ASCII).
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax contains a string object
+Int.chr:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 56                    ; allocate 7 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO: call to a function that creates a string with a given size
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- new String
+    mov     rax, String_protObj
+    call    Object.copy
+    call    String_init
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- *t1.s
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- 1
+    mov     rax, 1
+    mov     qword [rbp - loc_3], rax
+
+    ; cmp t2 + t3 <= heap_end
+    mov     rax, qword [rbp - loc_2]
+    add     rax, qword [rbp - loc_3]
+    cmp     rax, [heap_end]
+    jle     .ok_chr
+
+    ; malloc_64k()
+    call    malloc_64k
+
+.ok_chr:
+    ; t4 <- self.val
+    mov     rax, rbx
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_4], rax
+
+    ; t1.s <- t4
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    mov     rdi, qword [rbp - loc_4]
+    mov     byte [rax], dil
+
+    ; t0.val <- t3
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; t1.l <- t0
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_size]
+    mov     rdi, qword [rbp - loc_0]
+    mov     qword [rax], rdi
+
+    ; t5 <- (t3 + 7) >> 3
+    mov     rax, qword [rbp - loc_3]
+    add     rax, 7
+    shr     rax, 3
+    mov     qword [rbp - loc_5], rax
+
+    ; size(t1) <- t5
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [obj_size]
+    mov     rdi, qword [rbp - loc_5]
+    mov     [rax], rdi
+
+    ; heap_pos <- heap_pos + (t3 << 3)
+    mov     rax, qword [rbp - loc_3]
+    shl     rax, 3
+    add     [heap_pos], rax
+
+    ; return t1
+    mov     rax, qword [rbp - loc_1]
+
+    pop     rbx                        ; restore register
+    add     rsp, 56                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; String.concat
+;
+;   Returns a the concatenation of self and arg1
+;
+;   INPUT: rax contains self
+;   STACK:
+;        s string object
+;   OUTPUT: rax the string object which is the concatenation of self and arg1
+;
+String.concat:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 56                    ; allocate 7 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO: call to a function that creates a string with a given size
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- new String
+    mov     rax, String_protObj
+    call    Object.copy
+    call    String_init
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- self.l.val
+    mov     rax, rbx
+    add     rax, [str_size]
+    mov     rax, [rax]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- arg1.l.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [str_size]
+    mov     rax, [rax]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_3], rax
+
+    ; t4 <- t2 + t3
+    mov     rax, qword [rbp - loc_2]
+    add     rax, qword [rbp - loc_3]
+    mov     qword [rbp - loc_4], rax
+
+    ; t5 <- t1.s + t4
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    add     rax, qword [rbp - loc_4]
+    mov     qword [rbp - loc_5], rax
+
+    ; cmp t5 <= heap_end
+    mov     rax, qword [rbp - loc_5]
+    cmp     rax, qword [heap_end]
+    jle     .ok_concat
+
+    ; malloc_64k()
+    call    malloc_64k
+
+.ok_concat:
+
+    ; rdi = t1.s, rsi = self.s, rdx = self.l.val
+    mov     rdi, qword [rbp - loc_1]
+    add     rdi, [str_field]
+    mov     rsi, rbx
+    add     rsi, [str_field]
+    mov     rdx, qword [rbp - loc_2]
+    call    memcpy
+
+    ; rdi = t1.s + self.l.val, rsi = arg1.s, rdx = arg1.l.val
+    mov     rdi, qword [rbp - loc_1]
+    add     rdi, [str_field]
+    add     rdi, qword [rbp - loc_2]
+    mov     rsi, [rbp + arg_0]
+    add     rsi, [str_field]
+    mov     rdx, qword [rbp - loc_3]
+    call    memcpy
+
+    ; t0.val <- t4
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_4]
+    mov     [rax], rdi
+
+    ; t1.l <- t0
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_size]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; t6 <- ((t5 - t1 + 7) >> 3) << 3
+    mov     rax, qword [rbp - loc_5]
+    sub     rax, qword [rbp - loc_1]
+    add     rax, 7
+    shr     rax, 3
+    shl     rax, 3
+    mov     qword [rbp - loc_6], rax
+
+    ; size(t1) <- t6 >> 3
+    mov     rax, qword [rbp - loc_6]
+    shr     rax, 3
+    mov     rdi, rax
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [obj_size]
+    mov     [rax], rdi
+
+    ; heap_pos <- heap_pos + t6
+    mov     rax, qword [rbp - loc_6]
+    add     [heap_pos], rax
+
+    mov     rax, qword [rbp - loc_1]   ; get t1
+
+    pop     rbx                        ; restore register
+    add     rsp, 56                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; String.substr(i,l)
+;		Returns the sub string of self from i with length l
+;		Offset starts at 0.
+;
+;	INPUT: rax contains self
+;	STACK:
+;		i int object
+;		l int object
+;	OUTPUT:	rax contains the string object which is the sub string of self
+;
+String.substr:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 56                    ; allocate 7 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; TODO: call to a function that creates a string with a given size
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- new String
+    mov     rax, String_protObj
+    call    Object.copy
+    call    String_init
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- arg2.val
+    mov     rax, [rbp + arg_1]
+    add     rax, [int_slot]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_3], rax
+
+    ; t4 <- t1.s + t3
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_field]
+    add     rax, qword [rbp - loc_3]
+    mov     qword [rbp - loc_4], rax
+
+    ; cmp t4 <= heap_end
+    mov     rax, qword [rbp - loc_4]
+    cmp     rax, qword [heap_end]
+    jle     .ok_substr
+
+    ; malloc_64k()
+    call    malloc_64k
+
+.ok_substr:
+
+    ; rdi = t1.s, rsi = self.s + t2, rdx = t3
+    mov     rdi, qword [rbp - loc_1]
+    add     rdi, [str_field]
+    mov     rsi, rbx
+    add     rsi, [str_field]
+    add     rsi, qword [rbp - loc_2]
+    mov     rdx, qword [rbp - loc_3]
+    call    memcpy
+
+    ; t0.val <- t3
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; t1.l <- t0
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [str_size]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; t5 <- ((t4 - t1 + 7) >> 3) << 3
+    mov     rax, qword [rbp - loc_4]
+    sub     rax, qword [rbp - loc_1]
+    add     rax, 7
+    shr     rax, 3
+    shl     rax, 3
+    mov     qword [rbp - loc_5], rax
+
+    ; size(t1) <- t5 >> 3
+    mov     rax, qword [rbp - loc_5]
+    shr     rax, 3
+    mov     rdi, rax
+    mov     rax, qword [rbp - loc_1]
+    add     rax, [obj_size]
+    mov     [rax], rdi
+
+    ; heap_pos <- heap_pos + t5
+    mov     rax, qword [rbp - loc_5]
+    add     [heap_pos], rax
+
+    mov     rax, qword [rbp - loc_1]   ; get t1
+
+    pop     rbx                        ; restore register
+    add     rsp, 56                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+;
+;
+; String.ord
+;
+;   Converts a single character string to an integer.
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax contains an integer object
+String.ord:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.s
+    mov     rax, rbx
+    add     rax, [str_field]
+    movzx   rax, byte [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [int_slot]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; malloc_64k
+;   INPUT: none
+;   STACK: empty
+;   OUTPUT: none
+;
+malloc_64k:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variable
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, 12                    ; brk
+    mov     rdi, 0x10000               ; 64K bytes (larger obj. will fail)
+    add     rdi, [heap_end]            ; new end of the heap
+    syscall
+    mov     [heap_end], rax            ; save the new end of the heap
+
+    mov     rax, rbx                   ; restore self
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; memcpy
+;   INPUT:
+;       rdi points to destination
+;       rsi points to source
+;       rdx contains the number of bytes to copy
+;   STACK: empty
+;   OUTPUT: nothing
+;
+memcpy:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+
+.next_byte:
+    cmp     rdx, 0                     ; check if done
+    jle     .done
+
+    mov     al, byte [rsi]             ; get byte from self
+    mov     byte [rdi], al             ; copy byte to new object
+
+    inc     rdi                        ; increment destination
+    inc     rsi                        ; increment source
+    dec     rdx                        ; decrement count
+
+    jmp .next_byte
+.done:
+
+    pop     rbp                        ; restore return address
+    ret

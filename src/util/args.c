@@ -72,10 +72,14 @@ int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv) {
     return ds_argparse_parse(parser, argc, argv);
 }
 
+#define util_show_invalid_module_error(module)                                 \
+    DS_LOG_ERROR("Module name %s is invalid. Valid options are: %s, %s, %s",   \
+                 module, MODULE_PRELUDE, MODULE_DS, MODULE_RAYLIB)
+
 int util_validate_module(const char *module) {
     if (strcmp(module, MODULE_PRELUDE) != 0 && strcmp(module, MODULE_DS) != 0 &&
         strcmp(module, MODULE_RAYLIB) != 0) {
-        DS_LOG_ERROR("Invalid module: %s", module);
+        util_show_invalid_module_error(module);
         return 1;
     }
 
@@ -108,25 +112,6 @@ int util_append_default_modules(ds_dynamic_array *modules) {
     }
 
     return 0;
-}
-
-char *util_show_valid_modules(void) {
-    char *result = NULL;
-    int needed = snprintf(NULL, 0, "%s, %s, %s", MODULE_PRELUDE, MODULE_DS,
-                          MODULE_RAYLIB);
-
-    char *buffer = malloc(needed + 1);
-    if (buffer == NULL) {
-        DS_LOG_ERROR("Failed to allocate memory for module list");
-        return_defer(NULL);
-    }
-
-    snprintf(buffer, needed + 1, "%s, %s, %s", MODULE_PRELUDE, MODULE_DS,
-             MODULE_RAYLIB);
-    return_defer(buffer);
-
-defer:
-    return result;
 }
 
 int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags) {
