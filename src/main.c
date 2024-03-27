@@ -18,9 +18,7 @@
 // - exception handling
 //
 // Future plans:
-// - add support for module based compile
-// - add linker phase in compiler
-// - implement allocator for memory management
+// - create a coolc-dist folder with all the needed stuff (/lib /raylib and coolc)
 
 #define FASM "fasm"
 #define LD "ld"
