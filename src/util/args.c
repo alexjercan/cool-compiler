@@ -149,7 +149,7 @@ int util_post_validate_modules(ds_dynamic_array *modules) {
     return 0;
 }
 
-int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags) {
+int util_get_ld_flags(char *cool_home, ds_dynamic_array modules, ds_dynamic_array *ld_flags) {
     ds_dynamic_array_init(ld_flags, sizeof(char *));
 
     int dynamic = 0;
@@ -187,8 +187,9 @@ int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags) {
     if (lraylib) {
         char *raylib = "-lraylib";
         ds_dynamic_array_append(ld_flags, &raylib);
-        // TODO: use COOL_HOME to get the path
-        char *raylibpath = "-L./raylib";
+        int needed = snprintf(NULL, 0, "-L%s/raylib", cool_home);
+        char *raylibpath = malloc(needed + 1);
+        snprintf(raylibpath, needed + 1, "-L%s/raylib", cool_home);
         ds_dynamic_array_append(ld_flags, &raylibpath);
     }
     if (lm) {

@@ -30,7 +30,7 @@
 
 int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv);
 int util_validate_module(const char *module);
-int util_get_ld_flags(ds_dynamic_array modules, ds_dynamic_array *ld_flags);
+int util_get_ld_flags(char *cool_home, ds_dynamic_array modules, ds_dynamic_array *ld_flags);
 int util_post_validate_modules(ds_dynamic_array *modules);
 
 void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,

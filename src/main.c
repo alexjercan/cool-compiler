@@ -37,7 +37,7 @@ enum status_code {
 };
 
 typedef struct build_context {
-        char *binary;
+        char *cool_home;
         ds_argparse_parser parser;
         ds_dynamic_array prelude_filepaths; // const char *
         ds_dynamic_array user_filepaths;    // const char *
@@ -62,6 +62,7 @@ static int build_context_prelude_init(build_context *context) {
     if (cool_home == NULL) {
         util_cwd(&cool_home);
     }
+    context->cool_home = cool_home;
 
     if (util_append_path(cool_home, "lib", &cool_lib) != 0) {
         DS_LOG_ERROR("Failed to append path");
@@ -455,7 +456,7 @@ static enum status_code ld_run(build_context *context) {
         return_defer(STATUS_ERROR);
     }
 
-    if (util_get_ld_flags(modules, &ld_flags) != 0) {
+    if (util_get_ld_flags(context->cool_home, modules, &ld_flags) != 0) {
         DS_LOG_ERROR("Failed to get ld flags");
         return_defer(STATUS_ERROR);
     }
