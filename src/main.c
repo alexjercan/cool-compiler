@@ -16,9 +16,6 @@
 // - abort for case on void
 // - abort for case on no match
 // - exception handling
-//
-// Future plans:
-// - create a coolc-dist folder with all the needed stuff (/lib /raylib and coolc)
 
 #define FASM "fasm"
 #define LD "ld"
