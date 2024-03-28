@@ -7,10 +7,6 @@ section '.data'
 obj_tag dq 0
 obj_size dq 8
 disp_tab dq 16
-int_slot dq 24 ; first slot
-bool_slot dq 24
-str_size dq 24
-str_field dq 32 ; second slot
 slot_0 dq 24
 slot_1 dq 32
 slot_2 dq 40
@@ -74,7 +70,7 @@ Linux.read:
 
     ; t1 <- arg1.val
     mov     rax, [rbp + arg_1]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
@@ -85,12 +81,12 @@ Linux.read:
 
     ; t3 <- *t2.s
     mov     rax, qword [rbp - loc_2]
-    add     rax, [str_field]
+    add     rax, [slot_1]
     mov     qword [rbp - loc_3], rax
 
     ; t4 <- arg0.val
     mov     rax, [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_4], rax
 
@@ -104,13 +100,13 @@ Linux.read:
 
     ; t0.val <- t5
     mov     rax, qword [rbp - loc_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_5]
     mov     [rax], rdi
 
     ; t2.l <- t0
     mov     rax, qword [rbp - loc_2]
-    add     rax, [str_size]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_0]
     mov     qword [rax], rdi
 
@@ -147,20 +143,20 @@ Linux.write:
 
     ; t1 <- arg0.val
     mov     rax, [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
     ; t2 <- arg1.s
     mov     rax, [rbp + arg_1]
-    add     rax, [str_field]
+    add     rax, [slot_1]
     mov     qword [rbp - loc_2], rax
 
     ; t3 <- arg1.l.val
     mov     rax, [rbp + arg_1]
-    add     rax, [str_size]
+    add     rax, [slot_0]
     mov     rax, [rax]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_3], rax
 
@@ -174,7 +170,7 @@ Linux.write:
 
     ; t0.val <- t4
     mov     rax, qword [rbp - loc_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_4]
     mov     [rax], rdi
 
@@ -200,7 +196,7 @@ Linux.exit:
     sub     rsp, 8                     ; allocate 1 local variables
 
     mov     rdi, [rbp + arg_0]
-    add     rdi, [int_slot]
+    add     rdi, [slot_0]
     mov     rdi, [rdi]
 
     mov     rax, 60
@@ -325,7 +321,7 @@ Object.equals:
 
     ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
-    add     rax, [bool_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
     mov     [rax], rdi
 
@@ -368,30 +364,30 @@ Int.chr:
 
     ; t2 <- t1.s
     mov     rax, qword [rbp - loc_1]
-    add     rax, [str_field]
+    add     rax, [slot_1]
     mov     qword [rbp - loc_2], rax
 
     ; t4 <- self.val
     mov     rax, rbx
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_4], rax
 
     ; t1.s <- t4
     mov     rax, qword [rbp - loc_1]
-    add     rax, [str_field]
+    add     rax, [slot_1]
     mov     rdi, qword [rbp - loc_4]
     mov     byte [rax], dil
 
     ; t0.val <- t3
     mov     rax, qword [rbp - loc_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_3]
     mov     [rax], rdi
 
     ; t1.l <- t0
     mov     rax, qword [rbp - loc_1]
-    add     rax, [str_size]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_0]
     mov     qword [rax], rdi
 
@@ -429,17 +425,17 @@ String.concat:
 
     ; t2 <- self.l.val
     mov     rax, rbx
-    add     rax, [str_size]
+    add     rax, [slot_0]
     mov     rax, [rax]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_2], rax
 
     ; t3 <- arg1.l.val
     mov     rax, [rbp + arg_0]
-    add     rax, [str_size]
+    add     rax, [slot_0]
     mov     rax, [rax]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_3], rax
 
@@ -455,30 +451,30 @@ String.concat:
 
     ; rdi = t1.s, rsi = self.s, rdx = t2
     mov     rdi, qword [rbp - loc_1]
-    add     rdi, [str_field]
+    add     rdi, [slot_1]
     mov     rsi, rbx
-    add     rsi, [str_field]
+    add     rsi, [slot_1]
     mov     rdx, qword [rbp - loc_2]
     call    memcpy
 
     ; rdi = t1.s + t2, rsi = arg1.s, rdx = t3
     mov     rdi, qword [rbp - loc_1]
-    add     rdi, [str_field]
+    add     rdi, [slot_1]
     add     rdi, qword [rbp - loc_2]
     mov     rsi, [rbp + arg_0]
-    add     rsi, [str_field]
+    add     rsi, [slot_1]
     mov     rdx, qword [rbp - loc_3]
     call    memcpy
 
     ; t0.val <- t4
     mov     rax, qword [rbp - loc_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_4]
     mov     [rax], rdi
 
     ; t1.l <- t0
     mov     rax, qword [rbp - loc_1]
-    add     rax, [str_size]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_0]
     mov     [rax], rdi
 
@@ -517,7 +513,7 @@ String.substr:
 
     ; t3 <- arg1.val
     mov     rax, [rbp + arg_1]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_3], rax
 
@@ -528,28 +524,28 @@ String.substr:
 
     ; t2 <- arg0.val
     mov     rax, [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_2], rax
 
     ; rdi = t1.s, rsi = self.s + t2, rdx = t3
     mov     rdi, qword [rbp - loc_1]
-    add     rdi, [str_field]
+    add     rdi, [slot_1]
     mov     rsi, rbx
-    add     rsi, [str_field]
+    add     rsi, [slot_1]
     add     rsi, qword [rbp - loc_2]
     mov     rdx, qword [rbp - loc_3]
     call    memcpy
 
     ; t0.val <- t3
     mov     rax, qword [rbp - loc_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_3]
     mov     [rax], rdi
 
     ; t1.l <- t0
     mov     rax, qword [rbp - loc_1]
-    add     rax, [str_size]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_0]
     mov     [rax], rdi
 
@@ -584,13 +580,13 @@ String.ord:
 
     ; t1 <- self.s
     mov     rax, rbx
-    add     rax, [str_field]
+    add     rax, [slot_1]
     movzx   rax, byte [rax]
     mov     qword [rbp - loc_1], rax
 
     ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
     mov     [rax], rdi
 

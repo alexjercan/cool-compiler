@@ -34,17 +34,17 @@ Raylib.initWindow:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     rdi, rax
 
     mov     rax, qword [rbp + arg_1]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
     mov     rsi, rax
 
     mov     rax, qword [rbp + arg_2]
-    add     rax, [str_field]
+    add     rax, [slot_1]
     mov     rdx, rax
 
     call    InitWindow
@@ -84,7 +84,7 @@ Raylib.windowShouldClose:
 
     ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
-    add     rax, [bool_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
     mov     [rax], rdi
 
@@ -191,7 +191,7 @@ Raylib.clearBackground:
     mov     rax, qword [rbp + arg_0]
     add     rax, 24
     mov     rax, [rax]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
 
     mov     rdi, rax
@@ -226,25 +226,25 @@ Raylib.drawText:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [str_field]
+    add     rax, [slot_1]
     mov     rdi, rax
 
     mov     rax, qword [rbp + arg_1]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rsi, [rax]
 
     mov     rax, qword [rbp + arg_2]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdx, [rax]
 
     mov     rax, qword [rbp + arg_3]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rcx, [rax]
 
     mov     rax, qword [rbp + arg_4]
     add     rax, 24
     mov     rax, [rax]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     r8, [rax]
 
     call    DrawText
@@ -274,7 +274,7 @@ Raylib.setTargetFPS:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, [rax]
 
     call    SetTargetFPS
@@ -309,25 +309,25 @@ Raylib.drawRectangle:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, [rax]
 
     mov     rax, qword [rbp + arg_1]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rsi, [rax]
 
     mov     rax, qword [rbp + arg_2]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdx, [rax]
 
     mov     rax, qword [rbp + arg_3]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rcx, [rax]
 
     mov     rax, qword [rbp + arg_4]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rax, [rax]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     r8, [rax]
 
     call    DrawRectangle
@@ -358,7 +358,7 @@ Raylib.isKeyPressed:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, [rax]
 
     ; t1 <- IsKeyPressed(key)
@@ -373,7 +373,7 @@ Raylib.isKeyPressed:
 
     ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
-    add     rax, [bool_slot]
+    add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
     mov     [rax], rdi
 
@@ -453,7 +453,7 @@ Raylib.setRandomSeed:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, [rax]
 
     ; SetRandomSeed(key)
@@ -485,11 +485,11 @@ Raylib.getRandomValue:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rdi, [rax]
 
     mov     rax, qword [rbp + arg_1]
-    add     rax, [int_slot]
+    add     rax, [slot_0]
     mov     rsi, [rax]
 
     ; t1 <- GetRandomValue(min, max)
