@@ -33,14 +33,10 @@ class IO inherits Object {
     };
 
     in_string(): String {
-        let s: String <- "",
-            tmp: String,
-            c: String
+        let tmp: String <- linux.read(0, 1024),
+            s: String <- tmp
         in
             {
-                tmp <- linux.read(0, 1024);
-                s <- s.concat(tmp);
-
                 while tmp.length() = 1024 loop
                     {
                         tmp <- linux.read(0, 1024);
@@ -48,11 +44,7 @@ class IO inherits Object {
                     }
                 pool;
 
-                if s.substr(s.length() - 1, 1) = "\n" then
-                    s.substr(0, s.length() - 1)
-                else
-                    s
-                fi;
+                s.trim_right(new Byte.from_string("\n"));
             }
     };
 
@@ -65,10 +57,27 @@ class String inherits Object {
     l: Int;
     str: String <- extern;
 
-    length(): Int { l };
     concat(s: String): String extern;
     substr(i: Int, l: Int): String extern;
-    ord(): Int extern;
+
+    length(): Int { l };
+
+    trim_right(b: Byte): String {
+        let s: String <- case self of me: String => me; esac,
+            i: Int <- s.length() - 1,
+            c: Byte <- new Byte.from_string(s.substr(i, 1))
+        in
+            {
+                while (0 <= i).and(c = b) loop
+                    {
+                        i <- i - 1;
+                        c <- new Byte.from_string(s.substr(i, 1));
+                    }
+                pool;
+
+                s.substr(0, i + 1);
+            }
+    };
 
     repeat(n: Int): String {
         let s: String <- case self of me: String => me; esac,
@@ -92,16 +101,14 @@ class String inherits Object {
             i: Int <- 0,
             l1: Int <- s.length(),
             l2: Int <- other.length(),
-            c1: String,
-            c2: String,
             eq: Bool <- true
         in
             {
                 while (i < l1).and(i < l2) loop
                     {
-                        c1 <- s.substr(i, 1);
-                        c2 <- other.substr(i, 1);
-                        eq <- eq.and(c1.ord() = c2.ord());
+                        let b1: Byte <- new Byte.from_string(s.substr(i, 1)),
+                            b2: Byte <- new Byte.from_string(other.substr(i, 1))
+                        in eq <- eq.and(b1 = b2);
                         i <- i + 1;
                     }
                 pool;
@@ -109,16 +116,10 @@ class String inherits Object {
                 if l1 = l2 then eq else false fi;
             }
     };
-
-    to_string(): String {
-        case self of me: String => me; esac
-    };
 };
 
 class Int inherits Object {
     val: Int <- extern;
-
-    chr(): String extern;
 
     equals(x: Object): Bool {
         let n: Int <- case self of me: Int => me; esac,
@@ -136,18 +137,15 @@ class Int inherits Object {
 
     from_string(s: String): Int {
         let l: Int <- s.length(),
-            c: String,
-            n: Int <- 0,
             i: Int <- 0,
-            d: Int
+            n: Int <- 0,
+            z: Int <- new Byte.from_string("0").to_int()
         in
             {
                 while i < l loop
                     {
-                        c <- s.substr(i, 1);
-                        d <- c.ord() - "0".ord();
+                        n <- n * 10 + new Byte.from_string(s.substr(i, 1)).to_int() - z;
                         i <- i + 1;
-                        n <- n * 10 + d;
                     }
                 pool;
                 n;
@@ -158,13 +156,12 @@ class Int inherits Object {
         let x: Int <- case self of me: Int => me; esac,
             s: String <- "",
             n: Int <- x.abs(),
-            d: Int
+            z: Int <- new Byte.from_string("0").to_int()
         in
             {
                 while not n = 0 loop
                     {
-                        d <- n.mod(10) + "0".ord();
-                        s <- d.chr().concat(s);
+                        s <- new Byte.from_int(n.mod(10) + z).to_string().concat(s);
                         n <- n / 10;
                     }
                 pool;
@@ -178,7 +175,7 @@ class Bool inherits Object {
     val: Bool <- extern;
 
     equals(x: Object): Bool {
-        not (case self of me: Bool => me; esac).xor(case x of me: Bool => me; esac)
+        case x of me: Bool => me.to_int() = to_int(); esac
     };
 
     and(x: Bool): Bool {
@@ -193,8 +190,16 @@ class Bool inherits Object {
         case self of me: Bool => if me then not x else x fi; esac
     };
 
+    from_int(x: Int): Bool {
+        not x = 0
+    };
+
     to_int(): Int {
         case self of me: Bool => if me then 1 else 0 fi; esac
+    };
+
+    from_string(s: String): Bool {
+        if s = "true" then true else false fi
     };
 
     to_string(): String {
@@ -202,12 +207,33 @@ class Bool inherits Object {
     };
 };
 
-class Float {
-    val: Int;
+class Byte {
+    val: Int; -- TODO: maybe have val extern
 
-    fromInt(x: Int): SELF_TYPE {
+    from_string(s: String): Byte extern;
+    to_string(): String extern;
+
+    equals(x: Object): Bool {
+        case x of me: Byte => me.to_int() = to_int(); esac
+    };
+
+    from_int(x: Int): Byte {
         { val <- x; self; }
     };
 
-    toInt(): Int { val };
+    to_int(): Int { val };
+};
+
+class Float {
+    val: Int; -- TODO: maybe have val extern
+
+    equals(x: Object): Bool {
+        case x of me: Float => me.to_int() = to_int(); esac
+    };
+
+    from_int(x: Int): SELF_TYPE {
+        { val <- x; self; }
+    };
+
+    to_int(): Int { val };
 };

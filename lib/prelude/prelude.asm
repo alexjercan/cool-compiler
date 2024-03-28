@@ -334,14 +334,14 @@ Object.equals:
 
 ;
 ;
-; Int.chr
+; Byte.to_string
 ;
-;   Converts an integer to a single character string (assume ASCII).
+;   Converts a byte to a single character string (assume ASCII).
 ;
 ;   INPUT: rax contains self
 ;   STACK: empty
 ;   OUTPUT: rax contains a string object
-Int.chr:
+Byte.to_string:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
     sub     rsp, 40                    ; allocate 5 local variables
@@ -367,8 +367,10 @@ Int.chr:
     add     rax, [slot_1]
     mov     qword [rbp - loc_2], rax
 
-    ; t4 <- self.val
+    ; t4 <- self.val.val
     mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
     add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_4], rax
@@ -396,6 +398,54 @@ Int.chr:
 
     pop     rbx                        ; restore register
     add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Byte.from_string
+;
+;   Converts a single character string to a byte (assume ASCII).
+;
+;   INPUT: rax contains self
+;   STACK: contains a string object
+;   OUTPUT: rax contains a byte object
+Byte.from_string:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- arg0.s
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_1]
+    movzx   rax, byte [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; self.val <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 
@@ -554,47 +604,6 @@ String.substr:
 
     pop     rbx                        ; restore register
     add     rsp, 40                    ; deallocate local variables
-    pop     rbp                        ; restore return address
-    ret
-;
-;
-; String.ord
-;
-;   Converts a single character string to an integer.
-;
-;   INPUT: rax contains self
-;   STACK: empty
-;   OUTPUT: rax contains an integer object
-String.ord:
-    push    rbp                        ; save return address
-    mov     rbp, rsp                   ; set up stack frame
-    sub     rsp, 24                    ; allocate 3 local variables
-    push    rbx                        ; save register
-    mov     rbx, rax                   ; save self
-
-    ; t0 <- new Int
-    mov     rax, Int_protObj
-    call    Object.copy
-    call    Int_init
-    mov     qword [rbp - loc_0], rax
-
-    ; t1 <- self.s
-    mov     rax, rbx
-    add     rax, [slot_1]
-    movzx   rax, byte [rax]
-    mov     qword [rbp - loc_1], rax
-
-    ; t0.val <- t1
-    mov     rax, qword [rbp - loc_0]
-    add     rax, [slot_0]
-    mov     rdi, qword [rbp - loc_1]
-    mov     [rax], rdi
-
-    ; return t0
-    mov     rax, qword [rbp - loc_0]
-
-    pop     rbx                        ; restore register
-    add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
 

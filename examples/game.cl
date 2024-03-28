@@ -75,7 +75,7 @@ class Main {
 
     raylib: Raylib <- new Raylib;
     player: Player <- new Player.init(screen_width / 2, screen_height / 2, player_size, player_size);
-    coin: Coin <- new Coin.init(100, 100, new Float.fromInt(10));
+    coin: Coin <- new Coin.init(100, 100, new Float.from_int(10));
 
     main(): Object {
         {
