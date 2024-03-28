@@ -7,10 +7,13 @@ section '.data'
 obj_tag dq 0
 obj_size dq 8
 disp_tab dq 16
-int_slot dq 24
+int_slot dq 24 ; first slot
 bool_slot dq 24
 str_size dq 24
-str_field dq 32
+str_field dq 32 ; second slot
+slot_0 dq 24
+slot_1 dq 32
+slot_2 dq 40
 
 loc_0 = 8
 loc_1 = 16

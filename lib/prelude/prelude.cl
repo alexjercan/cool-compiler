@@ -202,3 +202,13 @@ class Bool inherits Object {
         case self of me: Bool => if me then "true" else "false" fi; esac
     };
 };
+
+class Float {
+    val: Int;
+
+    fromInt(x: Int): SELF_TYPE {
+        { val <- x; self; }
+    };
+
+    toInt(): Int { val };
+};

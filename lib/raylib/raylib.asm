@@ -9,6 +9,10 @@ extrn ClearBackground
 extrn DrawText
 extrn SetTargetFPS
 extrn DrawRectangle
+extrn IsKeyPressed
+extrn DrawCircle
+extrn SetRandomSeed
+extrn GetRandomValue
 
 ;
 ;
@@ -321,7 +325,7 @@ Raylib.drawRectangle:
     mov     rcx, [rax]
 
     mov     rax, qword [rbp + arg_4]
-    add     rax, 24
+    add     rax, [int_slot]
     mov     rax, [rax]
     add     rax, [int_slot]
     mov     r8, [rax]
@@ -332,5 +336,182 @@ Raylib.drawRectangle:
 
     pop     rbx                        ; restore register
     add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+
+;
+;
+; Raylib.isKeyPressed
+;
+;   Check if a key has been pressed once
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - key: Int
+;   OUTPUT: rax contains a bool object
+Raylib.isKeyPressed:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rdi, [rax]
+
+    ; t1 <- IsKeyPressed(key)
+    call    IsKeyPressed
+    mov     qword [rbp - loc_1], rax
+
+    ; t0 <- new Bool
+    mov     rax, Bool_protObj
+    call    Object.copy
+    call    Bool_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [bool_slot]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+; Raylib.drawCircle
+;
+;   Draw a color-filled circle
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - centerX: Int
+;      - centerY: Int
+;      - radius: Float
+;      - color: Color (field1: Int)
+;   OUTPUT: rax contains self
+Raylib.drawCircle:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rdi, [rax]
+
+    mov     rax, qword [rbp + arg_1]
+    add     rax, [slot_0]
+    mov     rsi, [rax]
+
+    mov     rax, qword [rbp + arg_2]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    movq    xmm0, rax
+    cvtdq2ps xmm0, xmm0
+
+    mov     rax, qword [rbp + arg_3]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    add     rax, [slot_0]
+    mov     rdx, [rax]
+
+    call    DrawCircle
+
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Raylib.setRandomSeed
+;
+;   Set the seed for the random number generator
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - key: Int
+;   OUTPUT: rax contains self
+Raylib.setRandomSeed:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rdi, [rax]
+
+    ; SetRandomSeed(key)
+    call    SetRandomSeed
+
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Raylib.getRandomValue
+;
+;   Get a random value between min and max (both included)
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - min: Int
+;      - max: Int
+;   OUTPUT: rax contains an Int object
+Raylib.getRandomValue:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [int_slot]
+    mov     rdi, [rax]
+
+    mov     rax, qword [rbp + arg_1]
+    add     rax, [int_slot]
+    mov     rsi, [rax]
+
+    ; t1 <- GetRandomValue(min, max)
+    call    GetRandomValue
+    mov     qword [rbp - loc_1], rax
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
