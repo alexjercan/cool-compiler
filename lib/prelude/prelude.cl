@@ -57,7 +57,7 @@ class IO inherits Object {
     };
 
     in_int(): Int {
-        in_string().to_int()
+        new Int.from_string(in_string())
     };
 };
 
@@ -113,27 +113,6 @@ class String inherits Object {
     to_string(): String {
         case self of me: String => me; esac
     };
-
-    to_int(): Int {
-        let s: String <- case self of me: String => me; esac,
-            l: Int <- s.length(),
-            c: String,
-            n: Int <- 0,
-            i: Int <- 0,
-            d: Int
-        in
-            {
-                while i < l loop
-                    {
-                        c <- s.substr(i, 1);
-                        d <- c.ord() - "0".ord();
-                        i <- i + 1;
-                        n <- n * 10 + d;
-                    }
-                pool;
-                n;
-            }
-    };
 };
 
 class Int inherits Object {
@@ -153,6 +132,26 @@ class Int inherits Object {
 
     mod(x: Int): Int {
         case self of me: Int => let v: Int <- me - (me / x) * x in if me < 0 then x + v else v fi; esac
+    };
+
+    from_string(s: String): Int {
+        let l: Int <- s.length(),
+            c: String,
+            n: Int <- 0,
+            i: Int <- 0,
+            d: Int
+        in
+            {
+                while i < l loop
+                    {
+                        c <- s.substr(i, 1);
+                        d <- c.ord() - "0".ord();
+                        i <- i + 1;
+                        n <- n * 10 + d;
+                    }
+                pool;
+                n;
+            }
     };
 
     to_string(): String {
