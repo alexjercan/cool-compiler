@@ -208,20 +208,16 @@ class Bool inherits Object {
 };
 
 class Byte {
-    val: Int; -- TODO: maybe have val extern
+    val: Int <- extern; -- TODO: maybe have val extern
 
     from_string(s: String): Byte extern;
     to_string(): String extern;
+    from_int(x: Int): Byte extern;
+    to_int(): Int extern;
 
     equals(x: Object): Bool {
         case x of me: Byte => me.to_int() = to_int(); esac
     };
-
-    from_int(x: Int): Byte {
-        { val <- x; self; }
-    };
-
-    to_int(): Int { val };
 };
 
 class Float {

@@ -367,10 +367,8 @@ Byte.to_string:
     add     rax, [slot_1]
     mov     qword [rbp - loc_2], rax
 
-    ; t4 <- self.val.val
+    ; t4 <- self.val
     mov     rax, rbx
-    add     rax, [slot_0]
-    mov     rax, [rax]
     add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_4], rax
@@ -413,6 +411,80 @@ Byte.to_string:
 Byte.from_string:
     push    rbp                        ; save return address
     mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- arg0.s
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_1]
+    movzx   rax, byte [rax]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Byte.from_int
+;
+;   Converts an integer to a byte.
+;
+;   INPUT: rax contains self
+;   STACK: contains an int object
+;   OUTPUT: rax contains a byte object
+;
+Byte.from_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    movzx   rax, byte [rax]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Byte.to_int
+;
+;   Converts a byte to an integer.
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax contains an int object
+;
+Byte.to_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
     sub     rsp, 24                    ; allocate 3 local variables
     push    rbx                        ; save register
     mov     rbx, rax                   ; save self
@@ -423,26 +495,20 @@ Byte.from_string:
     call    Int_init
     mov     qword [rbp - loc_0], rax
 
-    ; t1 <- arg0.s
-    mov     rax, [rbp + arg_0]
-    add     rax, [slot_1]
-    movzx   rax, byte [rax]
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
     ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
     add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
-    mov     [rax], rdi
+    mov     byte [rax], dil
 
-    ; self.val <- t0
-    mov     rax, rbx
-    add     rax, [slot_0]
-    mov     rdi, qword [rbp - loc_0]
-    mov     [rax], rdi
-
-    ; return self
-    mov     rax, rbx
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
 
     pop     rbx                        ; restore register
     add     rsp, 24                    ; deallocate local variables
