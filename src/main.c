@@ -12,6 +12,7 @@
 #include "semantic.h"
 
 // Add support for the following:
+// - dependency resolution for modules (e.g a file that contains the dependencies so that we can include them using --module)
 // - abort for dispatch on void
 // - abort for case on void
 // - abort for case on no match

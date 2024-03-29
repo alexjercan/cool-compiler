@@ -101,6 +101,8 @@ int util_validate_module(const char *module) {
 }
 
 int util_post_validate_modules(ds_dynamic_array *modules) {
+    // TODO: do this using some define file for each module
+
     int found_pre = 0;
     int found_ds = 0;
     int found_raylib = 0;
