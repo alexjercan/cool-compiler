@@ -535,8 +535,12 @@ Float.from_int:
     ; t0 <- arg0.val
     mov     rax, [rbp + arg_0]
     add     rax, [slot_0]
-    movzx   rax, byte [rax]
+    mov     rax, [rax]
     mov     qword [rbp - loc_0], rax
+
+    ; float t0
+    cvtsi2ss xmm0, dword [rbp - loc_0]
+    movss   dword [rbp - loc_0], xmm0
 
     ; self.val <- t0
     mov     rax, rbx
@@ -590,10 +594,10 @@ Float.from_fraction:
     mov     qword [rbp - loc_2], rax
 
     ; t3 <- t1 / t2
-    mov     rax, qword [rbp - loc_1]
-    cqo
-    idiv    qword [rbp - loc_2]
-    mov     qword [rbp - loc_3], rax
+    cvtsi2ss xmm0, dword [rbp - loc_1]
+    cvtsi2ss xmm1, dword [rbp - loc_2]
+    divss   xmm0, xmm1
+    movss   dword [rbp - loc_3], xmm0
 
     ; self.val <- t3
     mov     rax, rbx
@@ -638,11 +642,16 @@ Float.to_int:
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
+    ; int t1
+    xor      rax, rax
+    cvttss2si eax, dword [rbp - loc_1]
+    mov      qword [rbp - loc_1], rax
+
     ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
     add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
-    mov     byte [rax], dil
+    mov     [rax], rdi
 
     ; return t0
     mov     rax, qword [rbp - loc_0]
