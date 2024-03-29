@@ -1138,8 +1138,8 @@ static int is_external_ident(object_environment_item *object_env,
 }
 
 #define context_show_error_external_ident(context, ident)                      \
-    context_show_errorf(context, ident->line, ident->col,                      \
-                        "Cannot use external attribute %s", ident->value)
+    context_show_errorf(context, (ident)->line, (ident)->col,                  \
+                        "Cannot use external attribute %s", (ident)->value)
 
 static const char *semantic_check_ident_expression(
     semantic_context *context, node_info *expr, class_context *class_ctx,
@@ -1345,6 +1345,10 @@ static const char *semantic_check_assign_expression(
     if (is_assign_name_illegal(context, expr)) {
         context_show_error_assign_name_illegal(context, expr);
         return NULL;
+    }
+
+    if (is_external_ident(object_env, &expr->name)) {
+        context_show_error_external_ident(context, &expr->name);
     }
 
     const char *object_type = NULL;
