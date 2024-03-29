@@ -645,12 +645,339 @@ Float.to_int:
     ; int t1
     xor      rax, rax
     cvttss2si eax, dword [rbp - loc_1]
+    movsxd   rax, eax
     mov      qword [rbp - loc_1], rax
 
     ; t0.val <- t1
     mov     rax, qword [rbp - loc_0]
     add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.mul
+;
+;  Multiplies two floats.
+;
+;  INPUT: rax contains self
+;  STACK: other: Float
+;  OUTPUT: rax contains a float object
+;
+Float.mul:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 40                    ; allocate 5 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Float
+    mov     rax, Float_protObj
+    call    Object.copy
+    call    Float_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- t1 * t2
+    movss   xmm0, dword [rbp - loc_1]
+    movss   xmm1, dword [rbp - loc_2]
+    mulss   xmm0, xmm1
+    movss   dword [rbp - loc_3], xmm0
+
+    ; self.val <- t3
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.div
+;
+;  Divides two floats.
+;
+;  INPUT: rax contains self
+;  STACK: other: Float
+;  OUTPUT: rax contains a float object
+;
+Float.div:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 40                    ; allocate 5 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Float
+    mov     rax, Float_protObj
+    call    Object.copy
+    call    Float_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- t1 / t2
+    movss   xmm0, dword [rbp - loc_1]
+    movss   xmm1, dword [rbp - loc_2]
+    divss   xmm0, xmm1
+    movss   dword [rbp - loc_3], xmm0
+
+    ; self.val <- t3
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.add
+;
+;  Adds two floats.
+;
+;  INPUT: rax contains self
+;  STACK: other: Float
+;  OUTPUT: rax contains a float object
+;
+Float.add:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 40                    ; allocate 5 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Float
+    mov     rax, Float_protObj
+    call    Object.copy
+    call    Float_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- t1 + t2
+    movss   xmm0, dword [rbp - loc_1]
+    movss   xmm1, dword [rbp - loc_2]
+    addss   xmm0, xmm1
+    movss   dword [rbp - loc_3], xmm0
+
+    ; self.val <- t3
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.sub
+;
+;  Subtracts two floats.
+;
+;  INPUT: rax contains self
+;  STACK: other: Float
+;  OUTPUT: rax contains a float object
+;
+Float.sub:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 40                    ; allocate 5 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Float
+    mov     rax, Float_protObj
+    call    Object.copy
+    call    Float_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- t1 + t2
+    movss   xmm0, dword [rbp - loc_1]
+    movss   xmm1, dword [rbp - loc_2]
+    subss   xmm0, xmm1
+    movss   dword [rbp - loc_3], xmm0
+
+    ; self.val <- t3
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.neg
+;
+;  Negates a float.
+;
+;  INPUT: rax contains self
+;  STACK: empty
+;  OUTPUT: rax contains a float object
+;
+Float.neg:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Float
+    mov     rax, Float_protObj
+    call    Object.copy
+    call    Float_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- -t1
+    movss   xmm0, dword [rbp - loc_1]
+    pxor    xmm1, xmm1
+    subss   xmm1, xmm0
+    movss   dword [rbp - loc_2], xmm1
+
+    ; self.val <- t2
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_2]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.equals
+;
+;  Compares two floats for equality.
+;
+;  INPUT: rax contains self
+;  STACK: other: Float
+;  OUTPUT: rax contains a boolean object
+;
+Float.equals:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Bool
+    mov     rax, Bool_protObj
+    call    Object.copy
+    call    Bool_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- t1 == t2
+    movss   xmm0, dword [rbp - loc_1]
+    movss   xmm1, dword [rbp - loc_2]
+    ucomiss xmm0, xmm1
+    sete    al
+    movzx   rax, al
+    mov     qword [rbp - loc_3], rax
+
+    ; t0.val <- t3
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_3]
     mov     [rax], rdi
 
     ; return t0

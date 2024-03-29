@@ -226,8 +226,10 @@ class Float {
     from_fraction(n: Int, d: Int): Float extern;
     from_int(x: Int): Float extern;
     to_int(): Int extern;
-
-    equals(x: Object): Bool {
-        case x of me: Float => me.to_int() = to_int(); esac
-    };
+    mul(x: Float): Float extern;
+    div(x: Float): Float extern;
+    add(x: Float): Float extern;
+    sub(x: Float): Float extern;
+    neg(): Float extern;
+    equals(x: Object): Bool extern;
 };

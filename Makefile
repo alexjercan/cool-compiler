@@ -31,6 +31,7 @@ examples: all
 	./coolc examples/rule110.cl -o build/rule110
 	./coolc examples/raylib.cl --module raylib -o build/raylib
 	./coolc examples/game.cl --module raylib -o build/game
+	./coolc examples/float.cl -o build/float
 
 dist: clean all
 	rm -rf coolc.tar.gz
