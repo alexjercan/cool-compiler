@@ -184,5 +184,5 @@ int util_exec(const char *command, char *const argv[]) {
         return 1;
     }
 
-    return 0;
+    return status;
 }

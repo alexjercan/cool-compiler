@@ -412,7 +412,7 @@ static enum status_code fasm_run(build_context *context) {
     DS_LOG_INFO("Executing command: %s", command);
 
     if (util_exec(FASM, (char *const[]){FASM, asm_path, NULL}) != 0) {
-        DS_LOG_ERROR("Failed to execute fasm");
+        DS_LOG_ERROR("fasm exited with non-zero status");
         return_defer(STATUS_ERROR);
     }
 
@@ -490,7 +490,7 @@ static enum status_code ld_run(build_context *context) {
     DS_LOG_INFO("Executing command: %s", command);
 
     if (util_exec(LD, ld_flags_array) != 0) {
-        DS_LOG_ERROR("Failed to execute ld");
+        DS_LOG_ERROR("ld exited with non-zero status");
         return_defer(STATUS_ERROR);
     }
 
