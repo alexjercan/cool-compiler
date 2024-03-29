@@ -13,6 +13,10 @@ class Color {
     };
 };
 
+class Time {
+    time(): Int extern;
+};
+
 class Raylib {
     -- Window-related functions
     initWindow(width: Int, height: Int, title: String): SELF_TYPE extern;

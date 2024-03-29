@@ -340,9 +340,11 @@ class Main {
 
     keep_running: Bool <- true;
 
+    time: Time <- new Time;
+
     main(): Object {
         {
-            raylib.initWindow(screen_width, screen_height, "Snake 2D").setTargetFPS(30).setRandomSeed(0);
+            raylib.initWindow(screen_width, screen_height, "Snake 2D").setTargetFPS(30).setRandomSeed(time.time());
             while (not raylib.windowShouldClose()).and(keep_running) loop
             {
                 keep_running <- game.update(raylib);

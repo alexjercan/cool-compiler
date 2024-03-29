@@ -1,5 +1,48 @@
 section '.text' executable
 
+extrn time
+
+;
+;
+; Time.time
+;
+;   Get current time in seconds since epoch
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax contains an Int object
+Time.time:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t1 <- time(NULL)
+    mov     rdi, 0
+    call    time
+    mov     qword [rbp - loc_1], rax
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
 extrn InitWindow
 extrn WindowShouldClose
 extrn CloseWindow
