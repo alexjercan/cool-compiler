@@ -1427,7 +1427,7 @@ static void assembler_emit_object_init_attribute(assembler_context *context,
     }
 
     assembler_emit_fmt(context, ASM_INDENT_SIZE, NULL, "mov     rax, rbx");
-    // TODO: do I need to do an extra push here for 16 byte alignment?
+    // NOTE: do I need to do an extra push here for 16 byte alignment?
     assembler_emit_expr(context, &attr->attribute->value);
 
     const char *comment = comment_fmt("init %s", attr->attribute_name);
