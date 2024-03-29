@@ -16,6 +16,7 @@
 // - abort for case on void
 // - abort for case on no match
 // - exception handling
+// - numeric base class for Int, Float and Byte to be able to use arithmetic
 
 #define FASM "fasm"
 #define LD "ld"
