@@ -208,7 +208,7 @@ class Bool inherits Object {
 };
 
 class Byte {
-    val: Int <- extern; -- TODO: maybe have val extern
+    val: Int <- extern;
 
     from_string(s: String): Byte extern;
     to_string(): String extern;
