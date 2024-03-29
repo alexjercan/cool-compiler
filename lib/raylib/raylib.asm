@@ -458,8 +458,6 @@ Raylib.drawCircle:
     mov     rax, qword [rbp + arg_2]
     add     rax, [slot_0]
     mov     rax, [rax]
-    add     rax, [slot_0]
-    mov     rax, [rax]
     movq    xmm0, rax
     cvtdq2ps xmm0, xmm0
 

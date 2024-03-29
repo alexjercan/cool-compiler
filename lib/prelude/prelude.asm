@@ -517,6 +517,143 @@ Byte.to_int:
 
 ;
 ;
+; Float.from_int
+;
+;  Converts an integer to a float.
+;
+;  INPUT: rax contains self
+;  STACK: contains an int object
+;  OUTPUT: rax contains a float object
+;
+Float.from_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    movzx   rax, byte [rax]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.from_fraction
+;
+; Converts a fraction to a float.
+;
+; INPUT: rax contains self
+; STACK:
+;      - numerator: Int
+;      - denominator: Int
+; OUTPUT: rax contains a float object
+;
+Float.from_fraction:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 40                    ; allocate 5 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg1.val
+    mov     rax, [rbp + arg_1]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- t1 / t2
+    mov     rax, qword [rbp - loc_1]
+    cqo
+    idiv    qword [rbp - loc_2]
+    mov     qword [rbp - loc_3], rax
+
+    ; self.val <- t3
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_3]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Float.to_int
+;
+;  Converts a float to an integer.
+;
+;  INPUT: rax contains self
+;  STACK: empty
+;  OUTPUT: rax contains an int object
+;
+Float.to_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     byte [rax], dil
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
 ; String.concat
 ;
 ;   Returns a the concatenation of self and arg1

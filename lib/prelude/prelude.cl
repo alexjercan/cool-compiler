@@ -221,15 +221,13 @@ class Byte {
 };
 
 class Float {
-    val: Int; -- TODO: maybe have val extern
+    val: Int <- extern;
+
+    from_fraction(n: Int, d: Int): Float extern;
+    from_int(x: Int): Float extern;
+    to_int(): Int extern;
 
     equals(x: Object): Bool {
         case x of me: Float => me.to_int() = to_int(); esac
     };
-
-    from_int(x: Int): SELF_TYPE {
-        { val <- x; self; }
-    };
-
-    to_int(): Int { val };
 };
