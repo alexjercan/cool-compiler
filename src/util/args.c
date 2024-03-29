@@ -162,6 +162,7 @@ int util_post_validate_modules(ds_dynamic_array *modules) {
 
 int util_get_ld_flags(char *cool_home, ds_dynamic_array modules,
                       ds_dynamic_array *ld_flags) {
+    int result = 0;
     ds_dynamic_array_init(ld_flags, sizeof(char *));
 
     int dynamic = 0;
@@ -192,27 +193,42 @@ int util_get_ld_flags(char *cool_home, ds_dynamic_array modules,
 
     if (dynamic) {
         char *dynamic_linker = "-dynamic-linker";
-        ds_dynamic_array_append(ld_flags, &dynamic_linker);
+        if (ds_dynamic_array_append(ld_flags, &dynamic_linker) != 0) {
+            return_defer(1);
+        }
         char *linker = "/lib64/ld-linux-x86-64.so.2";
-        ds_dynamic_array_append(ld_flags, &linker);
+        if (ds_dynamic_array_append(ld_flags, &linker) != 0) {
+            return_defer(1);
+        }
     }
     if (lraylib) {
         char *raylib = "-l:libraylib.a";
-        ds_dynamic_array_append(ld_flags, &raylib);
+        if (ds_dynamic_array_append(ld_flags, &raylib) != 0) {
+            return_defer(1);
+        }
         int needed = snprintf(NULL, 0, "-L%s/lib/raylib/raylib-5.0_linux_amd64/lib/", cool_home);
         char *raylibpath = malloc(needed + 1);
+        if (raylibpath == NULL) {
+            return_defer(1);
+        }
         snprintf(raylibpath, needed + 1, "-L%s/lib/raylib/raylib-5.0_linux_amd64/lib/", cool_home);
-        ds_dynamic_array_append(ld_flags, &raylibpath);
+        if (ds_dynamic_array_append(ld_flags, &raylibpath) != 0) {
+            return_defer(1);
+        }
     }
     if (lm) {
         char *lm = "-lm";
-        ds_dynamic_array_append(ld_flags, &lm);
+        if (ds_dynamic_array_append(ld_flags, &lm) != 0) {
+            return_defer(1);
+        }
     }
     if (lc) {
         char *lc = "-lc";
-        ds_dynamic_array_append(ld_flags, &lc);
+        if (ds_dynamic_array_append(ld_flags, &lc) != 0) {
+            return_defer(1);
+        }
     }
 
-    // TODO: defer
-    return 0;
+defer:
+    return result;
 }
