@@ -348,7 +348,165 @@ Byte.to_int:
     mov     rax, qword [rbp - loc_0]
     add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_1]
-    mov     byte [rax], dil
+    mov     qword [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+;
+;
+; Word.from_int
+;
+;   Converts an integer to a word.
+;
+;   INPUT: rax contains self
+;   STACK: contains an int object
+;   OUTPUT: rax contains a Word object
+;
+Word.from_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    movzx   rax, word [rax]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Word.to_int
+;
+;   Converts a word to an integer.
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax contains an int object
+;
+Word.to_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     qword [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+;
+;
+; DoubleWord.from_int
+;
+;   Converts an integer to a double word.
+;
+;   INPUT: rax contains self
+;   STACK: contains an int object
+;   OUTPUT: rax contains a DoubleWord object
+;
+DoubleWord.from_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     eax, dword [rax]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; DoubleWord.to_int
+;
+;   Converts a double word to an integer.
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax contains an int object
+;
+DoubleWord.to_int:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     qword [rax], rdi
 
     ; return t0
     mov     rax, qword [rbp - loc_0]

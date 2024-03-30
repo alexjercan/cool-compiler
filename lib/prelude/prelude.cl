@@ -118,6 +118,7 @@ class String inherits Object {
     };
 };
 
+(* QuadWord is a signed 64-bit integer - also referred to as Int *)
 class Int inherits Object {
     val: Int <- extern;
 
@@ -207,6 +208,7 @@ class Bool inherits Object {
     };
 };
 
+(* Byte is a signed 8-bit integer *)
 class Byte {
     val: Int <- extern;
 
@@ -220,6 +222,31 @@ class Byte {
     };
 };
 
+(* Word is a signed 16-bit integer *)
+class Word {
+    val: Int <- extern;
+
+    from_int(x: Int): Word extern;
+    to_int(): Int extern;
+
+    equals(x: Object): Bool {
+        case x of me: Word => me.to_int() = to_int(); esac
+    };
+};
+
+(* DoubleWord is a signed 32-bit integer *)
+class DoubleWord {
+    val: Int <- extern;
+
+    from_int(x: Int): DoubleWord extern;
+    to_int(): Int extern;
+
+    equals(x: Object): Bool {
+        case x of me: DoubleWord => me.to_int() = to_int(); esac
+    };
+};
+
+(* Single precision floating point number using 32-bit XMM registers *)
 class Float {
     val: Int <- extern;
 
