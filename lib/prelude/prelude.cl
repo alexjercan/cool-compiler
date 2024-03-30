@@ -20,7 +20,7 @@ class IO inherits Object {
 
     out_string(x: String): SELF_TYPE {
         {
-            linux.write(1, x);
+            linux.write(1, x, x.length());
             self;
         }
     };
