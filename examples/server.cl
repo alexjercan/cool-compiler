@@ -11,10 +11,13 @@ class Main {
             listenres: Int <- linux.listen(sockfd, 10)
         in
             {
+                new IO.out_string("Socket: ").out_int(sockfd).out_string("\n");
+                new IO.out_string("bindres: ").out_int(bindres).out_string("\n");
+                new IO.out_string("listenres: ").out_int(listenres).out_string("\n");
                 new IO.out_string("Listening on port 8080\n");
 
                 while true loop
-                    let clientfd: Int <- linux.accept(sockfd, new Ref.init(addr), new Ref.init(addrlen)),
+                    let clientfd: Int <- linux.accept(sockfd, new Ref.null(), new Ref.null()),
                         buffer: String <- linux.read1(clientfd, 1024)
                     in
                         {

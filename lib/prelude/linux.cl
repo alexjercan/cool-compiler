@@ -14,19 +14,28 @@ class Linux {
     exit(status: Int): Object extern;
 
     read1(fd: Int, count: Int): String {
-        let buffer: Ref <- new Ref.init(new String),
-            ret: Int <- self.read(fd, buffer, count)
-        in case buffer.value() of buffer: String => buffer; esac
+        let buffer: Ref <- new Ref.null(),
+            ret: Int <- read(fd, buffer, count)
+        in case buffer.deref() of buffer: String => buffer; esac
     };
 };
 
 (* Container Object, used as a pointer to store the value. *)
 class Ref {
-    val: Object;
+    addr: Int <- extern;
 
-    init(value: Object): SELF_TYPE { { val <- value; self; } };
+    init_(value: Object): SELF_TYPE extern;
+    null(): SELF_TYPE extern;
+    addr(): Int extern;
+    deref_(): Object extern;
 
-    value(): Object { val };
+    init(value: Object): SELF_TYPE {
+        if isvoid value then null() else init_(value) fi
+    };
+
+    deref(): Object {
+        if addr() = 0 then abort() else deref_() fi
+    };
 };
 
 (* HostToNetwork class, responsible for converting host byte order to network byte order. *)
@@ -55,14 +64,23 @@ class SocketType {
 
 (* SockAddr class, responsible for defining the socket address. *)
 class SockAddr {
-    sa_data: String;
+    q1: Int <- extern;
+    q2: Int <- extern;
 
-    len(): Int { sa_data.length() };
+    init_(bytes: String): SELF_TYPE extern;
+
+    len(): Int { 16 };
 };
 
 (* SockAddrIn class, responsible for defining the socket address for the Internet. *)
 class SockAddrIn inherits SockAddr {
-    init(sin_family: Int, sin_port: Int, sin_addr: Int): SELF_TYPE {
+    (* The SockAddrIn class is constructed by the following fields:
+     * - sin_family: 2 bytes
+     * - sin_port: 2 bytes
+     * - sin_addr: 4 bytes
+     * - sa_zero: 8 bytes
+     *)
+    init(sin_family: Int (* Word *), sin_port: Int (* Word *), sin_addr: Int (* DoubleWord *)): SELF_TYPE {
         let sin_family_1: Byte <- new Byte.from_int(sin_family),
             sin_family_2: Byte <- new Byte.from_int(sin_family / 256),
             sin_port_1: Byte <- new Byte.from_int(sin_port),
@@ -73,15 +91,10 @@ class SockAddrIn inherits SockAddr {
             sin_addr_4: Byte <- new Byte.from_int(sin_addr / 256 / 256 / 256),
             zero: Byte <- new Byte.from_int(0)
         in
-            {
-                sa_data <- sin_family_1.to_string().concat(sin_family_2.to_string())
-                    .concat(sin_port_1.to_string()).concat(sin_port_2.to_string())
-                    .concat(sin_addr_1.to_string()).concat(sin_addr_2.to_string())
-                    .concat(sin_addr_3.to_string()).concat(sin_addr_4.to_string())
-                    .concat(zero.to_string().repeat(8));
-                self;
-            }
-
+            init_(sin_family_1.to_string().concat(sin_family_2.to_string())
+                 .concat(sin_port_1.to_string()).concat(sin_port_2.to_string())
+                 .concat(sin_addr_1.to_string()).concat(sin_addr_2.to_string()).concat(sin_addr_3.to_string()).concat(sin_addr_4.to_string())
+                 .concat(zero.to_string().repeat(8)))
     };
 };
 

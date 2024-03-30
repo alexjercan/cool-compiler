@@ -2,6 +2,198 @@ section '.text' executable
 
 ;
 ;
+; Ref.init_
+;
+; Initializes a Ref object with the address to the data of the object
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - value: Object
+;   OUTPUT: rax contains self
+;
+Ref.init_:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- *arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Ref.null
+;
+; Creates a null Ref object
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax points to the Ref object
+;
+Ref.null:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; self.val <- 0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, 0
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+;
+;
+; Ref.addr
+;
+; Returns the value of the pointer stored in the Ref object
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax points to the new Int object containing the address
+;
+Ref.addr:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- self.val
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Ref.deref_
+;
+; Dereferences a Ref object
+;
+;   INPUT: rax contains self
+;   STACK: empty
+;   OUTPUT: rax points to the object
+;
+Ref.deref_:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- self.val - slot_0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    sub     rax, [slot_0]
+    mov     qword [rbp - loc_0], rax
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; SockAddr.init_
+;
+; Initialize a SockAddr object from a string of bytes (16)
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - value: String
+;   OUTPUT: rax contains self
+;
+SockAddr.init_:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 8                     ; allocate 1 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- arg0.s(0)
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [slot_1]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val(0) <- t0
+    mov     rax, rbx
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; t0 <- arg0.s(1)
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [slot_2]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_0], rax
+
+    ; self.val(1) <- t0
+    mov     rax, rbx
+    add     rax, [slot_1]
+    mov     rdi, qword [rbp - loc_0]
+    mov     [rax], rdi
+
+    ; return self
+    mov     rax, rbx
+
+    pop     rbx                        ; restore register
+    add     rsp, 8                     ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
 ; read syscall
 ;
 ;   INPUT: rax contains self
@@ -66,10 +258,11 @@ Linux.read:
     mov     rdi, qword [rbp - loc_0]
     mov     qword [rax], rdi
 
-    ; arg1.val <- t2
+    ; arg1.val <- t2 + slot_0
     mov     rax, [rbp + arg_1]
     add     rax, [slot_0]
     mov     rdi, qword [rbp - loc_2]
+    add     rdi, [slot_0]
     mov     [rax], rdi
 
     ; return t5
@@ -284,20 +477,16 @@ Linux.accept:
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
-    ; t2 <- *arg1.val.sa_data.s
+    ; t2 <- arg1.val
     mov     rax, [rbp + arg_1]
     add     rax, [slot_0]
     mov     rax, [rax]
-    add     rax, [slot_0]
-    mov     rax, [rax]
-    add     rax, [slot_1]
     mov     qword [rbp - loc_2], rax
 
-    ; t3 <- *arg2.val.val
+    ; t3 <- arg2.val
     mov     rax, [rbp + arg_2]
     add     rax, [slot_0]
     mov     rax, [rax]
-    add     rax, [slot_0]
     mov     qword [rbp - loc_3], rax
 
     ; t4 <- syscall accept(t1, t2, t3)
@@ -352,11 +541,9 @@ Linux.bind:
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
-    ; t2 <- *arg1.sa_data.s
+    ; t2 <- *arg1.val(0)
     mov     rax, [rbp + arg_1]
     add     rax, [slot_0]
-    mov     rax, [rax]
-    add     rax, [slot_1]
     mov     qword [rbp - loc_2], rax
 
     ; t3 <- arg2.val

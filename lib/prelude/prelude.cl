@@ -118,60 +118,6 @@ class String inherits Object {
     };
 };
 
-(* QuadWord is a signed 64-bit integer - also referred to as Int *)
-class Int inherits Object {
-    val: Int <- extern;
-
-    equals(x: Object): Bool {
-        let n: Int <- case self of me: Int => me; esac,
-            m: Int <- case x of me: Int => me; esac
-        in (n <= m).and(m <= n)
-    };
-
-    abs(): Int {
-        case self of me: Int => if me < 0 then ~me else me fi; esac
-    };
-
-    mod(x: Int): Int {
-        case self of me: Int => let v: Int <- me - (me / x) * x in if me < 0 then x + v else v fi; esac
-    };
-
-    from_string(s: String): Int {
-        let l: Int <- s.length(),
-            i: Int <- 0,
-            n: Int <- 0,
-            z: Int <- new Byte.from_string("0").to_int()
-        in
-            {
-                while i < l loop
-                    {
-                        n <- n * 10 + new Byte.from_string(s.substr(i, 1)).to_int() - z;
-                        i <- i + 1;
-                    }
-                pool;
-                n;
-            }
-    };
-
-    to_string(): String {
-        let x: Int <- case self of me: Int => me; esac,
-            s: String <- "",
-            n: Int <- x.abs(),
-            z: Int <- new Byte.from_string("0").to_int()
-        in
-            {
-                while not n = 0 loop
-                    {
-                        s <- new Byte.from_int(n.mod(10) + z).to_string().concat(s);
-                        n <- n / 10;
-                    }
-                pool;
-
-                if x = 0 then "0" else if x < 0 then "~".concat(s) else s fi fi;
-            }
-    };
-};
-
 class Bool inherits Object {
     val: Bool <- extern;
 
@@ -243,6 +189,60 @@ class DoubleWord {
 
     equals(x: Object): Bool {
         case x of me: DoubleWord => me.to_int() = to_int(); esac
+    };
+};
+
+(* QuadWord is a signed 64-bit integer - also referred to as Int *)
+class Int inherits Object {
+    val: Int <- extern;
+
+    equals(x: Object): Bool {
+        let n: Int <- case self of me: Int => me; esac,
+            m: Int <- case x of me: Int => me; esac
+        in (n <= m).and(m <= n)
+    };
+
+    abs(): Int {
+        case self of me: Int => if me < 0 then ~me else me fi; esac
+    };
+
+    mod(x: Int): Int {
+        case self of me: Int => let v: Int <- me - (me / x) * x in if me < 0 then x + v else v fi; esac
+    };
+
+    from_string(s: String): Int {
+        let l: Int <- s.length(),
+            i: Int <- 0,
+            n: Int <- 0,
+            z: Int <- new Byte.from_string("0").to_int()
+        in
+            {
+                while i < l loop
+                    {
+                        n <- n * 10 + new Byte.from_string(s.substr(i, 1)).to_int() - z;
+                        i <- i + 1;
+                    }
+                pool;
+                n;
+            }
+    };
+
+    to_string(): String {
+        let x: Int <- case self of me: Int => me; esac,
+            s: String <- "",
+            n: Int <- x.abs(),
+            z: Int <- new Byte.from_string("0").to_int()
+        in
+            {
+                while not n = 0 loop
+                    {
+                        s <- new Byte.from_int(n.mod(10) + z).to_string().concat(s);
+                        n <- n / 10;
+                    }
+                pool;
+
+                if x = 0 then "0" else if x < 0 then "~".concat(s) else s fi fi;
+            }
     };
 };
 
