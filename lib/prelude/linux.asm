@@ -7,8 +7,9 @@ section '.text' executable
 ;   INPUT: rax contains self
 ;   STACK:
 ;      - file descriptor: Int
+;      - buf: Ref (String)
 ;      - count: Int
-;   OUTPUT: rax points to the string object containing the read string
+;   OUTPUT: rax points to the int object containing the number of bytes read
 ;
 Linux.read:
     push    rbp                        ; save return address
@@ -23,8 +24,8 @@ Linux.read:
     call    Int_init
     mov     qword [rbp - loc_0], rax
 
-    ; t1 <- arg1.val
-    mov     rax, [rbp + arg_1]
+    ; t1 <- arg2.val
+    mov     rax, [rbp + arg_2]
     add     rax, [slot_0]
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
@@ -65,8 +66,14 @@ Linux.read:
     mov     rdi, qword [rbp - loc_0]
     mov     qword [rax], rdi
 
-    ; return t2
-    mov     rax, qword [rbp - loc_2]
+    ; arg1.val <- t2
+    mov     rax, [rbp + arg_1]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_2]
+    mov     [rax], rdi
+
+    ; return t5
+    mov     rax, qword [rbp - loc_5]
 
     pop     rbx                        ; restore register
     add     rsp, 56                    ; deallocate local variables
@@ -254,8 +261,8 @@ Linux.socket:
 ;   INPUT: rax contains self
 ;   STACK:
 ;      - sockfd: Int
-;      - addr: SockAddr
-;      - addrlen: Int
+;      - addr: Ref (SockAddr)
+;      - addrlen: Ref (Int)
 ;   OUTPUT: rax points to the Int object containing the file descriptor
 ;
 Linux.accept:
@@ -277,15 +284,19 @@ Linux.accept:
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
-    ; t2 <- *arg1.sa_data.s
+    ; t2 <- *arg1.val.sa_data.s
     mov     rax, [rbp + arg_1]
+    add     rax, [slot_0]
+    mov     rax, [rax]
     add     rax, [slot_0]
     mov     rax, [rax]
     add     rax, [slot_1]
     mov     qword [rbp - loc_2], rax
 
-    ; t3 <- *arg2.val
+    ; t3 <- *arg2.val.val
     mov     rax, [rbp + arg_2]
+    add     rax, [slot_0]
+    mov     rax, [rax]
     add     rax, [slot_0]
     mov     qword [rbp - loc_3], rax
 

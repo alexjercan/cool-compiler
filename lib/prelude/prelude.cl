@@ -33,13 +33,13 @@ class IO inherits Object {
     };
 
     in_string(): String {
-        let tmp: String <- linux.read(0, 1024),
+        let tmp: String <- linux.read1(0, 1024),
             s: String <- tmp
         in
             {
                 while tmp.length() = 1024 loop
                     {
-                        tmp <- linux.read(0, 1024);
+                        tmp <- linux.read1(0, 1024);
                         s <- s.concat(tmp);
                     }
                 pool;
