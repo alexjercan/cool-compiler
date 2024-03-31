@@ -13,6 +13,7 @@
 
 // Add support for the following:
 // - dependency resolution for modules (e.g a file that contains the dependencies so that we can include them using --module)
+// - Threading class that uses Linux or pthreads IDK
 // - abort for dispatch on void
 // - abort for case on void
 // - abort for case on no match

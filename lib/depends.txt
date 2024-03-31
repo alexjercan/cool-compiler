@@ -1,6 +1,8 @@
 prelude : allocator | mallocator
 raylib : prelude
 raylib : mallocator | allocator
+data : prelude
+data : allocator | mallocator
 allocator ^ mallocator
 
 My idea is

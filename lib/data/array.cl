@@ -1,3 +1,5 @@
+-- TODO: Implement a better Array class with extern data
+
 class Array {
     data: String;
     item_size: Int;
