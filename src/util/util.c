@@ -81,6 +81,39 @@ defer:
     return result;
 }
 
+int util_list_dirs(const char *dirpath, ds_dynamic_array *dirs) {
+    int result = 0;
+
+    ds_dynamic_array_init(dirs, sizeof(char *));
+
+    DIR *dir = opendir(dirpath);
+    if (dir == NULL) {
+        DS_LOG_ERROR("Failed to open directory: %s", strerror(errno));
+        return_defer(1);
+    }
+
+    struct dirent *entry = NULL;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 ||
+                strcmp(entry->d_name, "..") == 0) {
+                continue;
+            }
+
+            char *subdirpath = strdup(entry->d_name);
+
+            if (ds_dynamic_array_append(dirs, &subdirpath) != 0) {
+                DS_LOG_ERROR("Failed to push directory path to array");
+                return_defer(1);
+            }
+        }
+    }
+
+defer:
+    return result;
+}
+
 int util_append_path(char *path, const char *filename, char **buffer) {
     int result = 0;
     ds_string_builder sb;

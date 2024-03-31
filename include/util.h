@@ -22,16 +22,10 @@
 #define ARG_ASSEMBLER "asm"
 #define ARG_MODULE "module"
 
-#define MODULE_PRELUDE "prelude"
-#define MODULE_DS "data"
-#define MODULE_RAYLIB "raylib"
-#define MODULE_ALLOCATOR "allocator"
-#define MODULE_MALLOCATOR "mallocator"
-
 int util_parse_arguments(ds_argparse_parser *parser, int argc, char **argv);
-int util_validate_module(const char *module);
+int util_validate_module(char *cool_lib, const char *module);
 int util_get_ld_flags(char *cool_home, ds_dynamic_array modules, ds_dynamic_array *ld_flags);
-int util_post_validate_modules(ds_dynamic_array *modules);
+int util_resolve_modules(char *buffer, char *cool_home, ds_dynamic_array *modules);
 
 void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
                     unsigned int *col);
@@ -39,6 +33,7 @@ void util_pos_to_lc(char *buffer, unsigned int pos, unsigned int *line,
 int util_read_file(const char *filename, char **buffer);
 int util_write_file(const char *filename, char *buffer, const char *mode);
 int util_list_filepaths(const char *dirpath, ds_dynamic_array *filepaths);
+int util_list_dirs(const char *dirpath, ds_dynamic_array *dirs);
 int util_append_path(char *path, const char *filename, char **buffer);
 int util_append_extension(const char *filename, const char *extension,
                           char **buffer);

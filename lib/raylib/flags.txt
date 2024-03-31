@@ -1,5 +1,6 @@
--dynamic-linker /lib64/ld-linux-x86-64.so.2
--L_/lib/raylib/raylib-5.0_linux_amd64/lib/
+-dynamic-linker
+/lib64/ld-linux-x86-64.so.2
+-LCOOL_HOME/lib/raylib/raylib-5.0_linux_amd64/lib/
 -l:libraylib.a
 -lm
 -lc

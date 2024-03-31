@@ -187,6 +187,9 @@ DSHDEF void ds_string_slice_init(ds_string_slice *ss, char *str,
                                  unsigned int len);
 DSHDEF int ds_string_slice_tokenize(ds_string_slice *ss, char delimiter,
                                     ds_string_slice *token);
+DSHDEF int ds_string_slice_trim_left(ds_string_slice *ss, char chr);
+DSHDEF int ds_string_slice_trim_right(ds_string_slice *ss, char chr);
+DSHDEF int ds_string_slice_trim(ds_string_slice *ss, char chr);
 DSHDEF int ds_string_slice_to_owned(ds_string_slice *ss, char **str);
 DSHDEF void ds_string_slice_free(ds_string_slice *ss);
 
@@ -836,6 +839,51 @@ DSHDEF int ds_string_slice_tokenize(ds_string_slice *ss, char delimiter,
     token->len = ss->len;
     ss->str += ss->len;
     ss->len = 0;
+
+defer:
+    return result;
+}
+
+// Trim the left side of the string slice by a character
+//
+// Returns 0 if the string was trimmed successfully, 1 if the string slice is
+DSHDEF int ds_string_slice_trim_left(ds_string_slice *ss, char chr) {
+    int result = 0;
+
+    while (ss->len > 0 && ss->str[0] == chr) {
+        ss->str++;
+        ss->len--;
+    }
+
+    return result;
+}
+
+// Trim the right side of the string slice by a character
+//
+// Returns 0 if the string was trimmed successfully, 1 if the string slice is
+DSHDEF int ds_string_slice_trim_right(ds_string_slice *ss, char chr) {
+    int result = 0;
+
+    while (ss->len > 0 && ss->str[ss->len - 1] == chr) {
+        ss->len--;
+    }
+
+    return result;
+}
+
+// Trim the string slice by a character
+//
+// Returns 0 if the string was trimmed successfully, 1 if the string slice is
+DSHDEF int ds_string_slice_trim(ds_string_slice *ss, char chr) {
+    int result = 0;
+
+    if (ds_string_slice_trim_left(ss, chr) != 0) {
+        return_defer(1);
+    }
+
+    if (ds_string_slice_trim_right(ss, chr) != 0) {
+        return_defer(1);
+    }
 
 defer:
     return result;

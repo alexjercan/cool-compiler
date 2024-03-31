@@ -12,7 +12,6 @@
 #include "semantic.h"
 
 // Add support for the following:
-// - dependency resolution for modules (e.g a file that contains the dependencies so that we can include them using --module)
 // - Threading class that uses Linux or pthreads IDK
 // - abort for dispatch on void
 // - abort for case on void
@@ -50,6 +49,8 @@ static int build_context_prelude_init(build_context *context) {
     int result = 0;
     char *cool_home = NULL;
     char *cool_lib = NULL;
+    char *depends_path = NULL;
+    char *depends_buffer = NULL;
     ds_dynamic_array filepaths;
     ds_dynamic_array modules;
 
@@ -69,16 +70,26 @@ static int build_context_prelude_init(build_context *context) {
 
     ds_argparse_get_values(&context->parser, ARG_MODULE, &modules);
 
-    if (util_post_validate_modules(&modules) != 0) {
-        DS_LOG_ERROR("Failed to post validate modules");
-        return_defer(1);
+    if (util_append_path(cool_lib, "depends.txt", &depends_path) != 0) {
+        DS_LOG_ERROR("Failed to append path");
+        return_defer(STATUS_ERROR);
+    }
+
+    if (util_read_file(depends_path, &depends_buffer) < 0) {
+        DS_LOG_ERROR("Failed to read file: %s", depends_path);
+        return_defer(STATUS_ERROR);
+    }
+
+    if (util_resolve_modules(depends_buffer, context->cool_home, &modules) != 0) {
+        DS_LOG_ERROR("Failed to resolve modules");
+        return_defer(STATUS_ERROR);
     }
 
     for (size_t i = 0; i < modules.count; i++) {
         char *module = NULL;
         ds_dynamic_array_get(&modules, i, (void **)&module);
 
-        if (util_validate_module(module) != 0) {
+        if (util_validate_module(cool_lib, module) != 0) {
             return_defer(1);
         }
 

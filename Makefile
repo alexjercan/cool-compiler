@@ -27,11 +27,11 @@ clean:
 	rm -f coolc
 
 examples: all
-	./coolc examples/gol.cl -o build/gol
-	./coolc examples/rule110.cl -o build/rule110
+	./coolc examples/gol.cl --module prelude -o build/gol
+	./coolc examples/rule110.cl --module prelude --module data -o build/rule110
 	./coolc examples/raylib.cl --module raylib -o build/raylib
 	./coolc examples/game.cl --module raylib -o build/game
-	./coolc examples/server.cl -o build/server
+	./coolc examples/server.cl  --module prelude -o build/server
 
 dist: clean all
 	rm -rf coolc.tar.gz
