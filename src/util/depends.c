@@ -1,40 +1,6 @@
 #include "util.h"
 #include "ds.h"
 
-/*
-prelude : allocator | mallocator
-raylib : prelude
-raylib : mallocator | allocator
-data : prelude
-data : allocator | mallocator
-allocator ^ mallocator
-
-My idea is
-- if you include a module e.g raylib, the algorithm will work as follow
-- go trough all the items that are like `raylib : * | ... ` and include the first item in the list (in a queue)
-- in this case it is `prelude` and `mallocator`
-- then go trough all the items that are like `prelude : * | ... ` and include the first item in the list (in a queue)
-- in this case it is `allocator`, but `allocator` and `mallocator` are in a conflict, so the algorithm will try the next option in the list
-- in this case it is `mallocator`, so it will include `mallocator` in the queue, but since it is already included, it will skip it
-- then we go to the next item in the queue, which is `mallocator`, it does not have any dependencies, so it doesn't include anything
-
-Algorithm:
-0. Initialize the modules with the module that is being included, Initialize the conflict list with `module1 ^ module2`
-1. Iterate all the items in the modules list
-    2. Iterate all dependencies of the module that is being included `module : * | ...`
-        3. Iterate all options in the list
-           3a. If the item is already included, break
-           3b. If the item is in conflict with another item that is already included, continue
-           3c. If the item is not included add it to the modules list, break
-           3d. If the options run out, ERROR
-4. return the modules list
-
-Then use the modules to pass them to the compiler with `--module`
-
-Then you read all the flags.txt files from the module folder. Split by newlines. Put all of them in a set.
-Also replace `_` with COOL_HOME variable and that is it for `ld`
-*/
-
 enum dependency_kind {
     DEPENDENCY,
     INCOMPATIBILITY,
