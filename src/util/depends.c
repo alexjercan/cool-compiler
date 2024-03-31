@@ -247,6 +247,33 @@ int util_resolve_modules(char *buffer, char *cool_home,
         }
     }
 
+    ds_dynamic_array modules_unique;
+    ds_dynamic_array_init(&modules_unique, sizeof(char *));
+
+    for (size_t i = 0; i < modules->count; i++) {
+        char *module = NULL;
+        ds_dynamic_array_get(modules, i, &module);
+
+        if (array_contains(&modules_unique, module)) {
+            continue;
+        }
+
+        if (ds_dynamic_array_append(&modules_unique, &module) != 0) {
+            return_defer(1);
+        }
+    }
+
+    modules->count = 0;
+
+    for (size_t i = 0; i < modules_unique.count; i++) {
+        char *module = NULL;
+        ds_dynamic_array_get(&modules_unique, i, &module);
+
+        if (ds_dynamic_array_append(modules, &module) != 0) {
+            return_defer(1);
+        }
+    }
+
 defer:
     return result;
 }
