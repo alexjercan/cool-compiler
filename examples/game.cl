@@ -121,11 +121,7 @@ class Snake {
     grow(): SELF_TYPE {
         let iter: List <- cells,
             x: Int <- head_pos_x(),
-            y: Int <- head_pos_y(),
-            new_x: Int <- new_x(),
-            new_y: Int <- new_y(),
-            c_x: Int <- x + (x - new_x),
-            c_y: Int <- y + (y - new_y)
+            y: Int <- head_pos_y()
         in
             {
                 while not isvoid iter.next() loop
@@ -135,19 +131,13 @@ class Snake {
                             {
                                 x <- cell.pos_x();
                                 y <- cell.pos_y();
-
-                                c_x <- x + (x - new_x);
-                                c_y <- y + (y - new_y);
-
-                                new_x <- x;
-                                new_y <- y;
                             };
 
                         iter <- iter.next();
                     }
                 pool;
 
-                iter.append(new SnakeCell.init(c_x, c_y, snake_cell_size_x, snake_cell_size_y));
+                iter.append(new SnakeCell.init(x, y, snake_cell_size_x, snake_cell_size_y));
 
                 self;
             }
@@ -177,7 +167,7 @@ class Snake {
             pool
     };
 
-    update(raylib: Raylib): Raylib {
+    update(raylib: Raylib): Bool {
         {
             if raylib.isKeyPressed(raylib.keyA()) then pressedA <- true else
             if raylib.isKeyPressed(raylib.keyD()) then pressedD <- true else
@@ -205,9 +195,9 @@ class Snake {
 
                 move_snake();
                 frame_counter <- 0;
-            } else 0 fi;
 
-            raylib;
+                not dead();
+            } else true fi;
         }
     };
 
@@ -259,7 +249,7 @@ class Coin {
         }
     };
 
-    update(raylib: Raylib): Raylib {
+    update(raylib: Raylib): Object {
         {
             if not enabled then
             {
@@ -268,8 +258,6 @@ class Coin {
                 enabled <- true;
             }
             else 0 fi;
-
-            raylib;
         }
     };
 
@@ -296,10 +284,8 @@ class Game {
             if (snake.head_pos_y() = coin.pos_y()).and(snake.head_pos_x() = coin.pos_x()) then { coin.consume(); snake.grow(); score <- score + 1; }
             else 0 fi;
 
-            snake.update(raylib);
             coin.update(raylib);
-
-            not snake.dead();
+            snake.update(raylib);
         }
     };
 
