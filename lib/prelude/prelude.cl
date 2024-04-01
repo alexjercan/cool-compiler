@@ -53,6 +53,28 @@ class IO inherits Object {
     };
 };
 
+class Tuple {
+    fst: Object;
+    snd: Object;
+
+    init(f: Object, s: Object): SELF_TYPE {
+        {
+            fst <- f;
+            snd <- s;
+            self;
+        }
+    };
+
+    fst(): Object { fst };
+
+    snd(): Object { snd };
+
+    equals(x: Object): Bool {
+        let t: Tuple <- case x of me: Tuple => me; esac
+        in fst.equals(t.fst()).and(snd.equals(t.snd()))
+    };
+};
+
 class String inherits Object {
     l: Int;
     str: String <- extern;
@@ -61,6 +83,31 @@ class String inherits Object {
     substr(i: Int, l: Int): String extern;
 
     length(): Int { l };
+
+    split(delim: String): Tuple {
+        let s: String <- case self of me: String => me; esac,
+            i: Int <- 0,
+            l: Int <- s.length(),
+            d: Int <- delim.length(),
+            found: Bool <- false,
+            res: Tuple
+        in
+            {
+                while (i < l).and(not found) loop
+                    if s.substr(i, d) = delim then
+                        found <- true
+                    else
+                        i <- i + 1
+                    fi
+                pool;
+
+                res <- if found then
+                    new Tuple.init(s.substr(0, i), s.substr(i + d, l - i - d))
+                else
+                    new Tuple.init(s, "")
+                fi;
+            }
+    };
 
     trim_right(b: Byte): String {
         let s: String <- case self of me: String => me; esac,
