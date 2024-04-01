@@ -30,6 +30,7 @@ examples: all
 	./coolc examples/gol.cl --module prelude -o build/gol
 	./coolc examples/rule110.cl --module prelude --module data -o build/rule110
 	./coolc examples/raylib.cl --module raylib -o build/raylib
+	./coolc examples/game.cl --module raylib -o build/game
 	./coolc examples/snake.cl --module raylib -o build/snake
 	./coolc examples/server.cl  --module prelude -o build/server
 
