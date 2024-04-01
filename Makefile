@@ -32,7 +32,11 @@ examples: all
 	./coolc examples/raylib.cl --module raylib -o build/raylib
 	./coolc examples/game.cl --module raylib -o build/game
 	./coolc examples/snake.cl --module raylib -o build/snake
-	./coolc examples/server.cl  --module prelude -o build/server
+	./coolc examples/server.cl --module prelude -o build/server
+
+game: all
+	./coolc examples/multi/server.cl examples/multi/message.cl --module prelude --module raylib -o build/game-server
+	./coolc examples/multi/client.cl examples/multi/message.cl --module raylib -o build/game-client
 
 dist: clean all
 	rm -rf coolc.tar.gz

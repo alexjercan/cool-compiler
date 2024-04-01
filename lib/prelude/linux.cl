@@ -53,6 +53,21 @@ class HostToNetwork {
     };
 };
 
+class InetHelper {
+    (* Convert a IPv4 address from string to integer. *)
+    af_inet_pton(src: String): Int {
+        let tup: Tuple <- src.split("."),
+            a: Int <- case tup.fst() of a: String => new Int.from_string(a); esac,
+            tup: Tuple <- case tup.snd() of rst: String => rst.split("."); esac,
+            b: Int <- case tup.fst() of b: String => new Int.from_string(b); esac,
+            tup: Tuple <- case tup.snd() of rst: String => rst.split("."); esac,
+            c: Int <- case tup.fst() of c: String => new Int.from_string(c); esac,
+            d: Int <- case tup.snd() of d: String => new Int.from_string(d); esac
+        in
+            a + b * 256 + c * 256 * 256 + d * 256 * 256 * 256
+    };
+};
+
 (* SocketDomain class, responsible for defining the socket domain. *)
 class SocketDomain {
     af_inet(): Int { 2 };
