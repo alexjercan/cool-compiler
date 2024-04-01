@@ -63,12 +63,12 @@ class Coin {
         }
     };
 
-    update(raylib: Raylib): Object {
+    update(): Object {
         {
             if not enabled then
             {
-                pos_x <- raylib.getRandomValue(min_x, max_x) * cell_size;
-                pos_y <- raylib.getRandomValue(min_y, max_y) * cell_size;
+                pos_x <- (new Random.random().mod(max_x - min_x) + min_x) * cell_size;
+                pos_y <- (new Random.random().mod(max_y - min_y) + min_y) * cell_size;
                 enabled <- true;
             }
             else 0 fi;

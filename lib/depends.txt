@@ -4,4 +4,5 @@ raylib : mallocator | allocator
 raylib : data
 data : prelude
 data : allocator | mallocator
+random : prelude
 allocator ^ mallocator
