@@ -447,6 +447,71 @@ Linux.socket:
     add     rsp, 40                    ; deallocate local variables
     pop     rbp                        ; restore return address
     ret
+
+;
+;
+; connect syscall
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - sockfd: Int
+;      - addr: Ref (SockAddr)
+;      - addrlen: Ref
+;   OUTPUT: rax points to the Int object containing the return value
+;
+Linux.connect:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 40                    ; allocate 5 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t1 <- arg0.val
+    mov     rax, [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_1], rax
+
+    ; t2 <- arg1.val
+    mov     rax, [rbp + arg_1]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_2], rax
+
+    ; t3 <- arg2.val
+    mov     rax, [rbp + arg_2]
+    add     rax, [slot_0]
+    mov     rax, [rax]
+    mov     qword [rbp - loc_3], rax
+
+    ; t4 <- syscall connect(t1, t2, t3)
+    mov     rdi, qword [rbp - loc_1]
+    mov     rsi, qword [rbp - loc_2]
+    mov     rdx, qword [rbp - loc_3]
+    mov     rax, 42
+    syscall
+    mov     qword [rbp - loc_4], rax
+
+    ; t0.val <- t4
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_4]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 40                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
 ;
 ;
 ; accept syscall
@@ -518,7 +583,7 @@ Linux.accept:
 ;   INPUT: rax contains self
 ;   STACK:
 ;      - sockfd: Int
-;      - addr: SockAddr
+;      - addr: Ref (SockAddr)
 ;      - addrlen: Int
 ;   OUTPUT: rax points to the Int object containing the return value
 ;
@@ -541,9 +606,10 @@ Linux.bind:
     mov     rax, [rax]
     mov     qword [rbp - loc_1], rax
 
-    ; t2 <- *arg1.val(0)
+    ; t2 <- arg1.val
     mov     rax, [rbp + arg_1]
     add     rax, [slot_0]
+    mov     rax, [rax]
     mov     qword [rbp - loc_2], rax
 
     ; t3 <- arg2.val

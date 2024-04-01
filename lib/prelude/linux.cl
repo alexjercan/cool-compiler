@@ -7,8 +7,9 @@ class Linux {
     close(fd: Int): Int extern;
 
     socket(domain: Int, type: Int, protocol: Int): Int extern;
+    connect(sockfd: Int, addr: Ref (* SockAddr *), addrlen: Int): Int extern;
     accept(sockfd: Int, addr: Ref (* SockAddr *), addrlen: Ref (* Int *)): Int extern;
-    bind(sockfd: Int, addr: SockAddr, addrlen: Int): Int extern;
+    bind(sockfd: Int, addr: Ref (* SockAddr *), addrlen: Int): Int extern;
     listen(sockfd: Int, backlog: Int): Int extern;
 
     exit(status: Int): Object extern;

@@ -7,7 +7,7 @@ class Main {
             addr_in: Int <- new HostToNetwork.htonl(new SocketDomain.af_inet()),
             addr: SockAddr <- new SockAddrIn.init(addr_in, port, new InAddr.inaddr_any()),
             addrlen: Int <- addr.len(),
-            bindres: Int <- linux.bind(sockfd, addr, addrlen),
+            bindres: Int <- linux.bind(sockfd, new Ref.init(addr), addrlen),
             listenres: Int <- linux.listen(sockfd, 10)
         in
             {
