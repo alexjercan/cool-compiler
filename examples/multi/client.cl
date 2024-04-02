@@ -63,7 +63,7 @@ class PlayerLobby inherits Thread {
     player_id: Int;
 
     coin: Coin <- new Coin.init(0, 0, new Float.from_int(10));
-    players: List <- new List.single(new Object);
+    players: List (* Player *) <- new List.single(new Object);
 
     player_id(): Int { player_id };
 
@@ -143,13 +143,21 @@ class PlayerLobby inherits Thread {
 };
 
 class Main {
-    screen_width: Int <- 800;
-    screen_height: Int <- 600;
-
     raylib: Raylib <- new Raylib;
+
+    minX: Int <- 0;
+    maxX: Int <- 16;
+    minY: Int <- 0;
+    maxY: Int <- 12;
+
+    cell_size: Int <- 50;
+    screen_width: Int <- maxX * cell_size;
+    screen_height: Int <- maxY * cell_size;
+
     client: Client <- new Client.init("127.0.0.1", 8080).connect();
-    pthread: PThread <- new PThread;
     lobby: PlayerLobby <- new PlayerLobby.init(client);
+
+    pthread: PThread <- new PThread;
     lobby_thread: Int <- pthread.spawn(lobby);
 
     main(): Object {

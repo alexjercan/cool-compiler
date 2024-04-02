@@ -79,10 +79,15 @@ class Coin {
 class PlayerLobby inherits Thread {
     server: Server;
 
-    coin: Coin;
-    players: List <- new List.single(new Object);
+    minX: Int <- 0;
+    maxX: Int <- 16;
+    minY: Int <- 0;
+    maxY: Int <- 12;
 
-    players(): List { players };
+    cell_size: Int <- 50;
+
+    coin: Coin <- new Coin.init(0, 0, new Float.from_int(10), cell_size, minX + 1, maxX - 1, minY + 1, maxY - 1);
+    players: List (* Player *) <- new List.single(new Object);
 
     init(s: Server): SELF_TYPE { { server <- s; self; } };
 
@@ -107,9 +112,10 @@ class PlayerLobby inherits Thread {
                             }
                         pool;
 
+                    -- TODO: Actually instantiate Player
                     players <- players.append(clientfd);
-                    -- TODO: Maybe spawn thread for player?
-                    -- TODO: Implement game loop (receive messages, update game state, send messages)
+
+                    -- TODO: Spawn thread for player (Make Player a thread)
                 }
         pool
     };
@@ -141,6 +147,10 @@ class Main {
     main(): Object {
         {
             new IO.out_string("Listening on port 8080\n");
+
+            -- TODO: Implement game loop (send messages)
+            -- TODO: broadcast the player's position to all other players
+            -- TODO: broadcast the coin position to all players
 
             pthread.join(lobby_thread);
         }

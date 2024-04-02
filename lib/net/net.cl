@@ -99,12 +99,25 @@ class Client {
     };
 };
 
+(* A buffer for the client *)
+class ClientBuffer {
+    buffer: String;
+    sockfd: Int;
+
+    buffer(): String { buffer };
+    sockfd(): Int { sockfd };
+
+    init(fd: Int): SELF_TYPE { { sockfd <- fd; self; } };
+};
+
 (* The server class *)
 class Server {
     linux: Linux <- new Linux;
 
     port: Int;
     sockfd: Int;
+
+    buffers: List (* ClientBuffer *) <- new List.single(new Object);
 
     (* Start the server on the given port *)
     init(p: Int): SELF_TYPE {
@@ -146,7 +159,7 @@ class Server {
     };
 
     (* Accept a connection *)
-    accept(): Int { linux.accept(sockfd, new Ref.null(), new Ref.null()) };
+    accept(): Int { linux.accept(sockfd, new Ref.null(), new Ref.null()) }; -- TODO: add new buffer to list
 
     (* Receive a message from the client *)
     recv(sockfd: Int): Tuple { new Message.deserialize(linux.read1(sockfd, 1024)) }; -- TODO: Handle buffer

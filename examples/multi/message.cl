@@ -1,5 +1,5 @@
 class MessageHelper inherits Serde {
-    deserialize(input: String): Tuple {
+    deserialize(input: String): Tuple (* Message, String *) {
         let kind: String <- input.substr(0, 1),
             rest: String <- input.substr(1, input.length() - 1)
         in
@@ -42,7 +42,7 @@ class PlayerPosition inherits Message {
         in "0".concat(id).concat(x).concat(y)
     };
 
-    deserialize(input: String): Tuple {
+    deserialize(input: String): Tuple (* Message, String *) {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             x: Int <- new MessageHelper.deserialize_int(input.substr(8, 8)),
             y: Int <- new MessageHelper.deserialize_int(input.substr(16, 8)),
@@ -77,7 +77,7 @@ class CoinPosition inherits Message {
         in "1".concat(x).concat(y)
     };
 
-    deserialize(input: String): Tuple {
+    deserialize(input: String): Tuple (* Message, String *) {
         let x: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             y: Int <- new MessageHelper.deserialize_int(input.substr(8, 8)),
             msg: Message <- new CoinPosition.init(x, y),
@@ -125,7 +125,7 @@ class PlayerInput inherits Message {
         in "2".concat(id).concat(a).concat(d).concat(w).concat(s)
     };
 
-    deserialize(input: String): Tuple {
+    deserialize(input: String): Tuple (* Message, String *) {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             a: Bool <- not new Byte.from_string(input.substr(8, 1)).to_int() = 0,
             d: Bool <- not new Byte.from_string(input.substr(9, 1)).to_int() = 0,
@@ -157,7 +157,7 @@ class PlayerConnected inherits Message {
         in "3".concat(id)
     };
 
-    deserialize(input: String): Tuple {
+    deserialize(input: String): Tuple (* Message, String *) {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             msg: Message <- new PlayerConnected.init(id),
             rest: String <- input.substr(8, input.length() - 8)
@@ -185,7 +185,7 @@ class PlayerAuthorize inherits Message {
         in "4".concat(id)
     };
 
-    deserialize(input: String): Tuple {
+    deserialize(input: String): Tuple (* Message, String *) {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             msg: Message <- new PlayerAuthorize.init(id),
             rest: String <- input.substr(8, input.length() - 8)
