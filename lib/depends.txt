@@ -7,4 +7,6 @@ data : allocator | mallocator
 random : prelude
 threading : prelude
 threading : mallocator | allocator
+net : prelude
+net : mallocator | allocator
 allocator ^ mallocator

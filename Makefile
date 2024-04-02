@@ -36,8 +36,8 @@ examples: all
 	./coolc examples/threading.cl --module threading -o build/threading
 
 game: all
-	./coolc examples/multi/server.cl examples/multi/message.cl --module threading --module data --module random -o build/game-server
-	./coolc examples/multi/client.cl examples/multi/message.cl --module threading --module raylib -o build/game-client
+	./coolc examples/multi/server.cl examples/multi/message.cl --module net --module threading --module data --module random -o build/game-server
+	./coolc examples/multi/client.cl examples/multi/message.cl  --module net --module threading --module raylib -o build/game-client
 
 dist: clean all
 	rm -rf coolc.tar.gz

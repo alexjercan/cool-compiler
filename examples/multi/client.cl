@@ -58,89 +58,14 @@ class Coin {
     };
 };
 
-class Client {
-    linux: Linux <- new Linux;
-
-    addr: String;
-    port: Int;
-    sockfd: Int;
-    buffer: String;
-
-    init(a: String, p: Int): SELF_TYPE {
-        {
-            addr <- a;
-            port <- p;
-            self;
-        }
-    };
-
-    connect(): SELF_TYPE {
-        let sockfd1: Int <- linux.socket(new SocketDomain.af_inet(), new SocketType.sock_stream(), 0),
-            port: Int <- new HostToNetwork.htons(port),
-            addr_in: Int <- new SocketDomain.af_inet(),
-            server_addr: Int <- new InetHelper.af_inet_pton(addr),
-            addr: SockAddr <- new SockAddrIn.init(addr_in, port, server_addr),
-            connectres: Int <- linux.connect(sockfd1, new Ref.init(addr), addr.len())
-        in
-            if connectres < 0 then
-                {
-                    new IO.out_string("Error connecting to server\n");
-                    abort();
-                    self;
-                }
-            else
-                {
-                    sockfd <- sockfd1;
-                    self;
-                }
-            fi
-    };
-
-    recv(): Message {
-        {
-            buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
-            let tup: Tuple <- new MessageHelper.deserialize(buffer)
-            in
-                {
-                    case tup.snd() of buf: String => buffer <- buf; esac;
-                    case tup.fst() of msg: Message => msg; esac;
-                };
-        }
-    };
-
-    send(msg: Message): SELF_TYPE {
-        {
-            let buffer: String <- msg.serialize()
-            in linux.write(sockfd, buffer, buffer.length());
-            self;
-        }
-    };
-};
-
 class PlayerLobby inherits Thread {
-    player_id: Int;
-    players: List <- new List.single(new Object);
-    coin: Coin <- new Coin.init(0, 0, new Float.from_int(10));
     client: Client;
+    player_id: Int;
+
+    coin: Coin <- new Coin.init(0, 0, new Float.from_int(10));
+    players: List <- new List.single(new Object);
 
     player_id(): Int { player_id };
-
-    draw(raylib: Raylib): Raylib {
-        {
-            let iter: List <- players
-            in
-                while not isvoid iter loop
-                    {
-                        case iter.value() of
-                            player: Player => player.draw(raylib);
-                            o: Object => 0;
-                        esac;
-                        iter <- iter.next();
-                    }
-                pool;
-            coin.draw(raylib);
-        }
-    };
 
     init(c: Client): SELF_TYPE { { client <- c; self; } };
 
@@ -198,6 +123,23 @@ class PlayerLobby inherits Thread {
             spawn_player(player_id);
         }
     };
+
+    draw(raylib: Raylib): Raylib {
+        {
+            let iter: List <- players
+            in
+                while not isvoid iter loop
+                    {
+                        case iter.value() of
+                            player: Player => player.draw(raylib);
+                            o: Object => 0;
+                        esac;
+                        iter <- iter.next();
+                    }
+                pool;
+            coin.draw(raylib);
+        }
+    };
 };
 
 class Main {
@@ -215,6 +157,8 @@ class Main {
             raylib.initWindow(screen_width, screen_height, "Coin Chase 2D").setTargetFPS(30);
             while raylib.windowShouldClose() = false loop
             {
+                -- TODO: handle input, send input
+
                 raylib.beginDrawing();
                 raylib.clearBackground(raylib.raywhite());
 

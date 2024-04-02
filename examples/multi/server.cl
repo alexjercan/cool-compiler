@@ -76,90 +76,22 @@ class Coin {
     };
 };
 
-class Server {
-    linux: Linux <- new Linux;
-
-    port: Int;
-    sockfd: Int;
-
-    init(p: Int): SELF_TYPE {
-        {
-            port <- p;
-            self;
-        }
-    };
-
-    listen(players: Int): SELF_TYPE {
-        let sockfd1: Int <- linux.socket(new SocketDomain.af_inet(), new SocketType.sock_stream(), 0),
-            port: Int <- new HostToNetwork.htons(port),
-            addr_in: Int <- new SocketDomain.af_inet(),
-            addr: SockAddr <- new SockAddrIn.init(addr_in, port, new InAddr.inaddr_any()),
-            bindres: Int <- linux.bind(sockfd1, new Ref.init(addr), addr.len()),
-            listenres: Int <- linux.listen(sockfd1, players)
-        in
-            if bindres < 0 then
-            {
-                new IO.out_string("Failed to bind\n");
-                linux.close(sockfd1);
-                abort();
-                self;
-            }
-            else if listenres < 0 then
-            {
-                new IO.out_string("Failed to listen\n");
-                linux.close(sockfd1);
-                abort();
-                self;
-            }
-            else
-            {
-                sockfd <- sockfd1;
-                self;
-            }
-            fi fi
-    };
-
-    accept(): Int { linux.accept(sockfd, new Ref.null(), new Ref.null()) };
-
-    recv(sockfd: Int): Tuple { new Message.deserialize(linux.read1(sockfd, 1024)) };
-
-    send(sockfd: Int, msg: Message): SELF_TYPE {
-        let buffer: String <- msg.serialize()
-        in { linux.write(sockfd, buffer, buffer.length()); self; }
-    };
-};
-
 class PlayerLobby inherits Thread {
-    players: List <- new List.single(new Object);
     server: Server;
+
+    coin: Coin;
+    players: List <- new List.single(new Object);
 
     players(): List { players };
 
     init(s: Server): SELF_TYPE { { server <- s; self; } };
 
-    send(player: Int, msg: Message): Object { server.send(player, msg) };
-
-    broadcast(msg: Message): Object {
-        let iter: List <- players
-        in
-            while not isvoid iter loop
-                {
-                    case iter.value() of
-                        player: Int => send(player, msg);
-                        player: Object => 0;
-                    esac;
-                    iter <- iter.next();
-                }
-            pool
-    };
-
     run(): Object {
         while true loop
-            let clientfd: Int <- server.accept(),
-                connected_msg: String <- "Client ".concat(clientfd.to_string()).concat(" connected\n")
+            let clientfd: Int <- server.accept()
             in
                 {
-                    new IO.out_string(connected_msg);
+                    new IO.out_string("Client ".concat(clientfd.to_string()).concat(" connected\n"));
 
                     broadcast(new PlayerConnected.init(clientfd));
                     send(clientfd, new PlayerAuthorize.init(clientfd));
@@ -176,14 +108,31 @@ class PlayerLobby inherits Thread {
                         pool;
 
                     players <- players.append(clientfd);
+                    -- TODO: Maybe spawn thread for player?
+                    -- TODO: Implement game loop (receive messages, update game state, send messages)
                 }
         pool
+    };
+
+    send(player: Int, msg: Message): Object { server.send(player, msg) };
+
+    broadcast(msg: Message): Object {
+        let iter: List <- players
+        in
+            while not isvoid iter loop
+                {
+                    case iter.value() of
+                        player: Int => send(player, msg);
+                        player: Object => 0;
+                    esac;
+                    iter <- iter.next();
+                }
+            pool
     };
 };
 
 class Main {
     linux: Linux <- new Linux;
-    coin: Coin;
     server: Server <- new Server.init(8080).listen(10);
     pthread: PThread <- new PThread;
     lobby: PlayerLobby <- new PlayerLobby.init(server);
@@ -192,8 +141,6 @@ class Main {
     main(): Object {
         {
             new IO.out_string("Listening on port 8080\n");
-
-            -- game loop
 
             pthread.join(lobby_thread);
         }
