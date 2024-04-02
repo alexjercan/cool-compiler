@@ -18,6 +18,10 @@ class List {
         }
     };
 
+    single(v: Object): List {
+        let void: List in new List.init(v, void)
+    };
+
     append(v: Object): List {
         {
             if isvoid next then

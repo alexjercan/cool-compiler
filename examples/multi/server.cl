@@ -129,25 +129,43 @@ class Server {
     };
 };
 
+class PlayerLobby inherits Thread {
+    players: List;
+    server: Server;
+
+    players(): List { players };
+
+    init(s: Server): SELF_TYPE { { server <- s; self; } };
+
+    run(): Object {
+        while true loop
+            let clientfd: Int <- server.accept(),
+                connected_msg: String <- "Client ".concat(clientfd.to_string()).concat(" connected\n")
+            in
+                {
+                    new IO.out_string(connected_msg);
+                    players <- if isvoid players then new List.single(clientfd) else players.append(clientfd) fi;
+                    -- TODO: send player list to all clients
+                }
+        pool
+    };
+};
+
 class Main {
     linux: Linux <- new Linux;
-    players: List;
     coin: Coin;
     server: Server <- new Server.init(8080).listen(10);
+    pthread: PThread <- new PThread;
+    lobby: PlayerLobby <- new PlayerLobby.init(server);
+    lobby_thread: Int <- pthread.spawn(lobby);
 
     main(): Object {
         {
             new IO.out_string("Listening on port 8080\n");
 
-            while true loop
-                let clientfd: Int <- server.accept()
-                in
-                    {
-                        new IO.out_string("Client connected\n");
-                        server.send(clientfd, new PlayerPosition.init(0, 50, 50));
-                        linux.close(clientfd);
-                    }
-            pool;
+            -- game loop
+
+            pthread.join(lobby_thread);
         }
     };
 };

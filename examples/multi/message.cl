@@ -164,3 +164,29 @@ class PlayerInput inherits Message {
         in new PlayerInput.init(id, a, d, w, s)
     };
 };
+
+class PlayerConnected inherits Message {
+    -- 1 byte for the kind of message: 3
+    -- 8 bytes for the player id
+
+    player_id: Int;
+
+    init(id: Int): SELF_TYPE {
+        {
+            player_id <- id;
+            self;
+        }
+    };
+
+    player_id(): Int { player_id };
+
+    serialize(): String {
+        let id: String <- new MessageHelper.serialize_int(player_id)
+        in "3".concat(id)
+    };
+
+    deserialize(input: String): Message {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8))
+        in new PlayerConnected.init(id)
+    };
+};

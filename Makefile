@@ -33,9 +33,10 @@ examples: all
 	./coolc examples/game.cl --module raylib -o build/game
 	./coolc examples/snake.cl --module raylib --module random -o build/snake
 	./coolc examples/server.cl --module prelude -o build/server
+	./coolc examples/threading.cl --module threading -o build/threading
 
 game: all
-	./coolc examples/multi/server.cl examples/multi/message.cl --module data --module random -o build/game-server
+	./coolc examples/multi/server.cl examples/multi/message.cl --module threading --module data --module random -o build/game-server
 	./coolc examples/multi/client.cl examples/multi/message.cl --module raylib -o build/game-client
 
 dist: clean all
