@@ -60,6 +60,7 @@ class Client {
     addr: String;
     port: Int;
     sockfd: Int;
+    buffer: String;
 
     init(a: String, p: Int): SELF_TYPE {
         {
@@ -92,8 +93,15 @@ class Client {
     };
 
     recv(): Message {
-        let buffer: String <- linux.read1(sockfd, 1024)
-        in new MessageHelper.deserialize(buffer)
+        {
+            buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
+            let tup: Tuple <- new MessageHelper.deserialize(buffer)
+            in
+                {
+                    case tup.snd() of buf: String => buffer <- buf; esac;
+                    case tup.fst() of msg: Message => msg; esac;
+                };
+        }
     };
 
     send(msg: Message): SELF_TYPE {

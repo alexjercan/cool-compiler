@@ -121,7 +121,7 @@ class Server {
 
     accept(): Int { linux.accept(sockfd, new Ref.null(), new Ref.null()) };
 
-    recv(sockfd: Int): Message { new Message.deserialize(linux.read1(sockfd, 1024)) };
+    recv(sockfd: Int): Tuple { new Message.deserialize(linux.read1(sockfd, 1024)) };
 
     send(sockfd: Int, msg: Message): SELF_TYPE {
         let buffer: String <- msg.serialize()

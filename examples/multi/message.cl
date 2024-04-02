@@ -1,5 +1,5 @@
 class MessageHelper {
-    deserialize(input: String): Message {
+    deserialize(input: String): Tuple {
         let kind: String <- input.substr(0, 1),
             rest: String <- input.substr(1, input.length() - 1)
         in
@@ -8,7 +8,7 @@ class MessageHelper {
             else if kind = "2" then new PlayerInput.deserialize(rest)
             else if kind = "3" then new PlayerConnected.deserialize(rest)
             else if kind = "4" then new PlayerAuthorize.deserialize(rest)
-            else { abort(); new Message; } fi fi fi fi fi
+            else { abort(); new Tuple; } fi fi fi fi fi
     };
 
     serialize_byte(byte: Byte): String { byte.to_string() };
@@ -37,15 +37,15 @@ class MessageHelper {
             b7: Byte <- deserialize_byte(input.substr(6, 1)),
             b8: Byte <- deserialize_byte(input.substr(7, 1))
         in
-            b1.to_int() + b2.to_int() * 256 + b3.to_int() * 256 * 256 + b4.to_int() * 256 * 256 * 256
-            + b5.to_int() * 256 * 256 * 256 * 256 + b6.to_int() * 256 * 256 * 256 * 256 * 256
-            + b7.to_int() * 256 * 256 * 256 * 256 * 256 * 256 + b8.to_int() * 256 * 256 * 256 * 256 * 256 * 256 * 256
+            b8.to_int() + b7.to_int() * 256 + b6.to_int() * 256 * 256 + b5.to_int() * 256 * 256 * 256
+            + b4.to_int() * 256 * 256 * 256 * 256 + b3.to_int() * 256 * 256 * 256 * 256 * 256
+            + b2.to_int() * 256 * 256 * 256 * 256 * 256 * 256 + b1.to_int() * 256 * 256 * 256 * 256 * 256 * 256 * 256
     };
 };
 
 class Message {
     serialize(): String { { abort(); ""; } };
-    deserialize(input: String): Message { { abort(); new Message; } };
+    deserialize(input: String): Tuple { { abort(); new Tuple; } };
 };
 
 class PlayerPosition inherits Message {
@@ -78,11 +78,13 @@ class PlayerPosition inherits Message {
         in "0".concat(id).concat(x).concat(y)
     };
 
-    deserialize(input: String): Message {
+    deserialize(input: String): Tuple {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             x: Int <- new MessageHelper.deserialize_int(input.substr(8, 8)),
-            y: Int <- new MessageHelper.deserialize_int(input.substr(16, 8))
-        in new PlayerPosition.init(id, x, y)
+            y: Int <- new MessageHelper.deserialize_int(input.substr(16, 8)),
+            msg: Message <- new PlayerPosition.init(id, x, y),
+            rest: String <- input.substr(24, input.length() - 24)
+        in new Tuple.init(msg, rest)
     };
 };
 
@@ -111,10 +113,12 @@ class CoinPosition inherits Message {
         in "1".concat(x).concat(y)
     };
 
-    deserialize(input: String): Message {
+    deserialize(input: String): Tuple {
         let x: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
-            y: Int <- new MessageHelper.deserialize_int(input.substr(8, 8))
-        in new CoinPosition.init(x, y)
+            y: Int <- new MessageHelper.deserialize_int(input.substr(8, 8)),
+            msg: Message <- new CoinPosition.init(x, y),
+            rest: String <- input.substr(16, input.length() - 16)
+        in new Tuple.init(msg, rest)
     };
 };
 
@@ -157,13 +161,15 @@ class PlayerInput inherits Message {
         in "2".concat(id).concat(a).concat(d).concat(w).concat(s)
     };
 
-    deserialize(input: String): Message {
+    deserialize(input: String): Tuple {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             a: Bool <- not new Byte.from_string(input.substr(8, 1)).to_int() = 0,
             d: Bool <- not new Byte.from_string(input.substr(9, 1)).to_int() = 0,
             w: Bool <- not new Byte.from_string(input.substr(10, 1)).to_int() = 0,
-            s: Bool <- not new Byte.from_string(input.substr(11, 1)).to_int() = 0
-        in new PlayerInput.init(id, a, d, w, s)
+            s: Bool <- not new Byte.from_string(input.substr(11, 1)).to_int() = 0,
+            msg: Message <- new PlayerInput.init(id, a, d, w, s),
+            rest: String <- input.substr(12, input.length() - 12)
+        in new Tuple.init(msg, rest)
     };
 };
 
@@ -187,9 +193,11 @@ class PlayerConnected inherits Message {
         in "3".concat(id)
     };
 
-    deserialize(input: String): Message {
-        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8))
-        in new PlayerConnected.init(id)
+    deserialize(input: String): Tuple {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
+            msg: Message <- new PlayerConnected.init(id),
+            rest: String <- input.substr(8, input.length() - 8)
+        in new Tuple.init(msg, rest)
     };
 };
 
@@ -213,8 +221,10 @@ class PlayerAuthorize inherits Message {
         in "4".concat(id)
     };
 
-    deserialize(input: String): Message {
-        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8))
-        in new PlayerAuthorize.init(id)
+    deserialize(input: String): Tuple {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
+            msg: Message <- new PlayerAuthorize.init(id),
+            rest: String <- input.substr(8, input.length() - 8)
+        in new Tuple.init(msg, rest)
     };
 };
