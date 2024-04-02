@@ -10,21 +10,26 @@ HDR_DIR=include
 HDR_FILES=$(wildcard $(HDR_DIR)/**/*.h $(HDR_DIR)/*.h)
 
 all: $(BUILD_DIR)/main
-	cp $(BUILD_DIR)/main coolc
+	@echo "(DONE) $@"
+	@cp $(BUILD_DIR)/main coolc
 
 $(BUILD_DIR)/main: $(OBJ_FILES) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -o $@ $^
+	@echo "(LINK) $@"
+	@$(CC) $(CFLAGS) -o $@ $^
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HDR_FILES) | $(BUILD_DIR)
+	@echo "(COMP) $@"
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -I$(HDR_DIR) -c -o $@ $<
+	@$(CC) $(CFLAGS) -I$(HDR_DIR) -c -o $@ $<
 
 $(BUILD_DIR):
-	mkdir -p $@
+	@echo "(INIT)"
+	@mkdir -p $@
 
 clean:
-	rm -rf $(BUILD_DIR)
-	rm -f coolc
+	@echo "(CLEAN)"
+	@rm -rf $(BUILD_DIR)
+	@rm -f coolc
 
 examples: all
 	./coolc examples/gol.cl --module prelude -o build/gol
@@ -42,6 +47,5 @@ game: all
 dist: clean all
 	rm -rf coolc.tar.gz
 	tar -czf coolc.tar.gz coolc lib
-
 
 .PHONY: all clean examples dist
