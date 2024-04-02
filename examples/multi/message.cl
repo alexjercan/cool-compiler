@@ -6,7 +6,9 @@ class MessageHelper {
             if kind = "0" then new PlayerPosition.deserialize(rest)
             else if kind = "1" then new CoinPosition.deserialize(rest)
             else if kind = "2" then new PlayerInput.deserialize(rest)
-            else { abort(); new Message; } fi fi fi
+            else if kind = "3" then new PlayerConnected.deserialize(rest)
+            else if kind = "4" then new PlayerAuthorize.deserialize(rest)
+            else { abort(); new Message; } fi fi fi fi fi
     };
 
     serialize_byte(byte: Byte): String { byte.to_string() };
@@ -188,5 +190,31 @@ class PlayerConnected inherits Message {
     deserialize(input: String): Message {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8))
         in new PlayerConnected.init(id)
+    };
+};
+
+class PlayerAuthorize inherits Message {
+    -- 1 byte for the kind of message: 4
+    -- 8 bytes for the player id
+
+    player_id: Int;
+
+    init(id: Int): SELF_TYPE {
+        {
+            player_id <- id;
+            self;
+        }
+    };
+
+    player_id(): Int { player_id };
+
+    serialize(): String {
+        let id: String <- new MessageHelper.serialize_int(player_id)
+        in "4".concat(id)
+    };
+
+    deserialize(input: String): Message {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8))
+        in new PlayerAuthorize.init(id)
     };
 };

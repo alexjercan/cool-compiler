@@ -130,12 +130,28 @@ class Server {
 };
 
 class PlayerLobby inherits Thread {
-    players: List;
+    players: List <- new List.single(new Object);
     server: Server;
 
     players(): List { players };
 
     init(s: Server): SELF_TYPE { { server <- s; self; } };
+
+    send(player: Int, msg: Message): Object { server.send(player, msg) };
+
+    broadcast(msg: Message): Object {
+        let iter: List <- players
+        in
+            while not isvoid iter loop
+                {
+                    case iter.value() of
+                        player: Int => send(player, msg);
+                        player: Object => 0;
+                    esac;
+                    iter <- iter.next();
+                }
+            pool
+    };
 
     run(): Object {
         while true loop
@@ -144,8 +160,22 @@ class PlayerLobby inherits Thread {
             in
                 {
                     new IO.out_string(connected_msg);
-                    players <- if isvoid players then new List.single(clientfd) else players.append(clientfd) fi;
-                    -- TODO: send player list to all clients
+
+                    broadcast(new PlayerConnected.init(clientfd));
+                    send(clientfd, new PlayerAuthorize.init(clientfd));
+                    let iter: List <- players
+                    in
+                        while not isvoid iter loop
+                            {
+                                case iter.value() of
+                                    player: Int => send(clientfd, new PlayerConnected.init(player));
+                                    player: Object => 0;
+                                esac;
+                                iter <- iter.next();
+                            }
+                        pool;
+
+                    players <- players.append(clientfd);
                 }
         pool
     };

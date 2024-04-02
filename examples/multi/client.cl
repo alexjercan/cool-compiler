@@ -106,35 +106,41 @@ class Client {
 };
 
 class PlayerLobby inherits Thread {
+    player_id: Int;
     players: List;
     client: Client;
-    raylib: Raylib;
 
+    player_id(): Int { player_id };
     players(): List { players };
 
-    init(c: Client, r: Raylib): SELF_TYPE { { client <- c; raylib <- r; self; } };
+    init(c: Client): SELF_TYPE { { client <- c; self; } };
 
     run(): Object {
-        while raylib.windowShouldClose() = false loop
+        while true loop
             case client.recv() of
                 message: PlayerPosition => player_update(message);
                 message: CoinPosition => coin_update(message);
                 message: PlayerConnected => add_player(message);
+                message: PlayerAuthorize => authorize_player(message);
                 message: Message => 0;
             esac
         pool
     };
 
-    player_update(pos: PlayerPosition): Object {
-        new Object
+    player_update(msg: PlayerPosition): Object {
+        new IO.out_string("Player update\n")
     };
 
-    coin_update(pos: CoinPosition): Object {
-        new Object
+    coin_update(msg: CoinPosition): Object {
+        new IO.out_string("Coin update\n")
     };
 
-    add_player(ply: PlayerConnected): Object {
-        new Object
+    add_player(msg: PlayerConnected): Object {
+        new IO.out_string("Player connected ".concat(msg.player_id().to_string()).concat("\n"))
+    };
+
+    authorize_player(msg: PlayerAuthorize): Object {
+        new IO.out_string("Player authorize ".concat(msg.player_id().to_string()).concat("\n"))
     };
 };
 
@@ -148,24 +154,24 @@ class Main {
     coin: Coin <- new Coin.init(100, 100, new Float.from_int(10));
     client: Client <- new Client.init("127.0.0.1", 8080).connect();
     pthread: PThread <- new PThread;
-    lobby: PlayerLobby <- new PlayerLobby.init(client, raylib);
+    lobby: PlayerLobby <- new PlayerLobby.init(client);
     lobby_thread: Int <- pthread.spawn(lobby);
 
     main(): Object {
         {
-            raylib.initWindow(screen_width, screen_height, "Coin Chase 2D").setTargetFPS(30);
-            while raylib.windowShouldClose() = false loop
-            {
-                raylib.beginDrawing();
-                raylib.clearBackground(raylib.raywhite());
+            -- raylib.initWindow(screen_width, screen_height, "Coin Chase 2D").setTargetFPS(30);
+            -- while raylib.windowShouldClose() = false loop
+            -- {
+            --     raylib.beginDrawing();
+            --     raylib.clearBackground(raylib.raywhite());
 
-                player.draw(raylib);
-                coin.draw(raylib);
+            --     player.draw(raylib);
+            --     coin.draw(raylib);
 
-                raylib.endDrawing();
-            }
-            pool;
-            raylib.closeWindow();
+            --     raylib.endDrawing();
+            -- }
+            -- pool;
+            -- raylib.closeWindow();
             pthread.join(lobby_thread);
         }
     };
