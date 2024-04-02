@@ -105,27 +105,57 @@ class Client {
     };
 };
 
+class PlayerLobby inherits Thread {
+    players: List;
+    client: Client;
+    raylib: Raylib;
+
+    players(): List { players };
+
+    init(c: Client, r: Raylib): SELF_TYPE { { client <- c; raylib <- r; self; } };
+
+    run(): Object {
+        while raylib.windowShouldClose() = false loop
+            case client.recv() of
+                message: PlayerPosition => player_update(message);
+                message: CoinPosition => coin_update(message);
+                message: PlayerConnected => add_player(message);
+                message: Message => 0;
+            esac
+        pool
+    };
+
+    player_update(pos: PlayerPosition): Object {
+        new Object
+    };
+
+    coin_update(pos: CoinPosition): Object {
+        new Object
+    };
+
+    add_player(ply: PlayerConnected): Object {
+        new Object
+    };
+};
+
 class Main {
     screen_width: Int <- 800;
     screen_height: Int <- 600;
     player_size: Int <- 50;
 
     raylib: Raylib <- new Raylib;
-    player: Player <- new Player.init(screen_width / 2, screen_height / 2, player_size, player_size);
+    player: Player <- new Player.init(screen_width / 2, screen_height / 2, player_size, player_size); -- TODO: move this out
     coin: Coin <- new Coin.init(100, 100, new Float.from_int(10));
     client: Client <- new Client.init("127.0.0.1", 8080).connect();
+    pthread: PThread <- new PThread;
+    lobby: PlayerLobby <- new PlayerLobby.init(client, raylib);
+    lobby_thread: Int <- pthread.spawn(lobby);
 
     main(): Object {
         {
             raylib.initWindow(screen_width, screen_height, "Coin Chase 2D").setTargetFPS(30);
             while raylib.windowShouldClose() = false loop
             {
-                case client.recv() of
-                    message: PlayerPosition => player.update(message);
-                    message: CoinPosition => coin.update(message);
-                    message: Message => 0;
-                esac;
-
                 raylib.beginDrawing();
                 raylib.clearBackground(raylib.raywhite());
 
@@ -136,6 +166,7 @@ class Main {
             }
             pool;
             raylib.closeWindow();
+            pthread.join(lobby_thread);
         }
     };
 };
