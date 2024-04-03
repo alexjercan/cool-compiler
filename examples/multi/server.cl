@@ -4,18 +4,20 @@ class Player inherits Thread {
     size_x: Int;
     size_y: Int;
     player_id: Int;
-    server: Server;
+    lobby: PlayerLobby;
+
+    score: Int <- 0;
 
     player_id(): Int { player_id };
 
-    init(x: Int, y: Int, sx: Int, sy: Int, pid: Int, sv: Server): SELF_TYPE {
+    init(x: Int, y: Int, sx: Int, sy: Int, pid: Int, lb: PlayerLobby): SELF_TYPE {
         {
             pos_x <- x;
             pos_y <- y;
             size_x <- sx;
             size_y <- sy;
             player_id <- pid;
-            server <- sv;
+            lobby <- lb;
             self;
         }
     };
@@ -30,7 +32,7 @@ class Player inherits Thread {
 
     run(): Object {
         while true loop
-            case server.recv(player_id) of
+            case lobby.recv(player_id) of
                 message: PlayerInput => update(message);
                 message: Message => 0;
             esac
@@ -38,10 +40,21 @@ class Player inherits Thread {
     };
 
     update(input: PlayerInput): Object {
-        if (input.keyA()) then pos_x <- pos_x - size_x else
-        if (input.keyD()) then pos_x <- pos_x + size_x else
-        if (input.keyW()) then pos_y <- pos_y - size_y else
-        if (input.keyS()) then pos_y <- pos_y + size_y else 0 fi fi fi fi
+        {
+            if (input.keyA()) then pos_x <- pos_x - size_x else
+            if (input.keyD()) then pos_x <- pos_x + size_x else
+            if (input.keyW()) then pos_y <- pos_y - size_y else
+            if (input.keyS()) then pos_y <- pos_y + size_y else 0 fi fi fi fi;
+            lobby.collision(self);
+            lobby.broadcast(new PlayerPosition.init(player_id, pos_x, pos_y));
+        }
+    };
+
+    score_increase(): Object {
+        {
+            score <- score + 1;
+            -- TODO: add score message
+        }
     };
 };
 
@@ -79,15 +92,13 @@ class Coin {
     };
 
     update(): Object {
+        if not enabled then
         {
-            if not enabled then
-            {
-                pos_x <- (new Random.random().mod(max_x - min_x) + min_x) * cell_size;
-                pos_y <- (new Random.random().mod(max_y - min_y) + min_y) * cell_size;
-                enabled <- true;
-            }
-            else 0 fi;
+            pos_x <- (new Random.random().mod(max_x - min_x) + min_x) * cell_size;
+            pos_y <- (new Random.random().mod(max_y - min_y) + min_y) * cell_size;
+            enabled <- true;
         }
+        else 0 fi
     };
 };
 
@@ -110,7 +121,7 @@ class PlayerLobby inherits Thread {
     run(): Object {
         while true loop
             let clientfd: Int <- server.accept(),
-                player: Player <- new Player.init(0, 0, 50, 50, clientfd, server),
+                player: Player <- new Player.init(0, 0, 50, 50, clientfd, self),
                 player_thread: Int <- pthread.spawn(player)
             in
                 {
@@ -131,11 +142,15 @@ class PlayerLobby inherits Thread {
                         pool;
 
                     players <- players.append(player);
+
+                    sync_coin();
                 }
         pool
 
         -- TODO: clean up threads
     };
+
+    recv(player: Int): Message { server.recv(player) };
 
     send(player: Int, msg: Message): Object { server.send(player, msg) };
 
@@ -152,6 +167,26 @@ class PlayerLobby inherits Thread {
                 }
             pool
     };
+
+    sync_coin(): Object {
+        {
+            coin.update();
+            broadcast(new CoinPosition.init(coin.pos_x(), coin.pos_y()));
+        }
+    };
+
+    collision(player: Player): Object {
+        {
+            if ((player.pos_x() = coin.pos_x()).and(player.pos_y() = coin.pos_y())) then
+                {
+                    player.score_increase();
+                    coin.consume();
+                }
+            else 0 fi;
+
+            sync_coin();
+        }
+    };
 };
 
 class Main {
@@ -164,10 +199,6 @@ class Main {
     main(): Object {
         {
             new IO.out_string("Listening on port 8080\n");
-
-            -- TODO: Implement game loop (send messages)
-            -- TODO: broadcast the player's position to all other players
-            -- TODO: broadcast the coin position to all players
 
             pthread.join(lobby_thread);
         }

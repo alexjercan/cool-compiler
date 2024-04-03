@@ -83,7 +83,6 @@ class PlayerLobby inherits Thread {
 
     player_update(msg: PlayerPosition): Object {
         {
-            new IO.out_string("Player update\n");
             let iter: List <- players
             in
                 while not isvoid iter loop
@@ -98,16 +97,9 @@ class PlayerLobby inherits Thread {
         }
     };
 
-    coin_update(msg: CoinPosition): Object {
-        {
-            new IO.out_string("Coin update\n");
-            coin.update(msg);
-        }
-    };
+    coin_update(msg: CoinPosition): Object { coin.update(msg) };
 
-    spawn_player(id: Int): Object {
-        players <- players.append(new Player.init(0, 0, 50, 50, id))
-    };
+    spawn_player(id: Int): Object { players <- players.append(new Player.init(0, 0, 50, 50, id)) };
 
     add_player(msg: PlayerConnected): Object {
         {
