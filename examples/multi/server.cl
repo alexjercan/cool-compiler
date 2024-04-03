@@ -1,15 +1,21 @@
-class Player {
+class Player inherits Thread {
     pos_x: Int;
     pos_y: Int;
     size_x: Int;
     size_y: Int;
+    player_id: Int;
+    server: Server;
 
-    init(x: Int, y: Int, sx: Int, sy: Int): SELF_TYPE {
+    player_id(): Int { player_id };
+
+    init(x: Int, y: Int, sx: Int, sy: Int, pid: Int, sv: Server): SELF_TYPE {
         {
             pos_x <- x;
             pos_y <- y;
             size_x <- sx;
             size_y <- sy;
+            player_id <- pid;
+            server <- sv;
             self;
         }
     };
@@ -20,6 +26,15 @@ class Player {
 
     pos_y(): Int {
         pos_y
+    };
+
+    run(): Object {
+        while true loop
+            case server.recv(player_id) of
+                message: PlayerInput => update(message);
+                message: Message => 0;
+            esac
+        pool
     };
 
     update(input: PlayerInput): Object {
@@ -78,6 +93,7 @@ class Coin {
 
 class PlayerLobby inherits Thread {
     server: Server;
+    pthread: PThread <- new PThread;
 
     minX: Int <- 0;
     maxX: Int <- 16;
@@ -93,42 +109,43 @@ class PlayerLobby inherits Thread {
 
     run(): Object {
         while true loop
-            let clientfd: Int <- server.accept()
+            let clientfd: Int <- server.accept(),
+                player: Player <- new Player.init(0, 0, 50, 50, clientfd, server),
+                player_thread: Int <- pthread.spawn(player)
             in
                 {
                     new IO.out_string("Client ".concat(clientfd.to_string()).concat(" connected\n"));
 
                     broadcast(new PlayerConnected.init(clientfd));
                     send(clientfd, new PlayerAuthorize.init(clientfd));
-                    let iter: List <- players
+                    let iter: List (* Player *) <- players
                     in
                         while not isvoid iter loop
                             {
                                 case iter.value() of
-                                    player: Int => send(clientfd, new PlayerConnected.init(player));
+                                    player: Player => send(clientfd, new PlayerConnected.init(player.player_id()));
                                     player: Object => 0;
                                 esac;
                                 iter <- iter.next();
                             }
                         pool;
 
-                    -- TODO: Actually instantiate Player
-                    players <- players.append(clientfd);
-
-                    -- TODO: Spawn thread for player (Make Player a thread)
+                    players <- players.append(player);
                 }
         pool
+
+        -- TODO: clean up threads
     };
 
     send(player: Int, msg: Message): Object { server.send(player, msg) };
 
     broadcast(msg: Message): Object {
-        let iter: List <- players
+        let iter: List (* Player *) <- players
         in
             while not isvoid iter loop
                 {
                     case iter.value() of
-                        player: Int => send(player, msg);
+                        player: Player => send(player.player_id(), msg);
                         player: Object => 0;
                     esac;
                     iter <- iter.next();
@@ -139,7 +156,7 @@ class PlayerLobby inherits Thread {
 
 class Main {
     linux: Linux <- new Linux;
-    server: Server <- new Server.init(8080).listen(10);
+    server: Server <- new Server.init(8081, new MessageHelper).listen(10);
     pthread: PThread <- new PThread;
     lobby: PlayerLobby <- new PlayerLobby.init(server);
     lobby_thread: Int <- pthread.spawn(lobby);

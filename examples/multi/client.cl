@@ -124,6 +124,9 @@ class PlayerLobby inherits Thread {
         }
     };
 
+    send(msg: Message): Object { {
+        client.send(msg); } };
+
     draw(raylib: Raylib): Raylib {
         {
             let iter: List <- players
@@ -154,7 +157,7 @@ class Main {
     screen_width: Int <- maxX * cell_size;
     screen_height: Int <- maxY * cell_size;
 
-    client: Client <- new Client.init("127.0.0.1", 8080).connect();
+    client: Client <- new Client.init("127.0.0.1", 8081, new MessageHelper).connect();
     lobby: PlayerLobby <- new PlayerLobby.init(client);
 
     pthread: PThread <- new PThread;
@@ -165,7 +168,12 @@ class Main {
             raylib.initWindow(screen_width, screen_height, "Coin Chase 2D").setTargetFPS(30);
             while raylib.windowShouldClose() = false loop
             {
-                -- TODO: handle input, send input
+                let keyA: Bool <- raylib.isKeyPressed(raylib.keyA()),
+                    keyD: Bool <- raylib.isKeyPressed(raylib.keyD()),
+                    keyW: Bool <- raylib.isKeyPressed(raylib.keyW()),
+                    keyS: Bool <- raylib.isKeyPressed(raylib.keyS()),
+                    message: PlayerInput <- new PlayerInput.init(lobby.player_id(), keyA, keyD, keyW, keyS)
+                in lobby.send(message); -- if need optimizations we can ignore when all keys are false
 
                 raylib.beginDrawing();
                 raylib.clearBackground(raylib.raywhite());

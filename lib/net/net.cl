@@ -1,5 +1,7 @@
 (* Stole the name from Rust *)
 class Serde {
+    deserialize(input: String): Tuple { { abort(); new Tuple; } };
+
     serialize_byte(byte: Byte): String { byte.to_string() };
     deserialize_byte(input: String): Byte { new Byte.from_string(input.substr(0, 1)) };
 
@@ -41,6 +43,7 @@ class Message {
 (* The client class *)
 class Client {
     linux: Linux <- new Linux;
+    serde: Serde;
 
     addr: String;
     port: Int;
@@ -48,10 +51,11 @@ class Client {
     buffer: String;
 
     (* Initialize the client with the address and port *)
-    init(a: String, p: Int): SELF_TYPE {
+    init(a: String, p: Int, s: Serde): SELF_TYPE {
         {
             addr <- a;
             port <- p;
+            serde <- s;
             self;
         }
     };
@@ -83,7 +87,7 @@ class Client {
     recv(): Message {
         {
             buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
-            let tup: Tuple <- new MessageHelper.deserialize(buffer)
+            let tup: Tuple <- serde.deserialize(buffer)
             in
                 {
                     case tup.snd() of buf: String => buffer <- buf; esac;
@@ -113,6 +117,7 @@ class ClientBuffer {
 (* The server class *)
 class Server {
     linux: Linux <- new Linux;
+    serde: Serde;
 
     port: Int;
     sockfd: Int;
@@ -120,9 +125,10 @@ class Server {
     buffers: List (* ClientBuffer *) <- new List.single(new Object);
 
     (* Start the server on the given port *)
-    init(p: Int): SELF_TYPE {
+    init(p: Int, s: Serde): SELF_TYPE {
         {
             port <- p;
+            serde <- s;
             self;
         }
     };
@@ -162,7 +168,17 @@ class Server {
     accept(): Int { linux.accept(sockfd, new Ref.null(), new Ref.null()) }; -- TODO: add new buffer to list
 
     (* Receive a message from the client *)
-    recv(sockfd: Int): Tuple { new Message.deserialize(linux.read1(sockfd, 1024)) }; -- TODO: Handle buffer
+    recv(sockfd: Int): Message { -- TODO: Handle buffer
+        {
+            -- buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
+            let tup: Tuple <- serde.deserialize(linux.read1(sockfd, 1024))
+            in
+                {
+                    -- case tup.snd() of buf: String => buffer <- buf; esac;
+                    case tup.fst() of msg: Message => msg; esac;
+                };
+        }
+    };
 
     (* Send a message to the client *)
     send(sockfd: Int, msg: Message): SELF_TYPE {
