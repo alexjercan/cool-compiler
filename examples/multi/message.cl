@@ -1,3 +1,5 @@
+-- TODO: add disconnect message/quit
+
 class MessageHelper inherits Serde {
     deserialize(input: String): Tuple (* Message, String *) {
         let kind: String <- input.substr(0, 1),

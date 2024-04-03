@@ -70,7 +70,7 @@ class PlayerLobby inherits Thread {
     init(c: Client): SELF_TYPE { { client <- c; self; } };
 
     run(): Object {
-        while true loop
+        while true loop -- TODO: add exit condition
             case client.recv() of
                 message: PlayerPosition => player_update(message);
                 message: CoinPosition => coin_update(message);
@@ -149,7 +149,7 @@ class Main {
     screen_width: Int <- maxX * cell_size;
     screen_height: Int <- maxY * cell_size;
 
-    client: Client <- new Client.init("127.0.0.1", 8081, new MessageHelper).connect();
+    client: Client <- new Client.init("127.0.0.1", 8080, new MessageHelper).connect();
     lobby: PlayerLobby <- new PlayerLobby.init(client);
 
     pthread: PThread <- new PThread;
@@ -165,10 +165,12 @@ class Main {
                     keyW: Bool <- raylib.isKeyPressed(raylib.keyW()),
                     keyS: Bool <- raylib.isKeyPressed(raylib.keyS()),
                     message: PlayerInput <- new PlayerInput.init(lobby.player_id(), keyA, keyD, keyW, keyS)
-                in lobby.send(message); -- if need optimizations we can ignore when all keys are false
+                in lobby.send(message);
 
                 raylib.beginDrawing();
                 raylib.clearBackground(raylib.raywhite());
+
+                -- TODO: add score UI
 
                 lobby.draw(raylib);
 

@@ -41,6 +41,7 @@ class Player inherits Thread {
 
     update(input: PlayerInput): Object {
         {
+            -- TODO: keep players within bounds
             if (input.keyA()) then pos_x <- pos_x - size_x else
             if (input.keyD()) then pos_x <- pos_x + size_x else
             if (input.keyW()) then pos_y <- pos_y - size_y else
@@ -191,7 +192,7 @@ class PlayerLobby inherits Thread {
 
 class Main {
     linux: Linux <- new Linux;
-    server: Server <- new Server.init(8081, new MessageHelper).listen(10);
+    server: Server <- new Server.init(8080, new MessageHelper).listen(10);
     pthread: PThread <- new PThread;
     lobby: PlayerLobby <- new PlayerLobby.init(server);
     lobby_thread: Int <- pthread.spawn(lobby);
