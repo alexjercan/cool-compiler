@@ -48,4 +48,4 @@ dist: clean all
 	rm -rf coolc.tar.gz
 	tar -czf coolc.tar.gz coolc lib
 
-.PHONY: all clean examples dist
+.PHONY: all clean examples game dist
