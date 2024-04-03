@@ -105,10 +105,11 @@ class Client {
 
 (* A buffer for the client *)
 class ClientBuffer {
-    buffer: String;
+    buffer: String <- "";
     sockfd: Int;
 
     buffer(): String { buffer };
+    set_buffer(buf: String): SELF_TYPE { { buffer <- buf; self; } };
     sockfd(): Int { sockfd };
 
     init(fd: Int): SELF_TYPE { { sockfd <- fd; self; } };
@@ -165,19 +166,42 @@ class Server {
     };
 
     (* Accept a connection *)
-    accept(): Int { linux.accept(sockfd, new Ref.null(), new Ref.null()) }; -- TODO: add new buffer to list
-
-    (* Receive a message from the client *)
-    recv(sockfd: Int): Message { -- TODO: Handle buffer
-        {
-            -- buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
-            let tup: Tuple <- serde.deserialize(linux.read1(sockfd, 1024))
+    accept(): Int {
+            let result: Int <- linux.accept(sockfd, new Ref.null(), new Ref.null())
             in
                 {
-                    -- case tup.snd() of buf: String => buffer <- buf; esac;
-                    case tup.fst() of msg: Message => msg; esac;
-                };
-        }
+                    buffers <- buffers.append(new ClientBuffer.init(result));
+                    result;
+                }
+    };
+
+    (* Receive a message from the client *)
+    recv(sockfd: Int): Message {
+        let iter: List <- buffers,
+            client_buffer: ClientBuffer,
+            buffer: String <- ""
+        in
+            {
+                while not isvoid iter loop
+                    {
+                        case iter.value() of
+                            b: ClientBuffer => if b.sockfd() = sockfd then client_buffer <- b else 0 fi;
+                            b: Object => 0;
+                        esac;
+                        iter <- iter.next();
+                    }
+                pool;
+
+                buffer <- client_buffer.buffer();
+
+                buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
+                let tup: Tuple <- serde.deserialize(buffer)
+                in
+                    {
+                        case tup.snd() of buf: String => client_buffer.set_buffer(buf); esac;
+                        case tup.fst() of msg: Message => msg; esac;
+                    };
+            }
     };
 
     (* Send a message to the client *)
