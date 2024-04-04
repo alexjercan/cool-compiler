@@ -26,8 +26,8 @@ class Player {
         }
     };
 
-    draw(raylib: Raylib): Raylib {
-        raylib.drawRectangle(pos_x - size_x / 2, pos_y - size_y / 2, size_x, size_y, raylib.black())
+    draw(raylib: Raylib, color: Color): Raylib {
+        raylib.drawRectangle(pos_x - size_x / 2, pos_y - size_y / 2, size_x, size_y, color)
     };
 };
 
@@ -126,7 +126,7 @@ class PlayerLobby inherits Thread {
                 while not isvoid iter loop
                     {
                         case iter.value() of
-                            player: Player => player.draw(raylib);
+                            player: Player => if player.player_id() = player_id then player.draw(raylib, raylib.green()) else player.draw(raylib, raylib.red()) fi;
                             o: Object => 0;
                         esac;
                         iter <- iter.next();

@@ -42,8 +42,10 @@ class Raylib {
     keyW(): Int { 87 };
 
     -- Some Basic Colors
-    gold(): Color { new Color.init(255, 203, 0, 255) };
     lightgray(): Color { new Color.init(200, 200, 200, 255) };
+    gold(): Color { new Color.init(255, 203, 0, 255) };
+    red(): Color { new Color.init(230, 41, 55, 255) };
+    green(): Color { new Color.init(0, 228, 48, 255) };
 
     black(): Color { new Color.init(0, 0, 0, 255) };
     raywhite(): Color { new Color.init(245, 245, 245, 255) };
