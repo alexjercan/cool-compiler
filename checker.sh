@@ -151,3 +151,5 @@ else
     echo -e "\e[31mSome tests failed\e[0m"
     exit 1
 fi
+
+# TODO: Write tests for `lib`

@@ -1,6 +1,6 @@
 (* Stole the name from Rust *)
 class Serde {
-    deserialize(input: String): Tuple { { abort(); new Tuple; } };
+    deserialize(input: String): Tuple (* Message, String *) { { abort(); new Tuple; } };
 
     serialize_byte(byte: Byte): String { byte.to_string() };
     deserialize_byte(input: String): Byte { new Byte.from_string(input.substr(0, 1)) };
@@ -87,7 +87,9 @@ class Client {
     recv(): Message {
         {
             buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
-            let tup: Tuple <- serde.deserialize(buffer)
+            -- TODO: If the buffer is empty it means the server disconnected
+
+            let tup: Tuple (* Message, String *) <- serde.deserialize(buffer)
             in
                 {
                     case tup.snd() of buf: String => buffer <- buf; esac;
@@ -195,7 +197,9 @@ class Server {
                 buffer <- client_buffer.buffer();
 
                 buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
-                let tup: Tuple <- serde.deserialize(buffer)
+                -- TODO: If the buffer is empty it means the client disconnected
+
+                let tup: Tuple (* Message, String *) <- serde.deserialize(buffer)
                 in
                     {
                         case tup.snd() of buf: String => client_buffer.set_buffer(buf); esac;
