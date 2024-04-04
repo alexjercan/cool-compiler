@@ -2,13 +2,10 @@ class List {
     value: Object;
     next: List;
 
-    value(): Object {
-        value
-    };
+    value(): Object { value };
 
-    next(): List {
-        next
-    };
+    next(): List { next };
+    set_next(n: List): List { { next <- n; self; } };
 
     init(v: Object, n: List): List {
         {

@@ -72,24 +72,29 @@ class Coin {
 
 class PlayerLobby inherits Thread {
     client: Client;
+    raylib: Raylib;
+
     player_id: Int;
+    keep_running: Bool <- true;
 
     coin: Coin <- new Coin.init(0, 0, new Float.from_int(10));
     players: List (* Player *) <- new List.single(new Object);
 
     player_id(): Int { player_id };
 
-    init(c: Client): SELF_TYPE { { client <- c; self; } };
+    init(c: Client, r: Raylib): SELF_TYPE { { client <- c; raylib <- r; self; } };
 
     run(): Object {
-        while true loop -- TODO: add exit condition
+        while (not raylib.windowShouldClose()).and(keep_running) loop
             case client.recv() of
                 message: PlayerPosition => player_update(message);
                 message: CoinPosition => coin_update(message);
                 message: PlayerConnected => add_player(message);
                 message: PlayerAuthorize => authorize_player(message);
                 message: PlayerScore => score_update(message);
-                message: Message => 0;
+                message: DisconnectedMessage => { keep_running <- false; client.close(); };
+                message: PlayerDisconnected => remove_player(message);
+                message: Message => abort();
             esac
         pool
     };
@@ -145,8 +150,30 @@ class PlayerLobby inherits Thread {
         }
     };
 
-    send(msg: Message): Object { {
-        client.send(msg); } };
+    remove_player(msg: PlayerDisconnected): Object {
+        let iter: List (* Player *) <- players.next(),
+            prev: List (* Player *) <- players
+        in
+            while not isvoid iter loop
+                {
+                    case iter.value() of
+                        p: Player => {
+                            if p.player_id() = msg.player_id() then
+                                {
+                                    prev.set_next(iter.next());
+                                    new IO.out_string("Client ".concat(p.player_id().to_string()).concat(" disconnected\n"));
+                                }
+                            else 0 fi;
+                        };
+                        p: Object => 0;
+                    esac;
+                    iter <- iter.next();
+                    prev <- prev.next();
+                }
+            pool
+    };
+
+    send(msg: Message): Object { { client.send(msg); } };
 
     draw(raylib: Raylib): Raylib {
         {
@@ -179,15 +206,16 @@ class Main {
     screen_height: Int <- maxY * cell_size;
 
     client: Client <- new Client.init("127.0.0.1", 8080, new MessageHelper).connect();
-    lobby: PlayerLobby <- new PlayerLobby.init(client);
+    lobby: PlayerLobby <- new PlayerLobby.init(client, raylib);
 
     pthread: PThread <- new PThread;
-    lobby_thread: Int <- pthread.spawn(lobby);
+    lobby_thread: Int;
 
     main(): Object {
         {
             raylib.initWindow(screen_width, screen_height, "Coin Chase 2D").setTargetFPS(30);
-            while raylib.windowShouldClose() = false loop
+            lobby_thread <- pthread.spawn(lobby);
+            while (not raylib.windowShouldClose()).and(not client.is_closed()) loop
             {
                 let keyA: Bool <- raylib.isKeyPressed(raylib.keyA()),
                     keyD: Bool <- raylib.isKeyPressed(raylib.keyD()),
@@ -206,6 +234,8 @@ class Main {
             pool;
             raylib.closeWindow();
             pthread.join(lobby_thread);
+
+            new IO.out_string("Closing client...\n");
         }
     };
 };

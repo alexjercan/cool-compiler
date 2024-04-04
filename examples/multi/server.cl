@@ -15,6 +15,13 @@ class Player inherits Thread {
 
     score: Int <- 0;
 
+    thread_id: Int;
+    thread_id(): Int { thread_id };
+    set_thread_id(id: Int): SELF_TYPE { { thread_id <- id; self; } };
+
+    keep_running: Bool <- true;
+    keep_running(): Bool { keep_running };
+
     player_id(): Int { player_id };
     score(): Int { score };
 
@@ -52,10 +59,11 @@ class Player inherits Thread {
     };
 
     run(): Object {
-        while true loop
+        while keep_running loop
             case lobby.recv(player_id) of
                 message: PlayerInput => update(message);
-                message: Message => 0;
+                message: DisconnectedMessage => { keep_running <- false; lobby.remove_player(self); };
+                message: Message => abort();
             esac
         pool
     };
@@ -152,7 +160,8 @@ class PlayerLobby inherits Thread {
         while true loop
             let clientfd: Int <- server.accept(),
                 player: Player <- new Player.init(0, 0, 50, 50, clientfd, self, cell_size, minX + 1, maxX - 1, minY + 1, maxY - 1).random(),
-                player_thread: Int <- pthread.spawn(player)
+                player_thread: Int <- pthread.spawn(player),
+                player: Player <- player.set_thread_id(player_thread)
             in
                 {
                     new IO.out_string("Client ".concat(clientfd.to_string()).concat(" connected\n"));
@@ -164,10 +173,13 @@ class PlayerLobby inherits Thread {
                         while not isvoid iter loop
                             {
                                 case iter.value() of
-                                    player: Player => {
-                                        send(clientfd, new PlayerConnected.init(player.player_id()));
-                                        send(clientfd, new PlayerScore.init(player.player_id(), player.score()));
-                                    };
+                                    player: Player =>
+                                        if player.keep_running() then
+                                            {
+                                                send(clientfd, new PlayerConnected.init(player.player_id()));
+                                                send(clientfd, new PlayerScore.init(player.player_id(), player.score()));
+                                            }
+                                        else 0 fi;
                                     player: Object => 0;
                                 esac;
                                 iter <- iter.next();
@@ -193,7 +205,7 @@ class PlayerLobby inherits Thread {
             while not isvoid iter loop
                 {
                     case iter.value() of
-                        player: Player => send(player.player_id(), msg);
+                        player: Player => if player.keep_running() then send(player.player_id(), msg) else 0 fi;
                         player: Object => 0;
                     esac;
                     iter <- iter.next();
@@ -219,6 +231,28 @@ class PlayerLobby inherits Thread {
 
             sync_coin();
         }
+    };
+
+    remove_player(player: Player): Object {
+        let iter: List (* Player *) <- players
+        in
+            while not isvoid iter loop
+                {
+                    case iter.value() of
+                        p: Player => {
+                            if p.player_id() = player.player_id() then
+                                {
+                                    pthread.join(player.thread_id());
+                                    broadcast(new PlayerDisconnected.init(p.player_id()));
+                                    new IO.out_string("Client ".concat(p.player_id().to_string()).concat(" disconnected\n"));
+                                }
+                            else 0 fi;
+                        };
+                        p: Object => 0;
+                    esac;
+                    iter <- iter.next();
+                }
+            pool
     };
 };
 

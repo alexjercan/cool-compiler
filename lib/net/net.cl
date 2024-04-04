@@ -40,10 +40,15 @@ class Message {
     deserialize(input: String): Tuple { { abort(); new Tuple; } };
 };
 
+class DisconnectedMessage inherits Message { };
+
 (* The client class *)
 class Client {
     linux: Linux <- new Linux;
     serde: Serde;
+
+    is_closed: Bool <- true;
+    is_closed(): Bool { is_closed };
 
     addr: String;
     port: Int;
@@ -78,6 +83,7 @@ class Client {
             else
                 {
                     sockfd <- sockfd1;
+                    is_closed <- false;
                     self;
                 }
             fi
@@ -87,9 +93,8 @@ class Client {
     recv(): Message {
         {
             buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
-            -- TODO: If the buffer is empty it means the server disconnected
 
-            let tup: Tuple (* Message, String *) <- serde.deserialize(buffer)
+            let tup: Tuple (* Message, String *) <- if buffer.length() <= 0 then new Tuple.init(new DisconnectedMessage, "") else serde.deserialize(buffer) fi
             in
                 {
                     case tup.snd() of buf: String => buffer <- buf; esac;
@@ -103,6 +108,9 @@ class Client {
         let buffer: String <- msg.serialize()
         in { linux.write(sockfd, buffer, buffer.length()); self; }
     };
+
+    (* Close the connection *)
+    close(): SELF_TYPE { { linux.close(sockfd); is_closed <- true; self; } };
 };
 
 (* A buffer for the client *)
@@ -121,6 +129,9 @@ class ClientBuffer {
 class Server {
     linux: Linux <- new Linux;
     serde: Serde;
+
+    is_closed: Bool <- true;
+    is_closed(): Bool { is_closed };
 
     port: Int;
     sockfd: Int;
@@ -197,9 +208,8 @@ class Server {
                 buffer <- client_buffer.buffer();
 
                 buffer <- if buffer = "" then linux.read1(sockfd, 1024) else buffer fi;
-                -- TODO: If the buffer is empty it means the client disconnected
 
-                let tup: Tuple (* Message, String *) <- serde.deserialize(buffer)
+                let tup: Tuple (* Message, String *) <- if buffer.length() <= 0 then new Tuple.init(new DisconnectedMessage, "") else serde.deserialize(buffer) fi
                 in
                     {
                         case tup.snd() of buf: String => client_buffer.set_buffer(buf); esac;
@@ -213,4 +223,7 @@ class Server {
         let buffer: String <- msg.serialize()
         in { linux.write(sockfd, buffer, buffer.length()); self; }
     };
+
+    (* Close the connection *)
+    close(): SELF_TYPE { { linux.close(sockfd); is_closed <- true; self; } };
 };

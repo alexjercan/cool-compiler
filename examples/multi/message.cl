@@ -1,5 +1,3 @@
--- TODO: add disconnect message/quit
-
 class MessageHelper inherits Serde {
     deserialize(input: String): Tuple (* Message, String *) {
         let kind: String <- input.substr(0, 1),
@@ -11,7 +9,8 @@ class MessageHelper inherits Serde {
             else if kind = "3" then new PlayerConnected.deserialize(rest)
             else if kind = "4" then new PlayerAuthorize.deserialize(rest)
             else if kind = "5" then new PlayerScore.deserialize(rest)
-            else { abort(); new Tuple; } fi fi fi fi fi fi
+            else if kind = "6" then new PlayerDisconnected.deserialize(rest)
+            else { abort(); new Tuple; } fi fi fi fi fi fi fi
     };
 };
 
@@ -197,7 +196,7 @@ class PlayerAuthorize inherits Message {
 };
 
 class PlayerScore inherits Message {
-    -- 1 byte for the kind of message: 0
+    -- 1 byte for the kind of message: 5
     -- 8 bytes for the player id
     -- 8 bytes for the score
 
@@ -226,6 +225,34 @@ class PlayerScore inherits Message {
             s: Int <- new MessageHelper.deserialize_int(input.substr(8, 8)),
             msg: Message <- new PlayerScore.init(id, s),
             rest: String <- input.substr(16, input.length() - 16)
+        in new Tuple.init(msg, rest)
+    };
+};
+
+class PlayerDisconnected inherits Message {
+    -- 1 byte for the kind of message: 6
+    -- 8 bytes for the player id
+
+    player_id: Int;
+
+    init(id: Int): SELF_TYPE {
+        {
+            player_id <- id;
+            self;
+        }
+    };
+
+    player_id(): Int { player_id };
+
+    serialize(): String {
+        let id: String <- new MessageHelper.serialize_int(player_id)
+        in "6".concat(id)
+    };
+
+    deserialize(input: String): Tuple (* Message, String *) {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
+            msg: Message <- new PlayerDisconnected.init(id),
+            rest: String <- input.substr(8, input.length() - 8)
         in new Tuple.init(msg, rest)
     };
 };
