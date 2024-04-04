@@ -23,17 +23,21 @@ and generate the assembly code.
 The standard library of the COOL language is split into modules which can be
 loaded at the compile phase by using the `--module` flag. The available modules
 are:
-- `prelude` - which is included by default in all programs and contains the
-  base classes described in the COOL manual.
-- `data` - which is included by default in all programs and  contains data
-  structures like `List`, `Array`, etc.
 - `allocator` - the default memory allocator implemented in the original COOL
   compiler.
+- `data` - which is included by default in all programs and  contains data
+  structures like `List`, `Array`, etc.
 - `mallocator` - a memory allocator implemented using the `malloc` and `free`
   functions. (needs to be linked with the `libc` library)
+- `net` - networking client and server implementations.
+- `prelude` - the prelude of the language, which should be included in all
+  programs.
+- `random` - a random number generator.
 - `raylib` - which contains bindings to the raylib library. (needs to be linked
   with the `raylib`, `lm` and `libc` libraries, it also only works with
   `mallocator` as the memory allocator)
+- `threading` - a threading library that uses pthreads. (needs to be linked with
+  the `pthread` library)
 
 ## Requirements
 
