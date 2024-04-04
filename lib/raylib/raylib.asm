@@ -533,8 +533,8 @@ Raylib.measureText:
     mov     rbx, rax                   ; save self
 
     mov     rax, qword [rbp + arg_0]
-    add     rax, [slot_0]
-    mov     rdi, [rax]
+    add     rax, [slot_1]
+    mov     rdi, rax
 
     mov     rax, qword [rbp + arg_1]
     add     rax, [slot_0]
