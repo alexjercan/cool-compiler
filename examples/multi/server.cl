@@ -20,7 +20,6 @@ class Player inherits Thread {
     set_thread_id(id: Int): SELF_TYPE { { thread_id <- id; self; } };
 
     keep_running: Bool <- true;
-    keep_running(): Bool { keep_running };
 
     player_id(): Int { player_id };
     score(): Int { score };
@@ -173,13 +172,10 @@ class PlayerLobby inherits Thread {
                         while not isvoid iter loop
                             {
                                 case iter.value() of
-                                    player: Player =>
-                                        if player.keep_running() then
-                                            {
-                                                send(clientfd, new PlayerConnected.init(player.player_id()));
-                                                send(clientfd, new PlayerScore.init(player.player_id(), player.score()));
-                                            }
-                                        else 0 fi;
+                                    player: Player => {
+                                        send(clientfd, new PlayerConnected.init(player.player_id()));
+                                        send(clientfd, new PlayerScore.init(player.player_id(), player.score()));
+                                    };
                                     player: Object => 0;
                                 esac;
                                 iter <- iter.next();
@@ -191,8 +187,6 @@ class PlayerLobby inherits Thread {
                     sync_coin();
                 }
         pool
-
-        -- TODO: clean up threads
     };
 
     recv(player: Int): Message { server.recv(player) };
@@ -205,7 +199,7 @@ class PlayerLobby inherits Thread {
             while not isvoid iter loop
                 {
                     case iter.value() of
-                        player: Player => if player.keep_running() then send(player.player_id(), msg) else 0 fi;
+                        player: Player => send(player.player_id(), msg);
                         player: Object => 0;
                     esac;
                     iter <- iter.next();
@@ -234,7 +228,8 @@ class PlayerLobby inherits Thread {
     };
 
     remove_player(player: Player): Object {
-        let iter: List (* Player *) <- players
+        let iter: List (* Player *) <- players.next(),
+            prev: List (* Player *) <- players
         in
             while not isvoid iter loop
                 {
@@ -242,6 +237,7 @@ class PlayerLobby inherits Thread {
                         p: Player => {
                             if p.player_id() = player.player_id() then
                                 {
+                                    prev.set_next(iter.next());
                                     pthread.join(player.thread_id());
                                     broadcast(new PlayerDisconnected.init(p.player_id()));
                                     new IO.out_string("Client ".concat(p.player_id().to_string()).concat(" disconnected\n"));
@@ -251,6 +247,7 @@ class PlayerLobby inherits Thread {
                         p: Object => 0;
                     esac;
                     iter <- iter.next();
+                    prev <- prev.next();
                 }
             pool
     };
