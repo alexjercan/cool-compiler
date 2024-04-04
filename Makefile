@@ -32,12 +32,12 @@ clean:
 	@rm -f coolc
 
 examples: all
-	./coolc examples/gol.cl --module prelude -o build/gol
 	./coolc examples/rule110.cl --module prelude --module data -o build/rule110
+	./coolc examples/gol.cl --module prelude -o build/gol
 	./coolc examples/raylib.cl --module raylib -o build/raylib
-	./coolc examples/game.cl --module raylib -o build/game
+	./coolc examples/movement.cl --module raylib -o build/movement
 	./coolc examples/snake.cl --module raylib --module random -o build/snake
-	./coolc examples/server.cl --module prelude -o build/server
+	./coolc examples/sockets.cl --module prelude -o build/sockets
 	./coolc examples/threading.cl --module threading -o build/threading
 
 game: all
