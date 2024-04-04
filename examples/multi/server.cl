@@ -6,11 +6,18 @@ class Player inherits Thread {
     player_id: Int;
     lobby: PlayerLobby;
 
+    cell_size: Int;
+
+    min_x: Int <- 0;
+    max_x: Int <- 5;
+    min_y: Int <- 0;
+    max_y: Int <- 5;
+
     score: Int <- 0;
 
     player_id(): Int { player_id };
 
-    init(x: Int, y: Int, sx: Int, sy: Int, pid: Int, lb: PlayerLobby): SELF_TYPE {
+    init(x: Int, y: Int, sx: Int, sy: Int, pid: Int, lb: PlayerLobby, size: Int, xm: Int, xM: Int, ym: Int, yM: Int): SELF_TYPE {
         {
             pos_x <- x;
             pos_y <- y;
@@ -18,6 +25,19 @@ class Player inherits Thread {
             size_y <- sy;
             player_id <- pid;
             lobby <- lb;
+            cell_size <- size;
+            min_x <- xm;
+            max_x <- xM;
+            min_y <- ym;
+            max_y <- yM;
+            self;
+        }
+    };
+
+    random(): SELF_TYPE {
+        {
+            pos_x <- (new Random.random().mod(max_x - min_x) + min_x) * cell_size;
+            pos_y <- (new Random.random().mod(max_y - min_y) + min_y) * cell_size;
             self;
         }
     };
@@ -41,11 +61,19 @@ class Player inherits Thread {
 
     update(input: PlayerInput): Object {
         {
-            -- TODO: keep players within bounds
             if (input.keyA()) then pos_x <- pos_x - size_x else
             if (input.keyD()) then pos_x <- pos_x + size_x else
             if (input.keyW()) then pos_y <- pos_y - size_y else
             if (input.keyS()) then pos_y <- pos_y + size_y else 0 fi fi fi fi;
+
+            if pos_x < min_x * cell_size then pos_x <- max_x * cell_size
+            else if max_x * cell_size < pos_x then pos_x <- min_x * cell_size
+            else 0 fi fi;
+
+            if pos_y < min_y * cell_size then pos_y <- max_y * cell_size
+            else if max_y * cell_size < pos_y then pos_y <- min_y * cell_size
+            else 0 fi fi;
+
             lobby.collision(self);
             lobby.broadcast(new PlayerPosition.init(player_id, pos_x, pos_y));
         }
@@ -122,7 +150,7 @@ class PlayerLobby inherits Thread {
     run(): Object {
         while true loop
             let clientfd: Int <- server.accept(),
-                player: Player <- new Player.init(0, 0, 50, 50, clientfd, self),
+                player: Player <- new Player.init(0, 0, 50, 50, clientfd, self, cell_size, minX + 1, maxX - 1, minY + 1, maxY - 1).random(),
                 player_thread: Int <- pthread.spawn(player)
             in
                 {
