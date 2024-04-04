@@ -5,6 +5,8 @@ class Player {
     size_y: Int;
     player_id: Int;
 
+    score: Int <- 0;
+
     player_id(): Int { player_id };
 
     init(x: Int, y: Int, sx: Int, sy: Int, pid: Int): SELF_TYPE {
@@ -26,8 +28,18 @@ class Player {
         }
     };
 
+    update_score(input: PlayerScore): SELF_TYPE { { score <- input.score(); self; } };
+
     draw(raylib: Raylib, color: Color): Raylib {
-        raylib.drawRectangle(pos_x - size_x / 2, pos_y - size_y / 2, size_x, size_y, color)
+        {
+            raylib.drawRectangle(pos_x - size_x / 2, pos_y - size_y / 2, size_x, size_y, color);
+            let text: String <- score.to_string(),
+                font_size: Int <- 20,
+                text_size: Int <- raylib.measureText(text, font_size),
+                text_x: Int <- pos_x - text_size / 2,
+                text_y: Int <- pos_y - font_size / 2
+            in raylib.drawText(text, text_x, text_y, font_size, raylib.black());
+        }
     };
 };
 
@@ -76,6 +88,7 @@ class PlayerLobby inherits Thread {
                 message: CoinPosition => coin_update(message);
                 message: PlayerConnected => add_player(message);
                 message: PlayerAuthorize => authorize_player(message);
+                message: PlayerScore => score_update(message);
                 message: Message => 0;
             esac
         pool
@@ -113,6 +126,22 @@ class PlayerLobby inherits Thread {
             new IO.out_string("Player authorize ".concat(msg.player_id().to_string()).concat("\n"));
             player_id <- msg.player_id();
             spawn_player(player_id);
+        }
+    };
+
+    score_update(msg: PlayerScore): Object {
+        {
+            let iter: List <- players
+            in
+                while not isvoid iter loop
+                    {
+                        case iter.value() of
+                            player: Player => if player.player_id() = msg.player_id() then player.update_score(msg) else 0 fi;
+                            o: Object => 0;
+                        esac;
+                        iter <- iter.next();
+                    }
+                pool;
         }
     };
 
@@ -169,8 +198,6 @@ class Main {
 
                 raylib.beginDrawing();
                 raylib.clearBackground(raylib.raywhite());
-
-                -- TODO: add score UI
 
                 lobby.draw(raylib);
 

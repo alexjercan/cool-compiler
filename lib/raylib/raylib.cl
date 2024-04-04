@@ -28,6 +28,9 @@ class Raylib {
     -- Text drawing functions
     drawText(text: String, x: Int, y: Int, fontSize: Int, color: Color): SELF_TYPE extern;
 
+    -- Text font info functions
+    measureText(text: String, fontSize: Int): Int extern;
+
     -- Basic shapes drawing functions
     drawCircle(centerX: Int, centerY: Int, radius: Float, color: Color): SELF_TYPE extern;
     drawRectangle(x: Int, y: Int, width: Int, height: Int, color: Color): SELF_TYPE extern;

@@ -10,7 +10,8 @@ class MessageHelper inherits Serde {
             else if kind = "2" then new PlayerInput.deserialize(rest)
             else if kind = "3" then new PlayerConnected.deserialize(rest)
             else if kind = "4" then new PlayerAuthorize.deserialize(rest)
-            else { abort(); new Tuple; } fi fi fi fi fi
+            else if kind = "5" then new PlayerScore.deserialize(rest)
+            else { abort(); new Tuple; } fi fi fi fi fi fi
     };
 };
 
@@ -191,6 +192,40 @@ class PlayerAuthorize inherits Message {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             msg: Message <- new PlayerAuthorize.init(id),
             rest: String <- input.substr(8, input.length() - 8)
+        in new Tuple.init(msg, rest)
+    };
+};
+
+class PlayerScore inherits Message {
+    -- 1 byte for the kind of message: 0
+    -- 8 bytes for the player id
+    -- 8 bytes for the score
+
+    player_id: Int;
+    score: Int;
+
+    init(id: Int, s: Int): SELF_TYPE {
+        {
+            player_id <- id;
+            score <- s;
+            self;
+        }
+    };
+
+    player_id(): Int { player_id };
+    score(): Int { score };
+
+    serialize(): String {
+        let id: String <- new MessageHelper.serialize_int(player_id),
+            s: String <- new MessageHelper.serialize_int(score)
+        in "5".concat(id).concat(s)
+    };
+
+    deserialize(input: String): Tuple (* Message, String *) {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
+            s: Int <- new MessageHelper.deserialize_int(input.substr(8, 8)),
+            msg: Message <- new PlayerScore.init(id, s),
+            rest: String <- input.substr(16, input.length() - 16)
         in new Tuple.init(msg, rest)
     };
 };

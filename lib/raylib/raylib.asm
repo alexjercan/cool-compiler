@@ -13,6 +13,7 @@ extrn IsKeyPressed
 extrn DrawCircle
 extrn SetRandomSeed
 extrn GetRandomValue
+extrn MeasureText
 
 ;
 ;
@@ -491,6 +492,56 @@ Raylib.getRandomValue:
 
     ; t1 <- GetRandomValue(min, max)
     call    GetRandomValue
+    mov     qword [rbp - loc_1], rax
+
+    ; t0 <- new Int
+    mov     rax, Int_protObj
+    call    Object.copy
+    call    Int_init
+    mov     qword [rbp - loc_0], rax
+
+    ; t0.val <- t1
+    mov     rax, qword [rbp - loc_0]
+    add     rax, [slot_0]
+    mov     rdi, qword [rbp - loc_1]
+    mov     [rax], rdi
+
+    ; return t0
+    mov     rax, qword [rbp - loc_0]
+
+    pop     rbx                        ; restore register
+    add     rsp, 24                    ; deallocate local variables
+    pop     rbp                        ; restore return address
+    ret
+
+;
+;
+; Raylib.measureText
+;
+;   Measure string width for default font
+;
+;   INPUT: rax contains self
+;   STACK:
+;      - text: String
+;      - fontSize: Int
+;   OUTPUT: rax contains an Int object
+Raylib.measureText:
+    push    rbp                        ; save return address
+    mov     rbp, rsp                   ; set up stack frame
+    sub     rsp, 24                    ; allocate 3 local variables
+    push    rbx                        ; save register
+    mov     rbx, rax                   ; save self
+
+    mov     rax, qword [rbp + arg_0]
+    add     rax, [slot_0]
+    mov     rdi, [rax]
+
+    mov     rax, qword [rbp + arg_1]
+    add     rax, [slot_0]
+    mov     rsi, [rax]
+
+    ; t1 <- MeasureText(text, fontSize)
+    call    MeasureText
     mov     qword [rbp - loc_1], rax
 
     ; t0 <- new Int

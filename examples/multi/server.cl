@@ -16,6 +16,7 @@ class Player inherits Thread {
     score: Int <- 0;
 
     player_id(): Int { player_id };
+    score(): Int { score };
 
     init(x: Int, y: Int, sx: Int, sy: Int, pid: Int, lb: PlayerLobby, size: Int, xm: Int, xM: Int, ym: Int, yM: Int): SELF_TYPE {
         {
@@ -82,7 +83,7 @@ class Player inherits Thread {
     score_increase(): Object {
         {
             score <- score + 1;
-            -- TODO: add score message
+            lobby.broadcast(new PlayerScore.init(player_id, score));
         }
     };
 };
@@ -163,7 +164,10 @@ class PlayerLobby inherits Thread {
                         while not isvoid iter loop
                             {
                                 case iter.value() of
-                                    player: Player => send(clientfd, new PlayerConnected.init(player.player_id()));
+                                    player: Player => {
+                                        send(clientfd, new PlayerConnected.init(player.player_id()));
+                                        send(clientfd, new PlayerScore.init(player.player_id(), player.score()));
+                                    };
                                     player: Object => 0;
                                 esac;
                                 iter <- iter.next();
