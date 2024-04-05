@@ -341,7 +341,7 @@ class PlayerLobby inherits Thread {
 
 class Main {
     linux: Linux <- new Linux;
-    server: Server <- new Server.init(6969, new MessageHelper).listen(10);
+    server: Server <- new Server.init(6969, new MessageHelper).listen(100);
     pthread: PThread <- new PThread;
     lobby: PlayerLobby <- new PlayerLobby.init(server);
     lobby_thread: Int <- pthread.spawn(lobby);
