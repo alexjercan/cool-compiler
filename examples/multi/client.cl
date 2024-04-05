@@ -38,7 +38,7 @@ class Player {
                 text_size: Int <- raylib.measureText(text, font_size),
                 text_x: Int <- pos_x - text_size / 2,
                 text_y: Int <- pos_y - font_size / 2
-            in raylib.drawText(text, text_x, text_y, font_size, raylib.black());
+            in raylib.drawText(text, text_x, text_y, font_size, raylib.raywhite());
         }
     };
 };
@@ -210,7 +210,7 @@ class PlayerLobby inherits Thread {
                     game_win <- false;
                 } else 0 fi;
 
-                raylib.drawText("Last winner: ".concat(game_winner.to_string()), 10, 10, 20, raylib.black());
+                raylib.drawText("Last winner: ".concat(game_winner.to_string()), 10, 10, 20, raylib.raywhite());
             }
             else 0 fi;
 
@@ -231,7 +231,7 @@ class Main {
     screen_width: Int <- maxX * cell_size;
     screen_height: Int <- maxY * cell_size;
 
-    client: Client <- new Client.init("127.0.0.1", 8080, new MessageHelper).connect();
+    client: Client <- new Client.init("127.0.0.1", 6969, new MessageHelper).connect();
     lobby: PlayerLobby <- new PlayerLobby.init(client, raylib);
 
     pthread: PThread <- new PThread;
@@ -251,7 +251,9 @@ class Main {
                 in lobby.send(message);
 
                 raylib.beginDrawing();
-                raylib.clearBackground(raylib.raywhite());
+
+                let myBackground: Color <- new Color.init(24, 24, 24, 255)
+                in raylib.clearBackground(myBackground);
 
                 lobby.draw(raylib);
 

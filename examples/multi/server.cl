@@ -341,14 +341,14 @@ class PlayerLobby inherits Thread {
 
 class Main {
     linux: Linux <- new Linux;
-    server: Server <- new Server.init(8080, new MessageHelper).listen(10);
+    server: Server <- new Server.init(6969, new MessageHelper).listen(10);
     pthread: PThread <- new PThread;
     lobby: PlayerLobby <- new PlayerLobby.init(server);
     lobby_thread: Int <- pthread.spawn(lobby);
 
     main(): Object {
         {
-            new IO.out_string("Listening on port 8080\n");
+            new IO.out_string("Listening on port 6969\n");
 
             pthread.join(lobby_thread);
         }
