@@ -88,10 +88,18 @@ class Player inherits Thread {
         }
     };
 
+    score_reset(): Object {
+        {
+            score <- 0;
+            lobby.broadcast(new PlayerScore.init(player_id, score));
+        }
+    };
+
     score_increase(): Object {
         {
             score <- score + 1;
             lobby.broadcast(new PlayerScore.init(player_id, score));
+            lobby.check_win(self);
         }
     };
 
@@ -299,6 +307,33 @@ class PlayerLobby inherits Thread {
                     esac;
                     iter <- iter.next();
                     prev <- prev.next();
+                }
+            pool
+    };
+
+    check_win(player: Player): Object {
+        if 25 <= player.score() then
+            {
+                broadcast(new PlayerWin.init(player.player_id()));
+                reset();
+            }
+        else 0 fi
+    };
+
+    reset(): Object {
+        let iter: List (* Player *) <- players
+        in
+            while not isvoid iter loop
+                {
+                    case iter.value() of
+                        player: Player => {
+                            player.random();
+                            player.score_reset();
+                            player.update(new PlayerInput.init(player.player_id(), false, false, false, false));
+                        };
+                        player: Object => 0;
+                    esac;
+                    iter <- iter.next();
                 }
             pool
     };
