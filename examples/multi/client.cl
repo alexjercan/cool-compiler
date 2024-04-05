@@ -92,8 +92,10 @@ class PlayerLobby inherits Thread {
                 message: PlayerConnected => add_player(message);
                 message: PlayerAuthorize => authorize_player(message);
                 message: PlayerScore => score_update(message);
-                message: DisconnectedMessage => { keep_running <- false; client.close(); };
                 message: PlayerDisconnected => remove_player(message);
+                message: PlayerFightLose => { new IO.out_string("You lose a fight\n"); };
+                message: PlayerFightWin => { new IO.out_string("You win a fight\n"); };
+                message: DisconnectedMessage => { keep_running <- false; client.close(); };
                 message: Message => abort();
             esac
         pool

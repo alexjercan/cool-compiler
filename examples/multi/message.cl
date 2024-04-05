@@ -10,7 +10,9 @@ class MessageHelper inherits Serde {
             else if kind = "4" then new PlayerAuthorize.deserialize(rest)
             else if kind = "5" then new PlayerScore.deserialize(rest)
             else if kind = "6" then new PlayerDisconnected.deserialize(rest)
-            else { abort(); new Tuple; } fi fi fi fi fi fi fi
+            else if kind = "7" then new PlayerFightWin.deserialize(rest)
+            else if kind = "8" then new PlayerFightLose.deserialize(rest)
+            else { abort(); new Tuple; } fi fi fi fi fi fi fi fi fi
     };
 };
 
@@ -252,6 +254,62 @@ class PlayerDisconnected inherits Message {
     deserialize(input: String): Tuple (* Message, String *) {
         let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
             msg: Message <- new PlayerDisconnected.init(id),
+            rest: String <- input.substr(8, input.length() - 8)
+        in new Tuple.init(msg, rest)
+    };
+};
+
+class PlayerFightWin inherits Message {
+    -- 1 byte for the kind of message: 7
+    -- 8 bytes for the other player id
+
+    other_id: Int;
+
+    init(id: Int): SELF_TYPE {
+        {
+            other_id <- id;
+            self;
+        }
+    };
+
+    other_id(): Int { other_id };
+
+    serialize(): String {
+        let id: String <- new MessageHelper.serialize_int(other_id)
+        in "7".concat(id)
+    };
+
+    deserialize(input: String): Tuple (* Message, String *) {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
+            msg: Message <- new PlayerFightWin.init(id),
+            rest: String <- input.substr(8, input.length() - 8)
+        in new Tuple.init(msg, rest)
+    };
+};
+
+class PlayerFightLose inherits Message {
+    -- 1 byte for the kind of message: 8
+    -- 8 bytes for the other player id
+
+    other_id: Int;
+
+    init(id: Int): SELF_TYPE {
+        {
+            other_id <- id;
+            self;
+        }
+    };
+
+    other_id(): Int { other_id };
+
+    serialize(): String {
+        let id: String <- new MessageHelper.serialize_int(other_id)
+        in "8".concat(id)
+    };
+
+    deserialize(input: String): Tuple (* Message, String *) {
+        let id: Int <- new MessageHelper.deserialize_int(input.substr(0, 8)),
+            msg: Message <- new PlayerFightLose.init(id),
             rest: String <- input.substr(8, input.length() - 8)
         in new Tuple.init(msg, rest)
     };

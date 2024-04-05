@@ -255,6 +255,9 @@ class PlayerLobby inherits Thread {
                                             player.score_increase();
                                             other.random();
                                             other.update(new PlayerInput.init(other.player_id(), false, false, false, false));
+
+                                            send(player.player_id(), new PlayerFightWin.init(other.player_id()));
+                                            send(other.player_id(), new PlayerFightLose.init(player.player_id()));
                                         }
                                     else
                                         {
@@ -262,6 +265,9 @@ class PlayerLobby inherits Thread {
                                             other.score_increase();
                                             player.random();
                                             player.update(new PlayerInput.init(player.player_id(), false, false, false, false));
+
+                                            send(player.player_id(), new PlayerFightLose.init(other.player_id()));
+                                            send(other.player_id(), new PlayerFightWin.init(player.player_id()));
                                         }
                                     fi
                             else 0 fi;
