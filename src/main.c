@@ -12,13 +12,13 @@
 #include "semantic.h"
 
 // Add support for the following:
-// - Threading class that uses Linux or pthreads IDK
 // - abort for dispatch on void
 // - abort for case on void
 // - abort for case on no match
 // - exception handling
 // - numeric base class for Int, Float and Byte to be able to use arithmetic
 
+const char *prelude = "prelude";
 #define FASM "fasm"
 #define LD "ld"
 #define DEFAULT_OUTPUT "main"
@@ -69,6 +69,9 @@ static int build_context_prelude_init(build_context *context) {
     }
 
     ds_argparse_get_values(&context->parser, ARG_MODULE, &modules);
+    if (modules.count == 0) {
+        ds_dynamic_array_append(&modules, &prelude);
+    }
 
     if (util_append_path(cool_lib, "depends.txt", &depends_path) != 0) {
         DS_LOG_ERROR("Failed to append path");
@@ -452,6 +455,9 @@ static enum status_code ld_run(build_context *context) {
     ds_dynamic_array_init(&modules, sizeof(const char *));
 
     ds_argparse_get_values(&context->parser, ARG_MODULE, &modules);
+    if (modules.count == 0) {
+        ds_dynamic_array_append(&modules, &prelude);
+    }
 
     char *output = ds_argparse_get_value(&context->parser, ARG_OUTPUT);
     char *obj_path = NULL;

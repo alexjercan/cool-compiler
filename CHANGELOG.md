@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - @alexjercan Random module `random`
 - @alexjercan Threading module `threading`
 - @alexjercan Netowrking module `net`
+- @alexjercan Multiplayer Game: Coin Chase 2D
 
 ### Changed
 

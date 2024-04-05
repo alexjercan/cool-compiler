@@ -39,10 +39,8 @@ examples: all
 	./coolc examples/snake.cl --module raylib --module random -o build/snake
 	./coolc examples/sockets.cl --module prelude -o build/sockets
 	./coolc examples/threading.cl --module threading -o build/threading
-
-game: all
-	./coolc examples/multi/server.cl examples/multi/message.cl --module net --module threading --module data --module random -o build/game-server
-	./coolc examples/multi/client.cl examples/multi/message.cl  --module net --module threading --module raylib -o build/game-client
+	./coolc examples/coin/server.cl examples/coin/message.cl --module net --module threading --module data --module random -o build/coin-server
+	./coolc examples/coin/client.cl examples/coin/message.cl --module net --module threading --module raylib -o build/coin-client
 
 dist: clean all
 	rm -rf coolc.tar.gz
