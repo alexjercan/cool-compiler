@@ -77,6 +77,9 @@ class PlayerLobby inherits Thread {
     player_id: Int;
     keep_running: Bool <- true;
 
+    fight_lose: Bool <- false;
+    fight_win: Bool <- false;
+
     coin: Coin <- new Coin.init(0, 0, new Float.from_int(10));
     players: List (* Player *) <- new List.single(new Object);
 
@@ -93,8 +96,8 @@ class PlayerLobby inherits Thread {
                 message: PlayerAuthorize => authorize_player(message);
                 message: PlayerScore => score_update(message);
                 message: PlayerDisconnected => remove_player(message);
-                message: PlayerFightLose => { new IO.out_string("You lose a fight\n"); };
-                message: PlayerFightWin => { new IO.out_string("You win a fight\n"); };
+                message: PlayerFightLose => fight_lose <- true;
+                message: PlayerFightWin => fight_win <- true;
                 message: DisconnectedMessage => { keep_running <- false; client.close(); };
                 message: Message => abort();
             esac
@@ -191,6 +194,11 @@ class PlayerLobby inherits Thread {
                     }
                 pool;
             coin.draw(raylib);
+
+            if fight_lose then { raylib.clearBackground(raylib.red()); fight_lose <- false; } else 0 fi;
+            if fight_win then { new IO.out_string("*really nice sounds and particles*\n"); fight_win <- false; } else 0 fi;
+
+            raylib;
         }
     };
 };
