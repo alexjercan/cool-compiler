@@ -82,14 +82,22 @@ class Player inherits Thread {
             else if max_y * cell_size < pos_y then pos_y <- min_y * cell_size
             else 0 fi fi;
 
-            lobby.collision(self);
+            lobby.coin_collision(self);
             lobby.broadcast(new PlayerPosition.init(player_id, pos_x, pos_y));
+            lobby.check_player_collision(self);
         }
     };
 
     score_increase(): Object {
         {
             score <- score + 1;
+            lobby.broadcast(new PlayerScore.init(player_id, score));
+        }
+    };
+
+    damage(): Object {
+        {
+            score <- score / 2;
             lobby.broadcast(new PlayerScore.init(player_id, score));
         }
     };
@@ -142,6 +150,9 @@ class Coin {
 class PlayerLobby inherits Thread {
     server: Server;
     pthread: PThread <- new PThread;
+
+    time: Time <- new Time;
+    random: Random <- new Random.srand(time.time());
 
     minX: Int <- 0;
     maxX: Int <- 16;
@@ -214,7 +225,7 @@ class PlayerLobby inherits Thread {
         }
     };
 
-    collision(player: Player): Object {
+    coin_collision(player: Player): Object {
         {
             if ((player.pos_x() = coin.pos_x()).and(player.pos_y() = coin.pos_y())) then
                 {
@@ -225,6 +236,40 @@ class PlayerLobby inherits Thread {
 
             sync_coin();
         }
+    };
+
+    check_player_collision(player: Player): Object {
+        let iter: List (* Player *) <- players
+        in
+            while not isvoid iter loop
+                {
+                    case iter.value() of
+                        other: Player =>
+                            if (not player.player_id() = other.player_id()).and(player.pos_x() = other.pos_x()).and(player.pos_y() = other.pos_y()) then
+                                let total: Int <- player.score() + 1 + 5 + other.score() + 1,
+                                    index: Int <- random.random().mod(total)
+                                in
+                                    if index < player.score() + 1 + 5 then
+                                        {
+                                            other.damage();
+                                            player.score_increase();
+                                            other.random();
+                                            other.update(new PlayerInput.init(other.player_id(), false, false, false, false));
+                                        }
+                                    else
+                                        {
+                                            player.damage();
+                                            other.score_increase();
+                                            player.random();
+                                            player.update(new PlayerInput.init(player.player_id(), false, false, false, false));
+                                        }
+                                    fi
+                            else 0 fi;
+                        other: Object => 0;
+                    esac;
+                    iter <- iter.next();
+                }
+            pool
     };
 
     remove_player(player: Player): Object {
