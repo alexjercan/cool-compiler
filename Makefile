@@ -32,6 +32,7 @@ clean:
 	@rm -f coolc
 
 examples: all
+	./coolc examples/hello.cl -o build/hello
 	./coolc examples/rule110.cl --module prelude --module data -o build/rule110
 	./coolc examples/gol.cl --module prelude -o build/gol
 	./coolc examples/raylib.cl --module raylib -o build/raylib
