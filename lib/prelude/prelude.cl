@@ -84,6 +84,8 @@ class String inherits Object {
 
     length(): Int { l };
 
+    at(i: Int): Byte { new Byte.from_string(substr(i, 1)) };
+
     split(delim: String): Tuple {
         let s: String <- case self of me: String => me; esac,
             i: Int <- 0,
@@ -209,6 +211,18 @@ class Byte {
     to_string(): String extern;
     from_int(x: Int): Byte extern;
     to_int(): Int extern;
+
+    isspace(): Bool {
+        let c: String <- to_string()
+        in (c = " ").or(c = "\n")
+    };
+
+    isdigit(): Bool {
+        let zero: Int <- new Byte.from_string("0").to_int(),
+            nine: Int <- new Byte.from_string("9").to_int(),
+            c: Int <- to_int()
+        in (zero <= c).and(c <= nine)
+    };
 
     equals(x: Object): Bool {
         case x of me: Byte => me.to_int() = to_int(); esac

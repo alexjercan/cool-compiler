@@ -43,6 +43,9 @@ examples: all
 	./coolc examples/coin/server.cl examples/coin/message.cl --module net --module threading --module data --module random -o build/coin-server
 	./coolc examples/coin/client.cl examples/coin/message.cl --module net --module threading --module raylib -o build/coin-client
 
+compiler: all
+	./coolc examples/compiler.cl --module prelude --module data -o build/compiler
+
 dist: clean all
 	rm -rf coolc.tar.gz
 	tar -czf coolc.tar.gz coolc lib
