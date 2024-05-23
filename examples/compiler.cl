@@ -135,6 +135,9 @@ class TokenRParen inherits Token {
 class TokenSemicolon inherits Token {
     to_string(): String { "SEMICOLON" };
 };
+class TokenStringLiteral inherits Token {
+    to_string(): String { "STRING_LITERAL" };
+};
 class TokenThen inherits Token {
     to_string(): String { "THEN" };
 };
@@ -170,6 +173,7 @@ class Tokenizer {
     bSTAR: Byte <- new Byte.from_string("*");
     bSEMICOLON: Byte <- new Byte.from_string(";");
     bTILDE: Byte <- new Byte.from_string("~");
+    bNEWLINE: Byte <- new Byte.from_string("\n");
 
     init(text: String): SELF_TYPE {
         {
@@ -200,6 +204,42 @@ class Tokenizer {
 
     skip_whitespaces(): Object {
         while ch.isspace() loop read_char() pool
+    };
+
+    skip_until_newline(): Object {
+        while (not ch = bNEWLINE).and(not ch = bEOF) loop read_char() pool
+    };
+
+    skip_comment(): Object {
+        let stack: Int <- 1
+        in
+            while 0 < stack loop
+                {
+                    if ch = bLPAREN then
+                        if peek_char() = bSTAR then
+                            {
+                                stack <- stack + 1;
+                                read_char();
+                            }
+                        else
+                            ""
+                        fi
+                    else if ch = bSTAR then
+                        if peek_char() = bRPAREN then
+                            {
+                                stack <- stack - 1;
+                                read_char();
+                            }
+                        else
+                            ""
+                        fi
+                    else
+                        ""
+                    fi fi;
+
+                    read_char();
+                }
+            pool
     };
 
     literal_to_token(v: String): Token {
@@ -259,7 +299,11 @@ class Tokenizer {
                 else if ch = bPLUS then
                     { read_char(); new TokenPlus; }
                 else if ch = bMINUS then
-                    { read_char(); new TokenMinus; }
+                    if read_char() = bMINUS then
+                        { skip_until_newline(); next_token(); }
+                    else
+                        { new TokenMinus; }
+                    fi
                 else if ch = bSTAR then
                     { read_char(); new TokenMultiply; }
                 else if ch = bDIVIDE then
@@ -295,7 +339,11 @@ class Tokenizer {
                 else if ch = bRBRACE then
                     { read_char(); new TokenRBrace; }
                 else if ch = bLPAREN then
-                    { read_char(); new TokenLParen; }
+                    if read_char() = bSTAR then
+                        { read_char(); skip_comment(); next_token(); }
+                    else
+                        { new TokenLParen; }
+                    fi
                 else if ch = bRPAREN then
                     { read_char(); new TokenRParen; }
                 else if ch.isupper() then
