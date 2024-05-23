@@ -73,6 +73,14 @@ class TokenIf inherits Token {
     to_string(): String { "IF" };
 };
 class TokenIllegal inherits Token {
+    error: TokenError <- new TokenError;
+
+    error(): TokenError { error };
+
+    with_error(e: TokenError): SELF_TYPE {
+        { error <- e; self; }
+    };
+
     to_string(): String { "ILLEGAL" };
 };
 class TokenIn inherits Token {
@@ -148,6 +156,31 @@ class TokenWhile inherits Token {
     to_string(): String { "WHILE" };
 };
 
+class TokenError {
+    to_string(): String { { abort(); ""; } };
+};
+
+class TokenErrorInvalidChar inherits TokenError {
+    to_string(): String { "Invalid character" };
+};
+class TokenErrorStringConstantTooLong inherits TokenError {
+    to_string(): String { "String constant too long" };
+};
+class TokenErrorStringContainsNull inherits TokenError {
+    to_string(): String { "String contains null character" };
+};
+class TokenErrorStringUnterminated inherits TokenError {
+    to_string(): String { "Unterminated string constant" };
+};
+class TokenErrorStringContainsEOF inherits TokenError {
+    to_string(): String { "EOF in string constant" };
+};
+class TokenErrorUnmatchedComment inherits TokenError {
+    to_string(): String { "Unmatched *)" };
+};
+class TokenErrorUnterminatedComment inherits TokenError {
+    to_string(): String { "EOF in comment" };
+};
 
 class Tokenizer {
     buffer: String;
@@ -210,36 +243,36 @@ class Tokenizer {
         while (not ch = bNEWLINE).and(not ch = bEOF) loop read_char() pool
     };
 
-    skip_comment(): Object {
-        let stack: Int <- 1
+    skip_comment(): Optional (* TokenError *) {
+        let stack: Int <- 1,
+            has_error: Bool <- false,
+            result: Optional (* TokenError *) <- new None
         in
-            while 0 < stack loop
-                {
-                    if ch = bLPAREN then
-                        if peek_char() = bSTAR then
+            {
+                while (0 < stack).and(not has_error) loop
+                    {
+                        if stack < 0 then
                             {
-                                stack <- stack + 1;
-                                read_char();
+                                has_error <- true;
+                                result <- new Some.init(new TokenErrorUnmatchedComment);
                             }
-                        else
-                            ""
-                        fi
-                    else if ch = bSTAR then
-                        if peek_char() = bRPAREN then
+                        else if ch = bEOF then
                             {
-                                stack <- stack - 1;
-                                read_char();
+                                has_error <- true;
+                                result <- new Some.init(new TokenErrorUnterminatedComment);
                             }
+                        else if ch = bLPAREN then
+                            if read_char() = bSTAR then { read_char(); stack <- stack + 1; } else "" fi
+                        else if ch = bSTAR then
+                            if read_char() = bRPAREN then { read_char(); stack <- stack - 1; } else "" fi
                         else
-                            ""
-                        fi
-                    else
-                        ""
-                    fi fi;
+                            read_char()
+                        fi fi fi fi;
+                    }
+                pool;
 
-                    read_char();
-                }
-            pool
+                result;
+            }
     };
 
     literal_to_token(v: String): Token {
@@ -305,7 +338,11 @@ class Tokenizer {
                         { new TokenMinus; }
                     fi
                 else if ch = bSTAR then
-                    { read_char(); new TokenMultiply; }
+                    if read_char() = bRPAREN then
+                        { read_char(); new TokenIllegal.with_error(new TokenErrorUnmatchedComment); }
+                    else
+                        { new TokenMultiply; }
+                    fi
                 else if ch = bDIVIDE then
                     { read_char(); new TokenDivide; }
                 else if ch = bTILDE then
@@ -340,7 +377,13 @@ class Tokenizer {
                     { read_char(); new TokenRBrace; }
                 else if ch = bLPAREN then
                     if read_char() = bSTAR then
-                        { read_char(); skip_comment(); next_token(); }
+                        {
+                            read_char();
+                            case skip_comment() of
+                                e: Some => case e.value() of e: TokenError => new TokenIllegal.with_error(e); esac;
+                                e: None => next_token();
+                            esac;
+                        }
                     else
                         { new TokenLParen; }
                     fi
@@ -365,7 +408,7 @@ class Tokenizer {
                         in new TokenInt.with_value(v);
                     }
                 else
-                    { read_char(); new TokenIllegal.with_value(buffer.substr(position, 1)); }
+                    { read_char(); new TokenIllegal.with_value(buffer.substr(position, 1)).with_error(new TokenErrorInvalidChar); }
                 fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi
                 .with_position(position);
         }
@@ -400,11 +443,29 @@ class Main {
                         t: Token =>
                             {
                                 new IO.out_string(t.to_string());
-                                case t.value() of
-                                    v: None => "";
-                                    v: Some => case v.value() of
-                                        v: String => new IO.out_string("(").out_string(v).out_string(")");
-                                    esac;
+                                case t of
+                                    t: TokenIllegal => {
+                                        new IO.out_string("(").out_string(t.error().to_string());
+                                        case t.value() of
+                                            v: None => "";
+                                            v: Some => case v.value() of
+                                                v: String => {
+                                                    new IO.out_string(" ").out_string(v);
+                                                };
+                                            esac;
+                                        esac;
+                                        new IO.out_string(")");
+                                    };
+                                    t: Token => {
+                                        case t.value() of
+                                            v: None => "";
+                                            v: Some => case v.value() of
+                                                v: String => {
+                                                    new IO.out_string("(").out_string(v).out_string(")");
+                                                };
+                                            esac;
+                                        esac;
+                                    };
                                 esac;
 
                                 new IO.out_string("\n");
