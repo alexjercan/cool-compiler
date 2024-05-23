@@ -217,12 +217,30 @@ class Byte {
         in (c = " ").or(c = "\n")
     };
 
+    islower(): Bool {
+        let a: Int <- new Byte.from_string("a").to_int(),
+            z: Int <- new Byte.from_string("z").to_int(),
+            c: Int <- to_int()
+        in (a <= c).and(c <= z)
+    };
+
+    isupper(): Bool {
+        let a: Int <- new Byte.from_string("A").to_int(),
+            z: Int <- new Byte.from_string("Z").to_int(),
+            c: Int <- to_int()
+        in (a <= c).and(c <= z)
+    };
+
     isdigit(): Bool {
         let zero: Int <- new Byte.from_string("0").to_int(),
             nine: Int <- new Byte.from_string("9").to_int(),
             c: Int <- to_int()
         in (zero <= c).and(c <= nine)
     };
+
+    isalnum(): Bool { islower().or(isupper()).or(isdigit()) };
+
+    iscool(): Bool { isalnum().or(equals(new Byte.from_string("_"))) };
 
     equals(x: Object): Bool {
         case x of me: Byte => me.to_int() = to_int(); esac

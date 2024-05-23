@@ -1,5 +1,6 @@
 #!/bin/bash
 
+COOLC=coolc
 BUILD_DIR=build
 TESTS_DIR=tests
 TOTAL_TESTS=0
@@ -23,7 +24,7 @@ analyzer() {
         file_name=$(basename $file_path)
         echo -en "Testing $file_name ... "
 
-        ./coolc $exec_arg --module prelude $file_path 2>&1 | diff - $ref_path > /dev/null 2>&1
+        ./$COOLC $exec_arg --module prelude $file_path 2>&1 | diff - $ref_path > /dev/null 2>&1
 
         if [ $? -eq 0 ]; then
             echo -e "\e[32mPASSED\e[0m"
@@ -58,7 +59,7 @@ runner() {
         file_name=$(basename $file_path .cl)
         echo -en "Testing $file_name.cl ... "
 
-        ./coolc $exec_arg --module prelude $file_path 2>&1 > /tmp/$file_name.s 2>&1
+        ./$COOLC $exec_arg --module prelude $file_path 2>&1 > /tmp/$file_name.s 2>&1
         if [ $? -ne 0 ]; then
             echo -e "\e[31mFAILED\e[0m"
             continue
@@ -114,7 +115,7 @@ librunner() {
 
         flags=$(cat $flags_path)
 
-        ./coolc $flags $file_path 2>&1 -o /tmp/$file_name > /dev/null 2>&1
+        ./$COOLC $flags $file_path 2>&1 -o /tmp/$file_name > /dev/null 2>&1
         if [ $? -ne 0 ]; then
             echo -e "\e[31mFAILED\e[0m"
             continue
