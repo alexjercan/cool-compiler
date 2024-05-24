@@ -214,7 +214,7 @@ class Byte {
 
     isspace(): Bool {
         let c: String <- to_string()
-        in (c = " ").or(c = "\n")
+        in (c = " ").or(c = "\n").or(equals(new Byte.from_int(13)))
     };
 
     islower(): Bool {

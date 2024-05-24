@@ -188,7 +188,8 @@ class Tokenizer {
     read_pos: Int;
     ch: Byte;
 
-    bEOF: Byte <- new Byte.from_int(0);
+    bEOF: Byte <- new Byte.from_int(~1);
+    bNULL: Byte <- new Byte.from_int(0);
     bPLUS: Byte <- new Byte.from_string("+");
     bGREATER_THAN: Byte <- new Byte.from_string(">");
     bEQUAL: Byte <- new Byte.from_string("=");
@@ -207,6 +208,7 @@ class Tokenizer {
     bSEMICOLON: Byte <- new Byte.from_string(";");
     bTILDE: Byte <- new Byte.from_string("~");
     bNEWLINE: Byte <- new Byte.from_string("\n");
+    bQUOTE: Byte <- new Byte.from_string("\"");
 
     init(text: String): SELF_TYPE {
         {
@@ -237,6 +239,10 @@ class Tokenizer {
 
     skip_whitespaces(): Object {
         while ch.isspace() loop read_char() pool
+    };
+
+    skip_until_semicolon(): Object {
+        while (not ch = bSEMICOLON).and(not ch = bEOF) loop read_char() pool
     };
 
     skip_until_newline(): Object {
@@ -272,6 +278,72 @@ class Tokenizer {
                 pool;
 
                 result;
+            }
+    };
+
+    string_literal(): Token {
+        let error: TokenError,
+            position: Int <- pos,
+            string: String <- "",
+            char: String
+        in
+            {
+                read_char();  -- skip first "
+                while (not ch = bQUOTE).and(isvoid error) loop
+                    if ch = bEOF then
+                        {
+                            skip_until_semicolon();
+                            error <- new TokenErrorStringContainsEOF;
+                        }
+                    else if ch = bNULL then
+                        {
+                            skip_until_semicolon();
+                            error <- new TokenErrorStringContainsNull;
+                        }
+                    else if ch = bNEWLINE then
+                        {
+                            skip_until_semicolon();
+                            error <- new TokenErrorStringUnterminated;
+                        }
+                    else
+                        {
+                            char <- ch.to_string();
+                            if char = "\\" then
+                                {
+                                    read_char();
+                                    if ch.to_string() = "n" then
+                                        char <- "\n"
+                                    else if ch.to_string() = "t" then
+                                        char <- "\t"
+                                    else if ch.to_string() = "b" then
+                                        char <- "\b"
+                                    else if ch.to_string() = "f" then
+                                        char <- "\f"
+                                    else
+                                        char <- ch.to_string()
+                                    fi fi fi fi;
+                                }
+                            else 0 fi;
+                            string <- string.concat(char);
+
+                            read_char();
+                        }
+                    fi fi fi
+                pool;
+
+                if not isvoid error then
+                    new TokenIllegal.with_error(error)
+                else
+                    {
+                        read_char();  -- skip last "
+
+                        if 1024 < string.length() then
+                            new TokenIllegal.with_error(new TokenErrorStringConstantTooLong)
+                        else
+                            new TokenStringLiteral.with_value(string)
+                        fi;
+                    }
+                fi;
             }
     };
 
@@ -389,6 +461,8 @@ class Tokenizer {
                     fi
                 else if ch = bRPAREN then
                     { read_char(); new TokenRParen; }
+                else if ch = bQUOTE then
+                    { string_literal(); }
                 else if ch.isupper() then
                     {
                         while ch.iscool() loop read_char() pool;
@@ -409,7 +483,7 @@ class Tokenizer {
                     }
                 else
                     { read_char(); new TokenIllegal.with_value(buffer.substr(position, 1)).with_error(new TokenErrorInvalidChar); }
-                fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi
+                fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi fi
                 .with_position(position);
         }
     };
