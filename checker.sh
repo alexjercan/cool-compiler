@@ -5,6 +5,7 @@ BUILD_DIR=build
 TESTS_DIR=tests
 TOTAL_TESTS=0
 PASSED_TESTS=0
+COOLC_SELF=$BUILD_DIR/cool
 
 analyzer() {
     if [ "$#" -ne 2 ]; then
@@ -138,10 +139,45 @@ librunner() {
     PASSED_TESTS=$((PASSED_TESTS + passed))
 }
 
+self_hosted_lexical_analyzer() {
+    echo "Testing the self hosted lexical analyzer"
+    if [ "$#" -ne 1 ]; then
+        echo "Usage: $0 <tests_dir>"
+        exit 1
+    fi
+
+    tests_dir=$TESTS_DIR/$1
+
+    echo "Running tests for $1"
+
+    passed=0
+    for file_path in $(ls $tests_dir/*.cl); do
+        ref_path=$tests_dir/$(basename $file_path .cl).ref
+
+        file_name=$(basename $file_path)
+        echo -en "Testing $file_name ... "
+
+        cat $file_path | ./$COOLC_SELF-lexer 2>&1 | diff - $ref_path > /dev/null 2>&1
+
+        if [ $? -eq 0 ]; then
+            echo -e "\e[32mPASSED\e[0m"
+            passed=$((passed + 1))
+        else
+            echo -e "\e[31mFAILED\e[0m"
+        fi
+    done
+
+    total=$(ls $tests_dir/*.cl | wc -l)
+    echo "Passed $passed/$total tests"
+
+    TOTAL_TESTS=$((TOTAL_TESTS + total))
+    PASSED_TESTS=$((PASSED_TESTS + passed))
+}
 
 lexical_analyzer() {
     echo "Testing the lexical analyzer"
     analyzer lexer --lex
+    self_hosted_lexical_analyzer lexer
 }
 
 syntax_analyzer() {
@@ -170,7 +206,7 @@ lib_tests() {
     librunner lib
 }
 
-make clean && make
+make clean && make compiler
 
 ARG1=$1
 if [ "$ARG1" == "--lex" ]; then

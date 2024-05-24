@@ -44,7 +44,7 @@ examples: all
 	./coolc examples/coin/client.cl examples/coin/message.cl --module net --module threading --module raylib -o build/coin-client
 
 compiler: all
-	./coolc examples/compiler.cl --module prelude --module data -o build/compiler
+	./coolc examples/compiler/lexer.cl examples/compiler/compiler.cl --module prelude --module data -o build/cool-lexer
 
 dist: clean all
 	rm -rf coolc.tar.gz
