@@ -504,3 +504,295 @@ class Tokenizer {
             }
     };
 };
+
+class ExprNode {
+    show(indent: Int): IO { new IO };
+};
+
+class ExprNull inherits ExprNode {};
+class ExprExtern inherits ExprNode {};
+
+class ExprInt inherits ExprNode {
+    value: TokenInt;
+
+    init(v: TokenInt): SELF_TYPE {
+        {
+            value <- v;
+            self;
+        }
+    };
+
+    show(indent: Int): IO {
+        case (case value.value() of s: Some => s.value(); esac) of s: String => new IO.out_string(" ".repeat(indent + 2).concat(s)); esac
+    };
+};
+
+class AttributeNode {
+    name: TokenIdent;
+    type: TokenClassName;
+    expr: ExprNode;
+
+    init(n: TokenIdent, t: TokenClassName, e: ExprNode): SELF_TYPE {
+        {
+            name <- n;
+            type <- t;
+            expr <- e;
+            self;
+        }
+    };
+
+    show(indent: Int): IO {
+        {
+            new IO.out_string(" ".repeat(indent).concat("attribute")).out_string("\n");
+            case (case name.value() of s: Some => s.value(); esac) of s: String => new IO.out_string(" ".repeat(indent + 2).concat(s)).out_string("\n"); esac;
+            case (case type.value() of s: Some => s.value(); esac) of s: String => new IO.out_string(" ".repeat(indent + 2).concat(s)); esac;
+            if not isvoid expr then
+                { new IO.out_string("\n"); expr.show(indent); }
+            else 0 fi;
+            new IO;
+        }
+    };
+};
+
+class MethodNode {
+    name: TokenIdent;
+    type: TokenClassName;
+};
+
+class ClassNode {
+    name: TokenClassName;
+    parent: TokenClassName;
+    attributes: List (* AttributeNode *);
+    methods: List (* MethodNode *);
+
+    init(cn: TokenClassName, pn: TokenClassName, as: List (* AttributeNode *), ms: List (* MethodNode *)): SELF_TYPE {
+        {
+            name <- cn;
+            parent <- pn;
+            attributes <- as;
+            methods <- ms;
+            self;
+        }
+    };
+
+    show(indent: Int): IO {
+        {
+            new IO.out_string(" ".repeat(indent).concat("class")).out_string("\n");
+            case (case name.value() of s: Some => s.value(); esac) of s: String => new IO.out_string(" ".repeat(indent + 2).concat(s)); esac;
+            if not isvoid parent then
+                case (case parent.value() of s: Some => s.value(); esac) of s: String => new IO.out_string("\n".concat(" ".repeat(indent + 2).concat(s))); esac
+            else 0 fi;
+            while not isvoid attributes loop
+                {
+                    new IO.out_string("\n");
+                    case attributes.value() of c: AttributeNode => c.show(indent + 2); esac;
+                    attributes <- attributes.next();
+                }
+            pool;
+            new IO;
+        }
+    };
+};
+
+class ProgramNode {
+    classes: List (* ClassNode *);
+
+    init(cs: List (* ClassNode *)): SELF_TYPE {
+        {
+            classes <- cs;
+            self;
+        }
+    };
+
+    show(indent: Int): IO {
+        {
+            new IO.out_string(" ".repeat(indent).concat("program"));
+            while not isvoid classes loop
+                {
+                    new IO.out_string("\n");
+                    case classes.value() of c: ClassNode => c.show(indent + 2); esac;
+                    classes <- classes.next();
+                }
+            pool;
+            new IO;
+        }
+    };
+};
+
+class Parser {
+    tokens: List (* Token *);
+
+    init(ts: List (* Token *)): SELF_TYPE {
+        {
+            tokens <- ts;
+            self;
+        }
+    };
+
+    advance(): Object { tokens <- tokens.next() };
+    current(): Token { case tokens.value() of t: Token => t; esac };
+    peek(): Token { case tokens.next().value() of t: Token => t; esac };
+
+    parse_program(): ProgramNode {
+        let token: Token <- current(),
+            classes: List (* ClassNode *) <- new List
+        in
+            {
+                while case token of t: TokenEnd => false; t: Token => true; esac loop
+                    {
+                        classes.append(parse_class());
+
+                        token <- current();
+                        case token of
+                            t: TokenSemicolon => 0;
+                            t: Token => { abort(); };
+                        esac;
+                        advance();
+
+                        token <- current();
+                    }
+                pool;
+                new ProgramNode.init(classes.next());
+            }
+    };
+
+    parse_class(): ClassNode {
+        let token: Token <- current(),
+            cn: TokenClassName,
+            pn: TokenClassName,
+            attributes: List (* AttributeNode *) <- new List,
+            methods: List (* MethodNode *) <- new List
+        in
+            {
+                token <- current();
+                case token of
+                    t: TokenClass => 0;
+                    t: Token => { abort(); };
+                esac;
+                advance();
+
+                token <- current();
+                cn <- case token of
+                    t: TokenClassName => t;
+                    t: Token => { abort(); new TokenClassName; };
+                esac;
+                advance();
+
+                token <- current();
+                case token of
+                    t: TokenInherits => {
+                        advance();
+
+                        token <- current();
+                        pn <- case token of
+                            t: TokenClassName => t;
+                            t: Token => { abort(); new TokenClassName; };
+                        esac;
+                        advance();
+                    };
+                    t: Token => 0;
+                esac;
+
+                token <- current();
+                case token of
+                    t: TokenLBrace => 0;
+                    t: Token => { abort(); };
+                esac;
+                advance();
+
+                token <- current();
+                while case token of t: TokenRBrace => false; t: Token => true; esac loop
+                    {
+                        token <- current();
+                        case token of
+                            t: TokenEnd => { abort(); };
+                            t: Token => 0;
+                        esac;
+
+                        case peek() of
+                            t: TokenColon => attributes.append(parse_attribute());
+                            t: Token => methods.append(parse_method());
+                        esac;
+
+                        token <- current();
+                        case token of
+                            t: TokenSemicolon => 0;
+                            t: Token => { abort(); };
+                        esac;
+                        advance();
+
+                        token <- current();
+                    }
+                pool;
+                advance();
+
+                new ClassNode.init(cn, pn, attributes.next(), methods.next());
+            }
+    };
+
+    parse_attribute(): AttributeNode {
+        let token: Token <- current(),
+            n: TokenIdent,
+            cn: TokenClassName,
+            expr: ExprNode
+        in
+            {
+                token <- current();
+                n <- case token of
+                    t: TokenIdent => t;
+                    t: Token => { abort(); new TokenIdent; };
+                esac;
+                advance();
+
+                token <- current();
+                case token of
+                    t: TokenColon => 0;
+                    t: Token => { abort(); };
+                esac;
+                advance();
+
+                token <- current();
+                cn <- case token of
+                    t: TokenClassName => t;
+                    t: Token => { abort(); new TokenClassName; };
+                esac;
+                advance();
+
+                token <- current();
+                expr <- case token of
+                    t: TokenAssign => {
+                        advance();
+
+                        token <- current();
+                        case token of
+                            t: TokenExtern => {
+                                advance();
+                                new ExprExtern;
+                            };
+                            t: Token => parse_expr();
+                        esac;
+                    };
+                    t: Token => new ExprNull;
+                esac;
+
+                new AttributeNode.init(n, cn, expr);
+            }
+    };
+
+    parse_method(): Object {
+        new IO.out_string("ASDASD")
+    };
+
+    parse_expr(): ExprNode {
+        let e: ExprNode
+        in
+            {
+                e <- case current() of
+                    t: TokenInt => new ExprInt.init(t);
+                    t: Token => new ExprNode;
+                esac;
+                advance();
+                e;
+            }
+    };
+};

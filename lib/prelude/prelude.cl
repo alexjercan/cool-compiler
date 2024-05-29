@@ -134,7 +134,7 @@ class String inherits Object {
             buf: String <- ""
         in
             {
-                while i <= n loop
+                while i < n loop
                     {
                         buf <- buf.concat(s);
                         i <- i + 1;
