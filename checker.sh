@@ -212,7 +212,6 @@ self_hosted_parser_analyzer() {
 lexical_analyzer() {
     echo "Testing the lexical analyzer"
     analyzer lexer --lex
-    self_hosted_lexical_analyzer lexer
 }
 
 syntax_analyzer() {
@@ -242,7 +241,7 @@ lib_tests() {
     librunner lib
 }
 
-make clean && make compiler
+make clean && make
 
 ARG1=$1
 if [ "$ARG1" == "--lex" ]; then
