@@ -1,0 +1,17 @@
+FROM debian:latest
+
+RUN apt-get update && apt-get install -y \
+    build-essential git \
+    clang \
+    fasm \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY . .
+
+RUN make
+RUN ./coolc examples/coin/server.cl examples/coin/message.cl --module net --module threading --module data --module random -o build/coin-server
+RUN ld -o build/coin-server build/coin-server.o -lpthread -lc -dynamic-linker /lib64/ld-linux-x86-64.so.2
+
+CMD ./build/coin-server
