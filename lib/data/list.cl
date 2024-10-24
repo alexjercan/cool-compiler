@@ -49,4 +49,14 @@ class List {
             next.index(i - 1)
         fi
     };
+
+    count(): Int {
+        {
+            if isvoid next then
+                1
+            else
+                1 + next.count()
+            fi;
+        }
+    };
 };

@@ -174,6 +174,8 @@ class PlayerLobby inherits Thread {
 
     init(s: Server): SELF_TYPE { { server <- s; self; } };
 
+    player_count(): Int { players.count() - 1 };
+
     run(): Object {
         while true loop
             let clientfd: Int <- server.accept(),
@@ -339,18 +341,55 @@ class PlayerLobby inherits Thread {
     };
 };
 
+class HTTPServerCoin inherits HTTPServer {
+    lobby: PlayerLobby;
+
+    init2(port: Int, l: PlayerLobby): SELF_TYPE {
+        {
+            lobby <- l;
+            init(port);
+        }
+    };
+
+    handler(message: HTTPRequest): HTTPResponse {
+        if (message.method() = "GET").and(message.path() = "/api/v1/status") then
+            new HTTPResponse.init("{\"players\": ".concat(lobby.player_count().to_string()).concat("}"), 200)
+        else
+            new HTTPResponse.init("NOT FOUND", 404)
+        fi
+    };
+};
+
+class HTTPServerThread inherits Thread {
+    http: HTTPServer;
+
+    init(h: HTTPServer): SELF_TYPE {
+        {
+            http <- h;
+            self;
+        }
+    };
+
+    run(): Object {
+        http.run()
+    };
+};
+
 class Main {
     linux: Linux <- new Linux;
     server: Server <- new Server.init(6969, new MessageHelper).listen(100);
     pthread: PThread <- new PThread;
     lobby: PlayerLobby <- new PlayerLobby.init(server);
     lobby_thread: Int <- pthread.spawn(lobby);
+    http: HTTPServerThread <- new HTTPServerThread.init(new HTTPServerCoin.init2(8080, lobby));
+    http_thread: Int <- pthread.spawn(http);
 
     main(): Object {
         {
-            new IO.out_string("Listening on port 6969\n");
+            new IO.out_string("Listening on port 6969 and 8080\n");
 
             pthread.join(lobby_thread);
+            pthread.join(http_thread);
         }
     };
 };

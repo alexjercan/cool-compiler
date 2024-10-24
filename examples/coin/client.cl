@@ -231,7 +231,9 @@ class Main {
     screen_width: Int <- maxX * cell_size;
     screen_height: Int <- maxY * cell_size;
 
-    client: Client <- new Client.init("127.0.0.1", 6969, new MessageHelper).connect();
+    port: Int <- new IO.in_int();
+
+    client: Client <- new Client.init("127.0.0.1", port, new MessageHelper).connect();
     lobby: PlayerLobby <- new PlayerLobby.init(client, raylib);
 
     pthread: PThread <- new PThread;
